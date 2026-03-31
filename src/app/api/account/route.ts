@@ -14,7 +14,7 @@ export async function DELETE() {
 
     if (taskReadError) throw taskReadError;
 
-    const taskIds = (tasks ?? []).map((task) => task.id as string);
+    const taskIds = ((tasks ?? []) as Array<{ id: string; parentId: string | null }>).map((task) => task.id);
 
     if (taskIds.length > 0) {
       const { error: timeEntryDeleteError } = await supabase
