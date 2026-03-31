@@ -17,10 +17,15 @@ export default function LoginPage() {
     const form = e.currentTarget;
     const email = (form.elements.namedItem("email") as HTMLInputElement).value;
     const password = (form.elements.namedItem("password") as HTMLInputElement).value;
+    const callbackUrl =
+      typeof window === "undefined"
+        ? "/"
+        : new URLSearchParams(window.location.search).get("callbackUrl") || "/";
 
     const result = await signIn("credentials", {
       email,
       password,
+      callbackUrl,
       redirect: false,
     });
 
@@ -29,7 +34,8 @@ export default function LoginPage() {
     if (result?.error) {
       setError("Anmeldung fehlgeschlagen.");
     } else {
-      router.push("/");
+      router.replace(callbackUrl);
+      router.refresh();
     }
   }
 

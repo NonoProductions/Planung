@@ -14,6 +14,36 @@ const FALLBACK_CHANNELS: Channel[] = [
   { id: "ch3", name: "Studium", color: "#F59E0B" },
 ];
 
+class UnauthorizedApiError extends Error {
+  constructor() {
+    super("Unauthorized");
+    this.name = "UnauthorizedApiError";
+  }
+}
+
+function redirectToLogin() {
+  if (typeof window === "undefined") return;
+
+  const callbackUrl = `${window.location.pathname}${window.location.search}`;
+  const nextUrl =
+    callbackUrl && callbackUrl !== "/login"
+      ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
+      : "/login";
+
+  window.location.assign(nextUrl);
+}
+
+function assertApiResponse(res: Response) {
+  if (res.status === 401) {
+    redirectToLogin();
+    throw new UnauthorizedApiError();
+  }
+
+  if (!res.ok) {
+    throw new Error("API error");
+  }
+}
+
 function mapApiTask(t: Record<string, unknown>): Task {
   return {
     id: t.id as string,
@@ -229,7 +259,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   fetchChannels: async () => {
     try {
       const res = await fetch("/api/channels");
-      if (!res.ok) throw new Error("API error");
+      assertApiResponse(res);
       const data = await res.json();
       set({ channels: data, apiAvailable: true });
     } catch {
@@ -242,7 +272,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     try {
       const url = date ? `/api/tasks?date=${date}` : "/api/tasks";
       const res = await fetch(url);
-      if (!res.ok) throw new Error("API error");
+      assertApiResponse(res);
       const data = await res.json();
       const tasks = (data as Record<string, unknown>[]).map(mapApiTask);
       set({
@@ -259,7 +289,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ backlogLoading: true });
     try {
       const res = await fetch("/api/tasks?backlog=true");
-      if (!res.ok) throw new Error("API error");
+      assertApiResponse(res);
       const data = await res.json();
       const tasks = (data as Record<string, unknown>[]).map(mapApiTask);
       set({
@@ -276,7 +306,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     try {
       const url = date ? `/api/events?date=${date}` : "/api/events";
       const res = await fetch(url);
-      if (!res.ok) throw new Error("API error");
+      assertApiResponse(res);
       const data = await res.json();
       const events = (data as Record<string, unknown>[]).map(mapApiEvent);
       set({ events, apiAvailable: true });
@@ -288,7 +318,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   fetchEventsForWeek: async (weekStart: string) => {
     try {
       const res = await fetch(`/api/events?weekStart=${weekStart}`);
-      if (!res.ok) throw new Error("API error");
+      assertApiResponse(res);
       const data = await res.json();
       const events = (data as Record<string, unknown>[]).map(mapApiEvent);
       set({ events, apiAvailable: true });
@@ -300,7 +330,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   fetchCalendarCategories: async () => {
     try {
       const res = await fetch("/api/calendars");
-      if (!res.ok) throw new Error("API error");
+      assertApiResponse(res);
       const data = await res.json();
       set({
         calendarCategories: (data as { id: string; name: string; color: string }[]),
@@ -320,7 +350,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         });
-        if (!res.ok) throw new Error("API error");
+        assertApiResponse(res);
         const created = await res.json();
         set((s) => ({ calendarCategories: [...s.calendarCategories, created] }));
         return;
@@ -341,11 +371,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     const state = get();
     if (state.apiAvailable) {
       try {
-        await fetch(`/api/calendars/${id}`, {
+        const res = await fetch(`/api/calendars/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(updates),
         });
+        assertApiResponse(res);
       } catch { /* optimistic already applied */ }
     }
   },
@@ -355,7 +386,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     const state = get();
     if (state.apiAvailable) {
       try {
-        await fetch(`/api/calendars/${id}`, { method: "DELETE" });
+        const res = await fetch(`/api/calendars/${id}`, { method: "DELETE" });
+        assertApiResponse(res);
       } catch { /* already removed locally */ }
     }
   },
@@ -367,7 +399,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(taskData),
       });
-      if (!res.ok) throw new Error("API error");
+      assertApiResponse(res);
       const data = await res.json();
       const newTask = mapApiTask(data as Record<string, unknown>);
       set({ apiAvailable: true });
@@ -462,11 +494,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           }
         });
 
-        await fetch(`/api/tasks/${taskId}`, {
+        const res = await fetch(`/api/tasks/${taskId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody),
         });
+        assertApiResponse(res);
       } catch {
         // Optimistic update already applied
       }
@@ -485,7 +518,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     if (state.apiAvailable) {
       try {
-        await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+        const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+        assertApiResponse(res);
       } catch {
         // Already removed locally
       }
@@ -541,7 +575,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, parentId }),
       });
-      if (!res.ok) throw new Error("API error");
+      assertApiResponse(res);
       const data = await res.json();
       const newSubtask = mapApiTask(data as Record<string, unknown>);
       set((s) => ({
@@ -591,11 +625,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     if (state.apiAvailable) {
       try {
-        await fetch(`/api/tasks/${subtaskId}`, {
+        const res = await fetch(`/api/tasks/${subtaskId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: newStatus }),
         });
+        assertApiResponse(res);
       } catch { /* optimistic already applied */ }
     }
   },
@@ -640,11 +675,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     const state = get();
     if (state.apiAvailable) {
       try {
-        await fetch(`/api/tasks/${subtaskId}`, {
+        const res = await fetch(`/api/tasks/${subtaskId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title: title.trim() }),
         });
+        assertApiResponse(res);
       } catch { /* optimistic already applied */ }
     }
   },
@@ -661,7 +697,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(eventData),
         });
-        if (!res.ok) throw new Error("API error");
+        assertApiResponse(res);
         const data = await res.json();
         const newEvent = mapApiEvent(data as Record<string, unknown>);
         set((s) => ({ events: [...s.events, newEvent] }));
@@ -698,11 +734,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     if (state.apiAvailable) {
       try {
-        await fetch(`/api/events/${eventId}`, {
+        const res = await fetch(`/api/events/${eventId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(updates),
         });
+        assertApiResponse(res);
       } catch {
         // Optimistic update already applied
       }
@@ -717,7 +754,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     if (state.apiAvailable) {
       try {
-        await fetch(`/api/events/${eventId}`, { method: "DELETE" });
+        const res = await fetch(`/api/events/${eventId}`, { method: "DELETE" });
+        assertApiResponse(res);
       } catch {
         // Already removed locally
       }
