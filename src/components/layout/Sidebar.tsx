@@ -25,6 +25,8 @@ const mainNav = [
   { label: "Settings", href: "/settings", icon: Settings2 },
 ];
 
+const mobileDockNav = mainNav.filter((item) => item.href !== "/week");
+
 const dayLinks = [
   { label: "Daily planning", icon: CalendarCheck2, href: "/planning" },
   { label: "Daily shutdown", icon: NotebookText, action: "shutdown" },
@@ -189,7 +191,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
       </aside>
 
       <nav className="sidebar-mobile-dock" aria-label="Hauptnavigation">
-        {mainNav.map((item) => {
+        {mobileDockNav.map((item) => {
           const Icon = item.icon;
           const active = isActiveRoute(item.href);
 

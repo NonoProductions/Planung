@@ -148,6 +148,7 @@ export default function AppShell({ children, bodyClassName }: AppShellProps) {
     planningRitualCompletedDates,
     planningTime,
     router,
+    setAutoPlanningPromptedDate,
   ]);
 
   useEffect(() => {
@@ -183,6 +184,7 @@ export default function AppShell({ children, bodyClassName }: AppShellProps) {
     pathname,
     quietMode,
     quietModeDate,
+    setAutoPromptedDate,
     shutdownRitualOpen,
   ]);
 

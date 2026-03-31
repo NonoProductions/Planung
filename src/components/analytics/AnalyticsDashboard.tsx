@@ -43,6 +43,23 @@ function axisTick(minutes: number) {
   return `${Math.round(minutes / 60)}h`;
 }
 
+function formatDelta(minutes: number) {
+  if (minutes === 0) return "0m";
+  return `${minutes > 0 ? "+" : "-"}${formatMinutes(Math.abs(minutes))}`;
+}
+
+function getActiveDays(snapshot: AnalyticsSnapshot) {
+  return snapshot.daily.filter(
+    (day) => day.actualMinutes > 0 || day.plannedMinutes > 0 || day.totalTasks > 0
+  ).length;
+}
+
+function getBestDay(snapshot: AnalyticsSnapshot) {
+  return snapshot.daily.reduce((best, day) =>
+    day.actualMinutes > best.actualMinutes ? day : best
+  );
+}
+
 function ChartTooltip({
   active,
   label,
@@ -87,11 +104,13 @@ function SurfaceCard({
   eyebrow,
   children,
   action,
+  copy,
 }: {
   title: string;
   eyebrow?: string;
   children: ReactNode;
   action?: ReactNode;
+  copy?: string;
 }) {
   return (
     <section className="workspace-surface workspace-section">
@@ -101,12 +120,34 @@ function SurfaceCard({
             <p className="workspace-section__eyebrow">{eyebrow}</p>
           )}
           <h3 className="workspace-section__title">{title}</h3>
+          {copy && <p className="workspace-section__copy">{copy}</p>}
         </div>
         {action}
       </div>
       <div className="workspace-section__body">{children}</div>
     </section>
   );
+}
+
+function StatusPill({
+  label,
+  tone = "neutral",
+}: {
+  label: string;
+  tone?: "accent" | "neutral" | "success" | "warning" | "danger";
+}) {
+  const toneClassName =
+    tone === "accent"
+      ? "workspace-badge--accent"
+      : tone === "success"
+        ? "workspace-badge--success"
+        : tone === "warning"
+          ? "workspace-badge--warning"
+          : tone === "danger"
+            ? "workspace-badge--danger"
+            : "";
+
+  return <span className={`workspace-badge ${toneClassName}`}>{label}</span>;
 }
 
 function StatCard({
@@ -121,7 +162,7 @@ function StatCard({
   detail: string;
 }) {
   return (
-    <div className="workspace-surface workspace-section flex min-h-[152px] flex-col justify-between">
+    <div className="workspace-surface workspace-section analytics-stat-card flex min-h-[152px] flex-col justify-between">
       <div className="space-y-5">
         <div className="flex items-start gap-4">
           <span
@@ -149,6 +190,83 @@ function StatCard({
       <p className="max-w-[34ch] text-[12px] leading-6" style={{ color: "var(--text-muted)" }}>
         {detail}
       </p>
+    </div>
+  );
+}
+
+function HeroSummaryCard({
+  weekLabel,
+  actualMinutes,
+  plannedMinutes,
+  alignmentRate,
+  averageSessionMinutes,
+}: {
+  weekLabel: string;
+  actualMinutes: number;
+  plannedMinutes: number;
+  alignmentRate: number;
+  averageSessionMinutes: number;
+}) {
+  return (
+    <div className="workspace-surface workspace-section analytics-hero-card">
+      <p className="workspace-section__eyebrow">Current Week</p>
+      <h2 className="analytics-hero-card__title">Der Wochenpuls auf einen Blick</h2>
+      <p className="workspace-section__copy">
+        Fokuszeit, Planabgleich und Session-Rhythmus in einer kompakten Karte.
+      </p>
+
+      <div className="analytics-hero-card__metrics">
+        <div className="analytics-hero-card__metric">
+          <p className="analytics-hero-card__label">Zeitraum</p>
+          <p className="analytics-hero-card__detail">{weekLabel}</p>
+        </div>
+
+        <div className="analytics-hero-card__metric-row">
+          <div>
+            <p className="analytics-hero-card__label">Getrackt</p>
+            <p className="analytics-hero-card__value">{formatMinutes(actualMinutes)}</p>
+          </div>
+          <div>
+            <p className="analytics-hero-card__label">Geplant</p>
+            <p className="analytics-hero-card__value analytics-hero-card__value--secondary">
+              {formatMinutes(plannedMinutes)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="analytics-hero-card__footer">
+        <StatusPill label={`${alignmentRate}% Planabgleich`} tone="accent" />
+        <StatusPill
+          label={
+            averageSessionMinutes > 0
+              ? `${formatMinutes(averageSessionMinutes)} pro Session`
+              : "Noch keine Sessions"
+          }
+          tone="warning"
+        />
+      </div>
+    </div>
+  );
+}
+
+function InsightCard({
+  eyebrow,
+  value,
+  label,
+  detail,
+}: {
+  eyebrow: string;
+  value: string;
+  label: string;
+  detail: string;
+}) {
+  return (
+    <div className="workspace-surface analytics-insight-card">
+      <p className="analytics-insight-card__eyebrow">{eyebrow}</p>
+      <p className="analytics-insight-card__value">{value}</p>
+      <p className="analytics-insight-card__label">{label}</p>
+      <p className="analytics-insight-card__detail">{detail}</p>
     </div>
   );
 }
@@ -235,25 +353,61 @@ export default function AnalyticsDashboard() {
     });
   }
 
+  const totalPlannedMinutes = snapshot?.summary.totalPlannedMinutes ?? 0;
+  const totalActualMinutes = snapshot?.summary.totalActualMinutes ?? 0;
+  const alignmentRate =
+    totalPlannedMinutes > 0
+      ? Math.round((totalActualMinutes / totalPlannedMinutes) * 100)
+      : totalActualMinutes > 0
+        ? 100
+        : 0;
+  const planDelta = totalActualMinutes - totalPlannedMinutes;
+  const activeDays = snapshot ? getActiveDays(snapshot) : 0;
+  const bestDay = snapshot ? getBestDay(snapshot) : null;
+  const averageSessionMinutes =
+    snapshot && snapshot.summary.trackedEntries > 0
+      ? Math.round(totalActualMinutes / snapshot.summary.trackedEntries)
+      : 0;
+  const alignmentTone =
+    totalPlannedMinutes === 0
+      ? "neutral"
+      : alignmentRate >= 95 && alignmentRate <= 115
+        ? "success"
+        : alignmentRate >= 70
+          ? "warning"
+          : "danger";
+
   return (
-    <div className="workspace-page">
+    <div className="workspace-page analytics-workspace-page">
       <div className="workspace-page__header">
         <div className="workspace-page__intro">
           <p className="workspace-page__eyebrow">Analytics</p>
           <h1 className="workspace-page__title workspace-page__title--wide">
-            Fokuszeit und Planungsqualitaet
+            Fokuszeit, Planqualitaet und Wochenrhythmus
           </h1>
           <p className="workspace-page__copy">
             Ein ruhiger Wochenblick auf Fokusbloecke, Erledigungsquote und die Verteilung
-            deiner Arbeit ueber Channels und Tage.
+            deiner Arbeit ueber Channels und Tage. Die Analytics-Seite fuehlt sich jetzt
+            wie ein eigener Raum innerhalb der App an.
           </p>
+
+          <div className="workspace-page__meta">
+            <StatusPill label={weekLabel} />
+            {!loading && snapshot ? (
+              <>
+                <StatusPill label={`${snapshot.summary.totalTasks} Aufgaben im Blick`} />
+                <StatusPill label={`${snapshot.summary.trackedEntries} Sessions`} tone="accent" />
+                <StatusPill label={`${alignmentRate}% Planabgleich`} tone={alignmentTone} />
+              </>
+            ) : null}
+          </div>
         </div>
 
-        <div className="workspace-page__actions">
+        <div className="workspace-page__actions analytics-toolbar">
           <button
             type="button"
             onClick={() => shiftWeek("prev")}
-            className="workspace-button h-10 w-10 px-0"
+            className="workspace-button h-11 w-11 px-0"
             aria-label="Vorherige Woche"
           >
             <ChevronLeft size={17} />
@@ -262,15 +416,15 @@ export default function AnalyticsDashboard() {
           <button
             type="button"
             onClick={resetToCurrentWeek}
-            className="workspace-button px-4 md:px-5"
+            className="workspace-button px-5 md:px-6"
           >
-            {weekLabel}
+            Diese Woche
           </button>
 
           <button
             type="button"
             onClick={() => shiftWeek("next")}
-            className="workspace-button h-10 w-10 px-0"
+            className="workspace-button h-11 w-11 px-0"
             aria-label="Naechste Woche"
           >
             <ChevronRight size={17} />
@@ -280,104 +434,108 @@ export default function AnalyticsDashboard() {
 
       <div className="workspace-page__scroll">
         {loading ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="workspace-badge">
+          <div className="workspace-page__content workspace-page__content--wide">
+            <div className="workspace-note flex items-center gap-3">
               <LoaderCircle size={16} className="animate-spin" />
               Analytics werden geladen
             </div>
           </div>
         ) : error || !snapshot ? (
-          <div className="workspace-page__content workspace-page__content--wide h-full">
-            <div className="workspace-empty h-full">
+          <div className="workspace-page__content workspace-page__content--wide">
+            <div className="workspace-empty min-h-[320px]">
               {error ?? "Keine Analytics verfuegbar."}
             </div>
           </div>
         ) : (
           <div className="workspace-page__content workspace-page__content--wide">
-            <div className="workspace-page__split workspace-page__split--wide">
-              <div className="workspace-page__stack">
-              {apiUnavailable && (
-                <div className="workspace-note workspace-surface--warning">
-                  Datenbank gerade nicht erreichbar. Das Dashboard zeigt den API-Fallback.
-                </div>
-              )}
-
-              <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-4">
-                <StatCard
-                  icon={<BarChart3 size={18} />}
-                  label="Getrackte Zeit"
-                  value={formatMinutes(snapshot.summary.totalActualMinutes)}
-                  detail={`${snapshot.summary.trackedEntries} Sessions im Zeitraum`}
-                />
-                <StatCard
-                  icon={<Target size={18} />}
-                  label="Erledigungsquote"
-                  value={`${snapshot.summary.completionRate}%`}
-                  detail={`${snapshot.summary.completedTasks} von ${snapshot.summary.totalTasks} Aufgaben abgeschlossen`}
-                />
-                <StatCard
-                  icon={<Flame size={18} />}
-                  label="Planungs-Streak"
-                  value={`${snapshot.summary.streak} Tage`}
-                  detail="Aufeinanderfolgende Tage mit geplanter Tagesliste"
-                />
-                <StatCard
-                  icon={<LayoutGrid size={18} />}
-                  label="Top Channel"
-                  value={snapshot.summary.mostUsedChannel ?? "Noch offen"}
-                  detail="Meistgenutzter Channel nach Fokuszeit"
-                />
-              </div>
-
-              <SurfaceCard
-                eyebrow="Weekly Split"
-                title="Zeitverteilung nach Channels"
-                action={
-                  <span className="workspace-badge">
-                    Geplant vs. tatsaechlich
-                  </span>
-                }
-              >
-                <div className="workspace-surface workspace-surface--soft p-4 md:p-5">
-                  <div className="h-[330px] md:h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={snapshot.channels} barGap={10}>
-                        <CartesianGrid stroke="rgba(233, 225, 215, 0.75)" vertical={false} />
-                        <XAxis
-                          dataKey="name"
-                          tick={{ fill: "#8d857b", fontSize: 12 }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          tickFormatter={axisTick}
-                          tick={{ fill: "#b2aaa1", fontSize: 11 }}
-                          axisLine={false}
-                          tickLine={false}
-                          width={42}
-                        />
-                        <Tooltip content={<ChartTooltip />} />
-                        <Bar dataKey="plannedMinutes" name="Geplant" radius={[12, 12, 0, 0]} fill="#e9e2d9" />
-                        <Bar dataKey="actualMinutes" name="Getrackt" radius={[12, 12, 0, 0]}>
-                          {snapshot.channels.map((channel) => (
-                            <Cell key={channel.channelId} fill={channel.color} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+            <div className="workspace-page__stack analytics-page-stack">
+                {apiUnavailable && (
+                  <div className="workspace-note">
+                    Datenbank gerade nicht erreichbar. Das Dashboard zeigt den API-Fallback.
                   </div>
-                </div>
-              </SurfaceCard>
+                )}
 
-              <div className="grid gap-8 xl:gap-9 lg:grid-cols-2">
-                <SurfaceCard eyebrow="Daily Rhythm" title="Taegliche Arbeitszeit">
-                  <div className="workspace-surface workspace-surface--soft p-4 md:p-5">
-                    <div className="h-[280px] md:h-[300px]">
+                <HeroSummaryCard
+                  weekLabel={weekLabel}
+                  actualMinutes={totalActualMinutes}
+                  plannedMinutes={totalPlannedMinutes}
+                  alignmentRate={alignmentRate}
+                  averageSessionMinutes={averageSessionMinutes}
+                />
+
+                <div className="analytics-stat-grid">
+                  <StatCard
+                    icon={<BarChart3 size={18} />}
+                    label="Getrackte Zeit"
+                    value={formatMinutes(totalActualMinutes)}
+                    detail={
+                      totalPlannedMinutes > 0
+                        ? `${formatDelta(planDelta)} gegenueber deinem Plan`
+                        : `${snapshot.summary.trackedEntries} Sessions im Zeitraum`
+                    }
+                  />
+                  <StatCard
+                    icon={<Target size={18} />}
+                    label="Erledigungsquote"
+                    value={`${snapshot.summary.completionRate}%`}
+                    detail={`${snapshot.summary.completedTasks} von ${snapshot.summary.totalTasks} Aufgaben abgeschlossen`}
+                  />
+                  <StatCard
+                    icon={<Flame size={18} />}
+                    label="Planungs-Streak"
+                    value={`${snapshot.summary.streak} Tage`}
+                    detail="Aufeinanderfolgende Tage mit geplanter Tagesliste"
+                  />
+                  <StatCard
+                    icon={<LayoutGrid size={18} />}
+                    label="Top Channel"
+                    value={snapshot.summary.mostUsedChannel ?? "Noch offen"}
+                    detail="Meistgenutzter Channel nach Fokuszeit"
+                  />
+                </div>
+
+                <div className="analytics-insight-grid">
+                  <InsightCard
+                    eyebrow="Bester Tag"
+                    value={bestDay && bestDay.actualMinutes > 0 ? bestDay.label : "Noch offen"}
+                    label="Staerkster Fokuspunkt"
+                    detail={
+                      bestDay && bestDay.actualMinutes > 0
+                        ? `${formatMinutes(bestDay.actualMinutes)} getrackte Zeit`
+                        : "Noch kein Tag mit nennenswerter Fokuszeit."
+                    }
+                  />
+                  <InsightCard
+                    eyebrow="Session-Schnitt"
+                    value={averageSessionMinutes > 0 ? formatMinutes(averageSessionMinutes) : "0m"}
+                    label="Durchschnitt pro Eintrag"
+                    detail={`${snapshot.summary.trackedEntries} Sessions im gewaehlten Zeitraum`}
+                  />
+                  <InsightCard
+                    eyebrow="Aktive Tage"
+                    value={`${activeDays}/7`}
+                    label="Rhythmus ueber die Woche"
+                    detail={`${Math.round((activeDays / 7) * 100)}% der Woche zeigen Planung oder Tracking`}
+                  />
+                </div>
+
+                <SurfaceCard
+                  eyebrow="Weekly Split"
+                  title="Zeitverteilung nach Channels"
+                  copy="Die groesste Ansicht der Seite. Hier bekommt jeder Channel genug Platz, damit Namen, Vergleich und Farben sauber lesbar bleiben."
+                  action={
+                    <span className="workspace-badge">
+                      Geplant vs. tatsaechlich
+                    </span>
+                  }
+                >
+                  <div className="workspace-surface workspace-surface--soft analytics-chart-panel p-4 md:p-5">
+                    <div className="h-[330px] md:h-[350px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={snapshot.daily}>
+                        <BarChart data={snapshot.channels} barGap={10}>
                           <CartesianGrid stroke="rgba(233, 225, 215, 0.75)" vertical={false} />
                           <XAxis
-                            dataKey="label"
+                            dataKey="name"
                             tick={{ fill: "#8d857b", fontSize: 12 }}
                             axisLine={false}
                             tickLine={false}
@@ -390,100 +548,142 @@ export default function AnalyticsDashboard() {
                             width={42}
                           />
                           <Tooltip content={<ChartTooltip />} />
-                          <Line
-                            type="monotone"
-                            dataKey="actualMinutes"
-                            name="Getrackt"
-                            stroke="#f0a654"
-                            strokeWidth={3}
-                            dot={{ r: 4, fill: "#f0a654" }}
-                            activeDot={{ r: 6 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                </SurfaceCard>
-
-                <SurfaceCard eyebrow="Daily Delta" title="Geplant vs. tatsaechlich">
-                  <div className="workspace-surface workspace-surface--soft p-4 md:p-5">
-                    <div className="h-[280px] md:h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={snapshot.daily} barGap={10}>
-                          <CartesianGrid stroke="rgba(233, 225, 215, 0.75)" vertical={false} />
-                          <XAxis
-                            dataKey="label"
-                            tick={{ fill: "#8d857b", fontSize: 12 }}
-                            axisLine={false}
-                            tickLine={false}
-                          />
-                          <YAxis
-                            tickFormatter={axisTick}
-                            tick={{ fill: "#b2aaa1", fontSize: 11 }}
-                            axisLine={false}
-                            tickLine={false}
-                            width={42}
-                          />
-                          <Tooltip content={<ChartTooltip />} />
-                          <Bar dataKey="plannedMinutes" name="Geplant" radius={[10, 10, 0, 0]} fill="#ddd5cb" />
-                          <Bar dataKey="actualMinutes" name="Getrackt" radius={[10, 10, 0, 0]} fill="#8d7cf6" />
+                          <Bar dataKey="plannedMinutes" name="Geplant" radius={[12, 12, 0, 0]} fill="#e9e2d9" />
+                          <Bar dataKey="actualMinutes" name="Getrackt" radius={[12, 12, 0, 0]}>
+                            {snapshot.channels.map((channel) => (
+                              <Cell key={channel.channelId} fill={channel.color} />
+                            ))}
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
                 </SurfaceCard>
-              </div>
 
-              <SurfaceCard eyebrow="Highlights" title="Meistgenutzte Channels">
-                <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
-                  {snapshot.topChannels.length > 0 ? (
-                    snapshot.topChannels.map((channel, index) => (
-                      <div
-                        key={channel.channelId}
-                        className={`workspace-list-item p-5 ${index === 0 ? "workspace-surface--warning" : ""}`}
-                        style={{
-                          backgroundColor: index === 0 ? "rgba(255, 247, 235, 0.95)" : undefined,
-                        }}
-                      >
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span
-                            className="h-3 w-3 rounded-full"
-                            style={{ backgroundColor: channel.color }}
-                          />
-                          <p
-                            className="truncate text-[14px] font-medium"
-                            style={{ color: "var(--text-primary)" }}
-                          >
-                            {channel.name}
-                          </p>
-                        </div>
-                        <p
-                          className="mt-5 text-[28px] font-semibold tracking-[-0.055em]"
-                          style={{ color: "var(--text-primary)" }}
-                        >
-                          {formatMinutes(channel.actualMinutes)}
-                        </p>
-                        <p className="mt-4 text-[12px] leading-6" style={{ color: "var(--text-muted)" }}>
-                          {channel.taskCount} Aufgaben, {formatMinutes(channel.plannedMinutes)} geplant
-                        </p>
+                <div className="analytics-chart-grid">
+                  <SurfaceCard
+                    eyebrow="Daily Rhythm"
+                    title="Taegliche Arbeitszeit"
+                    copy="Die Linie zeigt, an welchen Tagen sich deine Fokuszeit wirklich verdichtet."
+                  >
+                    <div className="workspace-surface workspace-surface--soft analytics-chart-panel p-4 md:p-5">
+                      <div className="h-[280px] md:h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={snapshot.daily}>
+                            <CartesianGrid stroke="rgba(233, 225, 215, 0.75)" vertical={false} />
+                            <XAxis
+                              dataKey="label"
+                              tick={{ fill: "#8d857b", fontSize: 12 }}
+                              axisLine={false}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              tickFormatter={axisTick}
+                              tick={{ fill: "#b2aaa1", fontSize: 11 }}
+                              axisLine={false}
+                              tickLine={false}
+                              width={42}
+                            />
+                            <Tooltip content={<ChartTooltip />} />
+                            <Line
+                              type="monotone"
+                              dataKey="actualMinutes"
+                              name="Getrackt"
+                              stroke="#f0a654"
+                              strokeWidth={3}
+                              dot={{ r: 4, fill: "#f0a654" }}
+                              activeDot={{ r: 6 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
                       </div>
-                    ))
-                  ) : (
-                    <div className="workspace-empty">
-                      Noch keine Channel-Verteilung fuer diese Woche.
                     </div>
-                  )}
-                </div>
-              </SurfaceCard>
-              </div>
+                  </SurfaceCard>
 
-              <div className="min-h-0 xl:sticky xl:top-6 xl:self-start">
+                  <SurfaceCard
+                    eyebrow="Daily Delta"
+                    title="Geplant vs. tatsaechlich"
+                    copy="Hier siehst du schneller, welche Tage stabil geplant waren und wo die Woche gekippt ist."
+                  >
+                    <div className="workspace-surface workspace-surface--soft analytics-chart-panel p-4 md:p-5">
+                      <div className="h-[280px] md:h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={snapshot.daily} barGap={10}>
+                            <CartesianGrid stroke="rgba(233, 225, 215, 0.75)" vertical={false} />
+                            <XAxis
+                              dataKey="label"
+                              tick={{ fill: "#8d857b", fontSize: 12 }}
+                              axisLine={false}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              tickFormatter={axisTick}
+                              tick={{ fill: "#b2aaa1", fontSize: 11 }}
+                              axisLine={false}
+                              tickLine={false}
+                              width={42}
+                            />
+                            <Tooltip content={<ChartTooltip />} />
+                            <Bar dataKey="plannedMinutes" name="Geplant" radius={[10, 10, 0, 0]} fill="#ddd5cb" />
+                            <Bar dataKey="actualMinutes" name="Getrackt" radius={[10, 10, 0, 0]} fill="#8d7cf6" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </SurfaceCard>
+                </div>
+
                 <TimeTrackingPanel
                   tasks={snapshot.taskOptions}
                   entries={snapshot.timeEntries}
                   onEntryCreated={handleEntryCreated}
                 />
-              </div>
+
+                <SurfaceCard
+                  eyebrow="Highlights"
+                  title="Meistgenutzte Channels"
+                  copy="Die wichtigsten Channel der Woche mit genug Breite fuer Namen, Zeit und Kontext."
+                >
+                  <div className="analytics-channel-grid">
+                    {snapshot.topChannels.length > 0 ? (
+                      snapshot.topChannels.map((channel, index) => (
+                        <div
+                          key={channel.channelId}
+                          className={`workspace-list-item p-5 ${index === 0 ? "workspace-surface--warning" : ""}`}
+                          style={{
+                            backgroundColor: index === 0 ? "rgba(255, 247, 235, 0.95)" : undefined,
+                          }}
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span
+                              className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: channel.color }}
+                            />
+                            <p
+                              className="truncate text-[14px] font-medium"
+                              style={{ color: "var(--text-primary)" }}
+                            >
+                              {channel.name}
+                            </p>
+                          </div>
+                          <p
+                            className="mt-5 text-[28px] font-semibold tracking-[-0.055em]"
+                            style={{ color: "var(--text-primary)" }}
+                          >
+                            {formatMinutes(channel.actualMinutes)}
+                          </p>
+                          <p className="mt-4 text-[12px] leading-6" style={{ color: "var(--text-muted)" }}>
+                            {channel.taskCount} Aufgaben, {formatMinutes(channel.plannedMinutes)} geplant
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="workspace-empty">
+                        Noch keine Channel-Verteilung fuer diese Woche.
+                      </div>
+                    )}
+                  </div>
+                </SurfaceCard>
             </div>
           </div>
         )}

@@ -281,7 +281,7 @@ export default function SettingsDashboard() {
   }
 
   return (
-    <div className="workspace-page">
+    <div className="workspace-page settings-workspace-page">
       <div className="workspace-page__header">
         <div className="workspace-page__intro">
           <p className="workspace-page__eyebrow">Preferences</p>
@@ -303,20 +303,23 @@ export default function SettingsDashboard() {
           </div>
         </div>
 
-        <SummaryHeroCard
-          weeklyCapacity={formatMinutes(totalWeeklyCapacity)}
-          weekdayCapacity={formatMinutes(weekdayCapacity)}
-          planningTime={settings.planning.planningTime}
-          pomodoroMinutes={settings.focus.pomodoroMinutes}
-          defaultEventDuration={settings.calendar.defaultEventDuration}
-        />
       </div>
 
       <div className="workspace-page__scroll">
         <div className="workspace-page__content workspace-page__content--wide">
-          <div className="workspace-page__split">
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="workspace-page__stack settings-page-stack">
             <AnimatedPanel index={0}>
+              <SummaryHeroCard
+                weeklyCapacity={formatMinutes(totalWeeklyCapacity)}
+                weekdayCapacity={formatMinutes(weekdayCapacity)}
+                planningTime={settings.planning.planningTime}
+                pomodoroMinutes={settings.focus.pomodoroMinutes}
+                defaultEventDuration={settings.calendar.defaultEventDuration}
+              />
+            </AnimatedPanel>
+
+            <div className="settings-panel-grid settings-panel-grid--balanced">
+              <AnimatedPanel index={1}>
               <SectionCard
                 icon={<User size={17} strokeWidth={1.8} />}
                 eyebrow="Profil"
@@ -382,7 +385,7 @@ export default function SettingsDashboard() {
               </SectionCard>
             </AnimatedPanel>
 
-            <AnimatedPanel index={1}>
+              <AnimatedPanel index={2}>
               <SectionCard
                 icon={<Sun size={17} strokeWidth={1.8} />}
                 eyebrow="Display"
@@ -451,7 +454,7 @@ export default function SettingsDashboard() {
               </SectionCard>
             </AnimatedPanel>
 
-            <AnimatedPanel index={2}>
+            <AnimatedPanel index={3}>
               <SectionCard
                 icon={<CalendarDays size={17} strokeWidth={1.8} />}
                 eyebrow="Planning"
@@ -495,7 +498,7 @@ export default function SettingsDashboard() {
               </SectionCard>
             </AnimatedPanel>
 
-            <AnimatedPanel index={3}>
+            <AnimatedPanel index={4}>
               <SectionCard
                 icon={<Target size={17} strokeWidth={1.8} />}
                 eyebrow="Focus"
@@ -540,13 +543,13 @@ export default function SettingsDashboard() {
               </SectionCard>
             </AnimatedPanel>
 
-            <AnimatedPanel index={4} className="lg:col-span-2">
+            <AnimatedPanel index={5} className="settings-panel-span">
               <SectionCard
                 icon={<Clock3 size={17} strokeWidth={1.8} />}
                 eyebrow="Workload"
                 title="Taegliche Kapazitaet pro Wochentag"
               >
-                <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_260px]">
+                <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
                   <div className="space-y-4">
                     {dayMeta.map((day) => (
                       <WorkloadRow
@@ -590,7 +593,7 @@ export default function SettingsDashboard() {
               </SectionCard>
             </AnimatedPanel>
 
-            <AnimatedPanel index={5} className="lg:col-span-2">
+            <AnimatedPanel index={6} className="settings-panel-span">
               <SectionCard
                 icon={<Bell size={17} strokeWidth={1.8} />}
                 eyebrow="Signals"
@@ -687,8 +690,8 @@ export default function SettingsDashboard() {
             </AnimatedPanel>
           </div>
 
-          <div className="flex flex-col gap-6 2xl:sticky 2xl:top-6 2xl:self-start">
-            <AnimatedPanel index={7}>
+            <div className="settings-panel-grid settings-panel-grid--support">
+              <AnimatedPanel index={7}>
               <SectionCard
                 icon={<Palette size={17} strokeWidth={1.8} />}
                 eyebrow="Calendar"
@@ -802,14 +805,14 @@ export default function SettingsDashboard() {
               </SectionCard>
             </AnimatedPanel>
 
-            <AnimatedPanel index={8}>
+              <AnimatedPanel index={8}>
               <SectionCard
                 icon={<Download size={17} strokeWidth={1.8} />}
                 eyebrow="Data"
                 title="Export und Schutzschalter"
               >
                 <div className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                  <div className="grid gap-3 md:grid-cols-2">
                     <ActionButton
                       label={exportingFormat === "json" ? "JSON wird erstellt..." : "Export als JSON"}
                       description="Vollstaendiger Snapshot inklusive Einstellungen."
@@ -927,15 +930,17 @@ function SummaryHeroCard({
   defaultEventDuration: number;
 }) {
   return (
-    <div className="workspace-surface workspace-section min-w-[280px] max-w-[360px]">
-      <p className="workspace-section__eyebrow">Current Rhythm</p>
-      <h2 className="workspace-section__title">Dein aktueller Arbeitsrahmen</h2>
-      <p className="workspace-section__copy">
-        Ein ruhiger Schnellblick auf Kapazitaet, Planning und Fokus, ohne die
-        eigentliche Einstellungsarbeit zu ueberladen.
-      </p>
+    <section className="workspace-surface workspace-section settings-hero-card">
+      <div className="settings-hero-card__intro">
+        <p className="workspace-section__eyebrow">Current Rhythm</p>
+        <h2 className="settings-hero-card__title">Dein aktueller Arbeitsrahmen</h2>
+        <p className="settings-hero-card__copy">
+          Die wichtigsten Defaults und Kapazitaeten liegen hier in einem ruhigen
+          Ueberblick, bevor du tiefer in einzelne Bereiche gehst.
+        </p>
+      </div>
 
-      <div className="mt-6">
+      <div className="settings-hero-card__metrics">
         <StatTile
           label="Wochenkapazitaet"
           value={weeklyCapacity}
@@ -961,7 +966,7 @@ function SummaryHeroCard({
           accent="var(--accent-success)"
         />
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -1228,25 +1233,25 @@ function StatTile({
 }) {
   return (
     <div
-      className="flex items-end justify-between gap-4 border-b py-3.5"
-      style={{ borderColor: "rgba(226, 218, 209, 0.9)" }}
+      className="settings-hero-stat"
+      style={{
+        borderColor: "rgba(226, 218, 209, 0.9)",
+        backgroundColor: "#fffdfa",
+      }}
     >
-      <div>
+      <div className="min-w-0">
         <p
-          className="text-[11px] font-semibold uppercase tracking-[0.2em]"
+          className="settings-hero-stat__label"
           style={{ color: "var(--text-muted)" }}
         >
           {label}
         </p>
-        <p className="mt-1 text-[12.5px] leading-6" style={{ color: "var(--text-secondary)" }}>
-          {detail}
-        </p>
       </div>
-      <p
-        className="text-[28px] font-semibold tracking-[-0.05em]"
-        style={{ color: accent }}
-      >
+      <p className="settings-hero-stat__value" style={{ color: accent }}>
         {value}
+      </p>
+      <p className="settings-hero-stat__detail" style={{ color: "var(--text-secondary)" }}>
+        {detail}
       </p>
     </div>
   );

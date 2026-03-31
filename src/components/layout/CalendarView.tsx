@@ -60,6 +60,17 @@ export default function CalendarView() {
   const [formState, setFormState] = useState<FormState | null>(null);
   const selectedDateObj = parseISO(selectedDate);
 
+  const scrollToCurrentTime = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const now = new Date();
+    const minutesSinceStart = (now.getHours() - START_HOUR) * 60 + now.getMinutes();
+    const scrollTo = Math.max(0, (minutesSinceStart / 60) * HOUR_HEIGHT - HOUR_HEIGHT);
+
+    container.scrollTop = scrollTo;
+  }, []);
+
   const clampFormPosition = useCallback((
     top: number,
     left: number,
@@ -128,10 +139,12 @@ export default function CalendarView() {
   }, [fetchCalendarCategories]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
-    }
-  }, [selectedDate]);
+    const frame = window.requestAnimationFrame(() => {
+      scrollToCurrentTime();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedDate, scrollToCurrentTime]);
 
   useEffect(() => {
     if (!calendarPlanningTaskId) return;

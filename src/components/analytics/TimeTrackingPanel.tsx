@@ -4,7 +4,7 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
-import { Clock3, PauseCircle, PlayCircle, TimerReset } from "lucide-react";
+import { Clock3, LayoutGrid, PauseCircle, PlayCircle, TimerReset } from "lucide-react";
 import type { AnalyticsTaskOption, TimeEntry } from "@/types";
 
 const RUNNING_TIMER_KEY = "sunsama-running-timer";
@@ -30,6 +30,19 @@ function formatMinutes(minutes: number) {
 function formatDurationFromSeconds(seconds: number) {
   const totalMinutes = Math.max(1, Math.round(seconds / 60));
   return formatMinutes(totalMinutes);
+}
+
+function getEntryMinutes(entry: TimeEntry) {
+  if (typeof entry.duration === "number" && Number.isFinite(entry.duration)) {
+    return Math.max(1, Math.round(entry.duration / 60));
+  }
+
+  if (entry.endTime) {
+    const diff = new Date(entry.endTime).getTime() - new Date(entry.startTime).getTime();
+    return Math.max(1, Math.round(diff / 60000));
+  }
+
+  return 0;
 }
 
 function formatElapsed(startedAt: string, now: number) {
@@ -165,7 +178,7 @@ export default function TimeTrackingPanel({
         endTime,
         duration,
       });
-      setMessage("Timer lokal übernommen");
+      setMessage("Timer lokal uebernommen");
     } finally {
       setRunningTimer(null);
       setSubmitting(false);
@@ -204,21 +217,31 @@ export default function TimeTrackingPanel({
         endTime,
         duration,
       });
-      setMessage("Zeitblock lokal übernommen");
+      setMessage("Zeitblock lokal uebernommen");
     } finally {
       setSubmitting(false);
     }
   }
 
   const runningTask = tasks.find((task) => task.id === runningTimer?.taskId);
-  const recentEntries = entries.slice(0, 5);
+  const recentEntries = [...entries]
+    .sort((first, second) => new Date(second.startTime).getTime() - new Date(first.startTime).getTime())
+    .slice(0, 5);
+  const totalTrackedMinutes = entries.reduce((sum, entry) => sum + getEntryMinutes(entry), 0);
+  const averageSessionMinutes =
+    entries.length > 0 ? Math.round(totalTrackedMinutes / entries.length) : 0;
+  const activeTaskCount = new Set(entries.map((entry) => entry.taskId)).size;
 
   return (
-    <section className="workspace-surface workspace-section flex h-full min-h-0 flex-col gap-5">
+    <section className="workspace-surface workspace-section analytics-time-panel flex flex-col gap-5">
       <div className="workspace-section__header">
         <div className="workspace-section__intro">
           <p className="workspace-section__eyebrow">Zeiterfassung</p>
           <h2 className="workspace-section__title">Timer oder manueller Log</h2>
+          <p className="workspace-section__copy">
+            Direkt aus der Analytics-Ansicht starten, stoppen oder spaeter sauber
+            nachtragen.
+          </p>
         </div>
 
         <span className="workspace-badge">
@@ -227,7 +250,29 @@ export default function TimeTrackingPanel({
         </span>
       </div>
 
-      <div className="workspace-surface workspace-surface--warning workspace-section">
+      <div className="analytics-time-grid">
+        <div className="analytics-time-stat">
+          <p className="analytics-time-stat__eyebrow">Getrackt</p>
+          <p className="analytics-time-stat__value">{formatMinutes(totalTrackedMinutes)}</p>
+          <p className="analytics-time-stat__detail">im gewaehlten Zeitraum</p>
+        </div>
+
+        <div className="analytics-time-stat">
+          <p className="analytics-time-stat__eyebrow">Tasks beruehrt</p>
+          <p className="analytics-time-stat__value">{activeTaskCount}</p>
+          <p className="analytics-time-stat__detail">mit mindestens einer Session</p>
+        </div>
+
+        <div className="analytics-time-stat">
+          <p className="analytics-time-stat__eyebrow">Session-Schnitt</p>
+          <p className="analytics-time-stat__value">
+            {averageSessionMinutes > 0 ? formatMinutes(averageSessionMinutes) : "0m"}
+          </p>
+          <p className="analytics-time-stat__detail">durchschnittlich pro Eintrag</p>
+        </div>
+      </div>
+
+      <div className="workspace-surface workspace-surface--warning workspace-section analytics-timer-card">
         <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
           Aktiver Timer
         </p>
@@ -291,7 +336,7 @@ export default function TimeTrackingPanel({
 
       <form
         onSubmit={handleManualEntry}
-        className="workspace-surface workspace-section workspace-surface--soft"
+        className="workspace-surface workspace-section workspace-surface--soft analytics-manual-card"
       >
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -309,7 +354,7 @@ export default function TimeTrackingPanel({
           </span>
         </div>
 
-        <div className="mt-6 grid gap-5 md:grid-cols-2">
+        <div className="analytics-manual-grid mt-6">
           <label className="flex flex-col gap-2">
             <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>
               Aufgabe
@@ -364,7 +409,7 @@ export default function TimeTrackingPanel({
         </button>
       </form>
 
-      <div className="workspace-surface workspace-section min-h-[280px] flex-1">
+      <div className="workspace-surface workspace-section analytics-entry-panel">
         <div className="flex items-center justify-between gap-4">
           <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
             Letzte Sessions
@@ -376,12 +421,12 @@ export default function TimeTrackingPanel({
           )}
         </div>
 
-        <div className="mt-6 flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+        <div className="analytics-entry-list mt-6 flex flex-col gap-4">
           {recentEntries.length > 0 ? (
             recentEntries.map((entry) => {
               const task = tasks.find((item) => item.id === entry.taskId);
               return (
-                <div key={entry.id} className="workspace-list-item">
+                <div key={entry.id} className="workspace-list-item analytics-entry-item">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p
@@ -396,6 +441,7 @@ export default function TimeTrackingPanel({
                     </div>
 
                     <span className="workspace-badge">
+                      <LayoutGrid size={12} />
                       {formatDurationFromSeconds(entry.duration ?? 0)}
                     </span>
                   </div>
