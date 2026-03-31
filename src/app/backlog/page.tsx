@@ -2,19 +2,19 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import AppShell from "@/components/layout/AppShell";
-import TaskList from "@/components/layout/TaskList";
+import BacklogList from "@/components/backlog/BacklogList";
 import CalendarView from "@/components/layout/CalendarView";
 import DndWrapper from "@/components/dnd/DndWrapper";
 import { useUIStore } from "@/stores/uiStore";
 
-export default function Home() {
+export default function BacklogPage() {
   const calendarVisible = useUIStore((s) => s.calendarVisible);
 
   return (
     <DndWrapper>
       <AppShell>
         <div className="app-main-surface">
-          <TaskList />
+          <BacklogList />
         </div>
 
         <AnimatePresence initial={false}>
