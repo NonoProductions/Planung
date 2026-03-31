@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 
 // GET /api/objectives?weekStart=2026-03-23
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const weekStart = searchParams.get("weekStart");
 
-  let query = supabase
+  let query = getSupabaseClient()
     .from("Objective")
     .select("*")
     .eq("userId", userId)
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseClient()
     .from("Objective")
     .insert({
       id: crypto.randomUUID(),

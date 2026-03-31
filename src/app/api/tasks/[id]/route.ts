@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 
 // PATCH /api/tasks/:id
@@ -13,7 +13,7 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
-  const { data: existing } = await supabase
+  const { data: existing } = await getSupabaseClient()
     .from("Task")
     .select("id")
     .eq("id", id)
@@ -54,7 +54,7 @@ export async function PATCH(
       ? new Date(body.scheduledEnd).toISOString()
       : null;
 
-  const { data: task, error } = await supabase
+  const { data: task, error } = await getSupabaseClient()
     .from("Task")
     .update(data)
     .eq("id", id)
@@ -76,7 +76,7 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const { data: existing } = await supabase
+  const { data: existing } = await getSupabaseClient()
     .from("Task")
     .select("id")
     .eq("id", id)
@@ -87,7 +87,7 @@ export async function DELETE(
     return Response.json({ error: "Task not found" }, { status: 404 });
   }
 
-  const { error } = await supabase.from("Task").delete().eq("id", id);
+  const { error } = await getSupabaseClient().from("Task").delete().eq("id", id);
   if (error) throw error;
 
   return Response.json({ success: true });

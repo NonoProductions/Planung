@@ -1,54 +1,29 @@
-import "server-only";
-
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 type SupabaseEnvError = Error & { code: string };
 
-let cachedClient: SupabaseClient | null = null;
+let _client: ReturnType<typeof createClient> | null = null;
 
-function createMissingEnvError(missingEnvNames: string[]): SupabaseEnvError {
-  const error = new Error(
-    `Missing Supabase environment variables: ${missingEnvNames.join(", ")}`
-  ) as SupabaseEnvError;
+export function getSupabaseClient() {
+  if (_client) return _client;
 
-  error.code = "MISSING_SUPABASE_ENV";
-  return error;
-}
-
-export function getSupabaseClient(): SupabaseClient {
-  if (cachedClient) {
-    return cachedClient;
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const missingEnvNames = [
-    !supabaseUrl && "NEXT_PUBLIC_SUPABASE_URL",
-    !serviceRoleKey && "SUPABASE_SERVICE_ROLE_KEY",
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const missing = [
+    !url && "NEXT_PUBLIC_SUPABASE_URL",
+    !key && "SUPABASE_SERVICE_ROLE_KEY",
   ].filter(Boolean) as string[];
 
-  if (missingEnvNames.length > 0) {
-    throw createMissingEnvError(missingEnvNames);
-  }
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw createMissingEnvError([
-      !supabaseUrl && "NEXT_PUBLIC_SUPABASE_URL",
-      !serviceRoleKey && "SUPABASE_SERVICE_ROLE_KEY",
-    ].filter(Boolean) as string[]);
+  if (missing.length > 0) {
+    const err = new Error(
+      `Missing Supabase environment variables: ${missing.join(", ")}`
+    ) as SupabaseEnvError;
+    err.code = "MISSING_SUPABASE_ENV";
+    throw err;
   }
 
   // Server-only client using the service role key.
-  // This bypasses RLS; authorization is enforced by the proxy and route handlers.
-  cachedClient = createClient(supabaseUrl, serviceRoleKey);
-  return cachedClient;
+  // This bypasses RLS; authorization is enforced by proxy.ts and route handlers.
+  _client = createClient(url!, key!);
+  return _client;
 }
-
-export const supabase = new Proxy({} as SupabaseClient, {
-  get(_target, property, receiver) {
-    const client = getSupabaseClient();
-    const value = Reflect.get(client as object, property, receiver);
-
-    return typeof value === "function" ? value.bind(client) : value;
-  },
-});

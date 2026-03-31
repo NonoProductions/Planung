@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 import {
   createDbUnavailableResponse,
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const weekStart = searchParams.get("weekStart");
     const backlog = searchParams.get("backlog");
 
-    let query = supabase
+    let query = getSupabaseClient()
       .from("Task")
       .select("*, channel:Channel(*), subtasks:Task!parentId(*)")
       .eq("userId", userId)
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseClient()
     .from("Task")
     .insert({
       id: crypto.randomUUID(),

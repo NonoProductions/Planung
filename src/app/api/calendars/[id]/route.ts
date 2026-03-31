@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 
 // PATCH /api/calendars/:id
@@ -13,7 +13,7 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
-  const { data: existing } = await supabase
+  const { data: existing } = await getSupabaseClient()
     .from("CalendarCategory")
     .select("id")
     .eq("id", id)
@@ -28,7 +28,7 @@ export async function PATCH(
   if (body.name !== undefined) updateData.name = body.name;
   if (body.color !== undefined) updateData.color = body.color;
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseClient()
     .from("CalendarCategory")
     .update(updateData)
     .eq("id", id)
@@ -49,7 +49,7 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const { data: existing } = await supabase
+  const { data: existing } = await getSupabaseClient()
     .from("CalendarCategory")
     .select("id")
     .eq("id", id)
@@ -61,12 +61,12 @@ export async function DELETE(
   }
 
   // Unlink events from this category before deleting
-  await supabase
+  await getSupabaseClient()
     .from("CalendarEvent")
     .update({ calendarCategoryId: null, updatedAt: new Date().toISOString() })
     .eq("calendarCategoryId", id);
 
-  const { error } = await supabase
+  const { error } = await getSupabaseClient()
     .from("CalendarCategory")
     .delete()
     .eq("id", id);

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 import {
   createDbUnavailableResponse,
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
       rangeEnd.setHours(23, 59, 59, 999);
     }
 
-    const { data: nonRecurring, error: e1 } = await supabase
+    const { data: nonRecurring, error: e1 } = await getSupabaseClient()
       .from("CalendarEvent")
       .select("*")
       .eq("userId", userId)
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
 
     if (e1) throw e1;
 
-    const { data: recurring, error: e2 } = await supabase
+    const { data: recurring, error: e2 } = await getSupabaseClient()
       .from("CalendarEvent")
       .select("*")
       .eq("userId", userId)
@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseClient()
     .from("CalendarEvent")
     .insert({
       id: crypto.randomUUID(),

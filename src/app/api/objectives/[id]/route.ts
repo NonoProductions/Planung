@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 
 // PATCH /api/objectives/:id
@@ -13,7 +13,7 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
-  const { data: existing } = await supabase
+  const { data: existing } = await getSupabaseClient()
     .from("Objective")
     .select("id")
     .eq("id", id)
@@ -28,7 +28,7 @@ export async function PATCH(
   if (body.title !== undefined) updateData.title = body.title;
   if (body.progress !== undefined) updateData.progress = body.progress;
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseClient()
     .from("Objective")
     .update(updateData)
     .eq("id", id)
@@ -49,7 +49,7 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const { data: existing } = await supabase
+  const { data: existing } = await getSupabaseClient()
     .from("Objective")
     .select("id")
     .eq("id", id)
@@ -60,7 +60,7 @@ export async function DELETE(
     return Response.json({ error: "Objective not found" }, { status: 404 });
   }
 
-  const { error } = await supabase.from("Objective").delete().eq("id", id);
+  const { error } = await getSupabaseClient().from("Objective").delete().eq("id", id);
   if (error) throw error;
   return Response.json({ success: true });
 }

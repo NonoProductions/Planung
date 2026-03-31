@@ -1,5 +1,5 @@
 import { endOfDay, endOfWeek, parseISO, startOfWeek } from "date-fns";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 import { buildAnalyticsSnapshot } from "@/lib/analytics";
 import {
@@ -68,14 +68,14 @@ export async function GET(request: Request) {
 
   try {
     const [{ data: taskData, error: taskError }, timeEntriesResult] = await Promise.all([
-      supabase
+      getSupabaseClient()
         .from("Task")
         .select("id, title, status, plannedTime, actualTime, scheduledDate, completedAt, channel:Channel(id, name, color)")
         .eq("userId", userId)
         .is("parentId", null)
         .eq("isBacklog", false)
         .neq("status", "ARCHIVED"),
-      supabase
+      getSupabaseClient()
         .from("TimeEntry")
         .select("id, taskId, startTime, endTime, duration")
         .gte("startTime", parseISO(range.start).toISOString())

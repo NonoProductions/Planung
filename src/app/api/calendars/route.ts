@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 
 // GET /api/calendars
@@ -7,7 +7,7 @@ export async function GET() {
   const userId = await requireUserId();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseClient()
     .from("CalendarCategory")
     .select("*")
     .eq("userId", userId)
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseClient()
     .from("CalendarCategory")
     .insert({
       id: crypto.randomUUID(),

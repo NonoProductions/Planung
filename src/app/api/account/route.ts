@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 import { isDatabaseUnavailableError } from "@/lib/api-db-error";
 
@@ -7,7 +7,7 @@ export async function DELETE() {
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const { data: tasks, error: taskReadError } = await supabase
+    const { data: tasks, error: taskReadError } = await getSupabaseClient()
       .from("Task")
       .select("id,parentId")
       .eq("userId", userId);
@@ -17,7 +17,7 @@ export async function DELETE() {
     const taskIds = (tasks ?? []).map((task) => task.id as string);
 
     if (taskIds.length > 0) {
-      const { error: timeEntryDeleteError } = await supabase
+      const { error: timeEntryDeleteError } = await getSupabaseClient()
         .from("TimeEntry")
         .delete()
         .in("taskId", taskIds);
@@ -25,7 +25,7 @@ export async function DELETE() {
       if (timeEntryDeleteError) throw timeEntryDeleteError;
     }
 
-    const { error: subtaskDeleteError } = await supabase
+    const { error: subtaskDeleteError } = await getSupabaseClient()
       .from("Task")
       .delete()
       .eq("userId", userId)
@@ -33,7 +33,7 @@ export async function DELETE() {
 
     if (subtaskDeleteError) throw subtaskDeleteError;
 
-    const { error: taskDeleteError } = await supabase
+    const { error: taskDeleteError } = await getSupabaseClient()
       .from("Task")
       .delete()
       .eq("userId", userId)
@@ -48,11 +48,11 @@ export async function DELETE() {
       channelsResult,
       categoriesResult,
     ] = await Promise.all([
-      supabase.from("Reflection").delete().eq("userId", userId),
-      supabase.from("Objective").delete().eq("userId", userId),
-      supabase.from("CalendarEvent").delete().eq("userId", userId),
-      supabase.from("Channel").delete().eq("userId", userId),
-      supabase.from("CalendarCategory").delete().eq("userId", userId),
+      getSupabaseClient().from("Reflection").delete().eq("userId", userId),
+      getSupabaseClient().from("Objective").delete().eq("userId", userId),
+      getSupabaseClient().from("CalendarEvent").delete().eq("userId", userId),
+      getSupabaseClient().from("Channel").delete().eq("userId", userId),
+      getSupabaseClient().from("CalendarCategory").delete().eq("userId", userId),
     ]);
 
     const firstError =

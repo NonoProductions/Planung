@@ -1,6 +1,6 @@
 import { endOfDay, startOfWeek } from "date-fns";
 import { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 import {
   createDbUnavailableResponse,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   const range = getRange(request.nextUrl.searchParams);
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseClient()
       .from("TimeEntry")
       .select("id, taskId, startTime, endTime, duration")
       .gte("startTime", range.start)
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
   const durationMinutes = Math.max(1, Math.round(durationSeconds / 60));
 
-  const { data: existingTask, error: taskLookupError } = await supabase
+  const { data: existingTask, error: taskLookupError } = await getSupabaseClient()
     .from("Task")
     .select("id, actualTime")
     .eq("id", body.taskId)
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Task not found" }, { status: 404 });
   }
 
-  const { error: taskUpdateError } = await supabase
+  const { error: taskUpdateError } = await getSupabaseClient()
     .from("Task")
     .update({
       actualTime: (existingTask.actualTime ?? 0) + durationMinutes,
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
   };
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseClient()
       .from("TimeEntry")
       .insert(fallbackEntry)
       .select("id, taskId, startTime, endTime, duration")

@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 import {
   createDbUnavailableResponse,
@@ -11,7 +11,7 @@ export async function GET() {
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseClient()
       .from("Channel")
       .select("*")
       .eq("userId", userId)

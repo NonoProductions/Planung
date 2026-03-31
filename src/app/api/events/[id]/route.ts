@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 
 // PATCH /api/events/:id
@@ -13,7 +13,7 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
-  const { data: existing } = await supabase
+  const { data: existing } = await getSupabaseClient()
     .from("CalendarEvent")
     .select("id")
     .eq("id", id)
@@ -37,7 +37,7 @@ export async function PATCH(
   if (body.calendarCategoryId !== undefined)
     data.calendarCategoryId = body.calendarCategoryId;
 
-  const { data: event, error } = await supabase
+  const { data: event, error } = await getSupabaseClient()
     .from("CalendarEvent")
     .update(data)
     .eq("id", id)
@@ -59,7 +59,7 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const { data: existing } = await supabase
+  const { data: existing } = await getSupabaseClient()
     .from("CalendarEvent")
     .select("id")
     .eq("id", id)
@@ -70,7 +70,7 @@ export async function DELETE(
     return Response.json({ error: "Event not found" }, { status: 404 });
   }
 
-  const { error } = await supabase.from("CalendarEvent").delete().eq("id", id);
+  const { error } = await getSupabaseClient().from("CalendarEvent").delete().eq("id", id);
   if (error) throw error;
 
   return Response.json({ success: true });

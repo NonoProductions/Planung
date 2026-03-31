@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { createDbUnavailableResponse } from "@/lib/api-db-error";
 import { requireUserId } from "@/lib/server-auth";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 
 function buildDayRange(date: string) {
   const start = new Date(date);
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     const { start, end } = buildDayRange(date);
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseClient()
       .from("Reflection")
       .select("*")
       .eq("userId", userId)
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     const { start, end } = buildDayRange(body.date);
 
-    const { data: existing, error: lookupError } = await supabase
+    const { data: existing, error: lookupError } = await getSupabaseClient()
       .from("Reflection")
       .select("id")
       .eq("userId", userId)
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     if (lookupError) throw lookupError;
 
     if (existing) {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("Reflection")
         .update({
           content: body.content ?? "",
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       return Response.json(data);
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseClient()
       .from("Reflection")
       .insert({
         id: crypto.randomUUID(),

@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 import {
   createDbUnavailableResponse,
@@ -20,27 +20,27 @@ export async function GET() {
   try {
     const [tasksResult, objectivesResult, eventsResult, channelsResult, categoriesResult] =
       await Promise.all([
-        supabase
+        getSupabaseClient()
           .from("Task")
           .select("*, channel:Channel(*)")
           .eq("userId", userId)
           .order("position", { ascending: true }),
-        supabase
+        getSupabaseClient()
           .from("Objective")
           .select("*")
           .eq("userId", userId)
           .order("weekStart", { ascending: true }),
-        supabase
+        getSupabaseClient()
           .from("CalendarEvent")
           .select("*")
           .eq("userId", userId)
           .order("startTime", { ascending: true }),
-        supabase
+        getSupabaseClient()
           .from("Channel")
           .select("*")
           .eq("userId", userId)
           .order("name", { ascending: true }),
-        supabase
+        getSupabaseClient()
           .from("CalendarCategory")
           .select("*")
           .eq("userId", userId)
