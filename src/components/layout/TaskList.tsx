@@ -241,16 +241,18 @@ export default function TaskList() {
           </button>
         </div>
 
-        <div className="planning-toolbar__group">
-          <button
-            type="button"
-            onClick={() => openShutdownRitual(selectedDate)}
-            className="planning-toolbar__button"
-          >
-            <MoonStar size={15} strokeWidth={1.9} />
-            Shutdown
-          </button>
-        </div>
+        {!isCompactLayout ? (
+          <div className="planning-toolbar__group">
+            <button
+              type="button"
+              onClick={() => openShutdownRitual(selectedDate)}
+              className="planning-toolbar__button"
+            >
+              <MoonStar size={15} strokeWidth={1.9} />
+              Shutdown
+            </button>
+          </div>
+        ) : null}
 
       </div>
 

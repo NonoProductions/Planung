@@ -3121,7 +3121,7 @@ input[type="number"] {
     min-height: 100dvh;
     flex-direction: column;
     overflow: visible;
-    background: #f4efe8;
+    background: #fffdfa;
   }
 
   .mobile-topbar {
@@ -3218,12 +3218,14 @@ input[type="number"] {
     width: 100%;
     min-height: calc(100dvh - 78px);
     overflow: visible;
-    padding-bottom: var(--mobile-dock-offset);
+    padding-bottom: 0;
+    background: #fffdfa;
   }
 
   .app-main-surface {
     flex-direction: column;
     overflow: visible;
+    background: #fffdfa;
   }
 
   .app-main-surface--page {
@@ -3280,9 +3282,10 @@ input[type="number"] {
   }
 
   .planning-columns {
-    padding-bottom: var(--mobile-dock-offset);
-    scroll-padding-bottom: var(--mobile-dock-offset);
-    overflow: visible;
+    background: #fffdfa;
+    overflow-x: visible;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .planning-columns__grid {
@@ -3327,7 +3330,14 @@ input[type="number"] {
 
   .planning-cards {
     overflow: visible;
-    padding-bottom: 24px;
+    padding-bottom: 0;
+  }
+
+  .planning-cards::after {
+    content: "";
+    display: block;
+    height: var(--mobile-dock-offset);
+    background: #fffdfa;
   }
 
   .planning-card__footer {
@@ -3340,11 +3350,18 @@ input[type="number"] {
   }
 
   .planning-card__ghost-action {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(2px) scale(0.92);
+  }
+
+  .planning-card--mobile-actions-open .planning-card__ghost-action {
     visibility: visible;
     opacity: 1;
     pointer-events: auto;
     transform: none;
-    transition: none;
+    transition-delay: 0s;
   }
 
   .calendar-toolbar {

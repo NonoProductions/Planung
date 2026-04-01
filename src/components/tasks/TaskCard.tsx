@@ -95,12 +95,40 @@ export default function TaskCard({ task }: TaskCardProps) {
   };
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const isSelected = selectedTaskId === task.id;
   const editing = editingTaskId === task.id;
   const isCompleted = task.status === "COMPLETED";
   const channelColor = task.channel?.color || "var(--text-secondary)";
   const hasSubtasks = (task.subtasks?.length ?? 0) > 0;
   const scheduledWindow = formatScheduledWindow(task);
+  const showMobileActions = isCompactLayout && mobileActionsOpen && isSelected;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const updateLayout = () => setIsCompactLayout(mediaQuery.matches);
+
+    updateLayout();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updateLayout);
+      return () => mediaQuery.removeEventListener("change", updateLayout);
+    }
+
+    mediaQuery.addListener(updateLayout);
+    return () => mediaQuery.removeListener(updateLayout);
+  }, []);
+
+  const handleCardClick = () => {
+    selectTask(task.id);
+
+    if (isCompactLayout) {
+      setMobileActionsOpen(true);
+    }
+  };
 
   if (editing) {
     return (
@@ -123,8 +151,12 @@ export default function TaskCard({ task }: TaskCardProps) {
   return (
     <motion.article
       ref={setNodeRef}
-      className="group planning-card"
-      onClick={() => selectTask(task.id)}
+      className={
+        showMobileActions
+          ? "group planning-card planning-card--mobile-actions-open"
+          : "group planning-card"
+      }
+      onClick={handleCardClick}
       aria-selected={isSelected}
       style={{
         ...sortableStyle,
@@ -234,7 +266,10 @@ export default function TaskCard({ task }: TaskCardProps) {
                 ? "var(--accent-success)"
                 : "var(--text-secondary)",
             }}
-            onClick={() => toggleTaskStatus(task.id)}
+            onClick={(event) => {
+              event.stopPropagation();
+              void toggleTaskStatus(task.id);
+            }}
             onDoubleClick={() => startEditingTask(task.id)}
             aria-label={isCompleted ? "Mark as open" : "Mark as completed"}
           >
@@ -244,7 +279,10 @@ export default function TaskCard({ task }: TaskCardProps) {
           <button
             className="planning-card__ghost-action"
             style={{ backgroundColor: "#f5f2ee", color: "var(--text-secondary)" }}
-            onClick={() => startEditingTask(task.id)}
+            onClick={(event) => {
+              event.stopPropagation();
+              startEditingTask(task.id);
+            }}
             aria-label="Edit"
           >
             <Pencil size={12} strokeWidth={2} />
@@ -260,7 +298,8 @@ export default function TaskCard({ task }: TaskCardProps) {
                 ? "var(--accent-danger)"
                 : "var(--text-secondary)",
             }}
-            onClick={() => {
+            onClick={(event) => {
+              event.stopPropagation();
               if (confirmDelete) {
                 void deleteTask(task.id);
               } else {
@@ -276,6 +315,7 @@ export default function TaskCard({ task }: TaskCardProps) {
           <button
             className="planning-card__ghost-action"
             style={{ backgroundColor: "#f5f2ee", color: "var(--text-secondary)" }}
+            onClick={(event) => event.stopPropagation()}
             {...attributes}
             {...listeners}
             aria-label="Drag"
