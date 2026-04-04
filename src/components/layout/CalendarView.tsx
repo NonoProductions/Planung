@@ -4,7 +4,7 @@ import { useMemo, useRef, useEffect, useState, useCallback, startTransition } fr
 import { format, isSameDay, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { PanelsTopLeft, Plus, Search, X } from "lucide-react";
-import { useDroppable } from "@dnd-kit/core";
+import { useDroppable, useDndContext } from "@dnd-kit/core";
 import { useUIStore } from "@/stores/uiStore";
 import { useTaskStore } from "@/stores/taskStore";
 import TimeBlock from "@/components/calendar/TimeBlock";
@@ -130,6 +130,9 @@ export default function CalendarView() {
     },
   });
 
+  const { active: dndActive } = useDndContext();
+  const isDragActive = dndActive !== null;
+
   useEffect(() => {
     fetchEvents(selectedDate);
   }, [selectedDate, fetchEvents]);
@@ -145,6 +148,13 @@ export default function CalendarView() {
 
     return () => window.cancelAnimationFrame(frame);
   }, [selectedDate, scrollToCurrentTime]);
+
+  // Close any open form when a new drag starts so the grid is clear for drops
+  useEffect(() => {
+    if (isDragActive) {
+      setFormState(null);
+    }
+  }, [isDragActive]);
 
   useEffect(() => {
     if (!calendarPlanningTaskId) return;
@@ -415,7 +425,10 @@ export default function CalendarView() {
             gridRef.current = node;
             setDroppableRef(node);
           }}
-          className={isOver ? "calendar-grid calendar-grid--drop" : "calendar-grid"}
+          className={[
+            "calendar-grid",
+            isOver ? "calendar-grid--drop" : isDragActive ? "calendar-grid--drag-hint" : "",
+          ].join(" ")}
           style={{
             height: HOURS.length * HOUR_HEIGHT,
           }}
@@ -470,6 +483,14 @@ export default function CalendarView() {
           </div>
 
           <CurrentTimeLine startHour={START_HOUR} hourHeight={HOUR_HEIGHT} />
+
+          {isDragActive && !formState && (
+            <div className="calendar-drop-hint" aria-hidden="true">
+              <div className="calendar-drop-hint__content">
+                Zum Einplanen hierher ziehen
+              </div>
+            </div>
+          )}
 
           {formState?.kind === "event" && (
             <EventForm

@@ -58,6 +58,72 @@ function getClientCoordinates(event: Event | null): ClientCoordinates | null {
   return null;
 }
 
+const CALENDAR_START_HOUR = 6;
+const CALENDAR_HOUR_HEIGHT = 72;
+
+function scheduleTaskOnCalendar(
+  taskId: string,
+  tasks: Task[],
+  clientY: number
+): boolean {
+  const grid = document.querySelector(".calendar-grid") as HTMLElement | null;
+  if (!grid) return false;
+
+  const rect = grid.getBoundingClientRect();
+  const scrollContainer = grid.closest(".calendar-scroll") as HTMLElement | null;
+  const scrollTop = scrollContainer?.scrollTop || 0;
+  const y = clientY - rect.top + scrollTop;
+
+  if (y < 0) return false;
+
+  const totalMinutes = Math.round((y / CALENDAR_HOUR_HEIGHT) * 60);
+  const snapped = Math.round(totalMinutes / 15) * 15;
+  const hour = CALENDAR_START_HOUR + Math.floor(snapped / 60);
+  const minute = snapped % 60;
+
+  if (hour < CALENDAR_START_HOUR || hour >= 22) return false;
+
+  const selectedDate = useUIStore.getState().selectedDate;
+  const timeStr = `${hour.toString().padStart(2, "0")}:${minute
+    .toString()
+    .padStart(2, "0")}`;
+  const startDate = new Date(`${selectedDate}T${timeStr}:00`);
+  if (isNaN(startDate.getTime())) return false;
+
+  const task = tasks.find((t) => t.id === taskId);
+  if (!task) return false;
+
+  const plannedTime =
+    task.plannedTime && task.plannedTime > 0 ? task.plannedTime : 60;
+  const endTime = new Date(
+    startDate.getTime() + plannedTime * 60 * 1000
+  ).toISOString();
+
+  useTaskStore.getState().updateTask(task.id, {
+    scheduledDate: selectedDate,
+    scheduledStart: startDate.toISOString(),
+    scheduledEnd: endTime,
+    plannedTime,
+    isBacklog: false,
+    backlogBucket: undefined,
+    backlogFolder: undefined,
+  });
+  useUIStore.getState().setCalendarPlanningTaskId(task.id);
+  return true;
+}
+
+function isPointerInCalendarGrid(clientX: number, clientY: number): boolean {
+  const grid = document.querySelector(".calendar-grid") as HTMLElement | null;
+  if (!grid) return false;
+  const rect = grid.getBoundingClientRect();
+  return (
+    clientX >= rect.left &&
+    clientX <= rect.right &&
+    clientY >= rect.top &&
+    clientY <= rect.bottom
+  );
+}
+
 const customCollisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
   const calendarCollision = pointerCollisions.find(
@@ -89,6 +155,10 @@ export default function DndWrapper({ children }: DndWrapperProps) {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id);
+    // Auto-open calendar sidebar so the drop zone is available
+    if (!useUIStore.getState().calendarVisible) {
+      useUIStore.getState().setCalendarVisible(true);
+    }
   }, []);
 
   const handleDragEnd = useCallback(
@@ -96,69 +166,40 @@ export default function DndWrapper({ children }: DndWrapperProps) {
       const { active, over } = event;
       setActiveId(null);
 
-      if (!over) return;
+      const startPoint = getClientCoordinates(event.activatorEvent);
+      const dropX = startPoint ? startPoint.clientX + event.delta.x : 0;
+      const dropY = startPoint ? startPoint.clientY + event.delta.y : 0;
 
-      if (over.id === "calendar-dropzone") {
-        const calendarData = over.data?.current as
-          | {
-              getTimeRangeFromClientY?: (
-                clientY: number
-              ) => { scheduledDate: string; startTime: string; endTime: string } | null;
-            }
-          | undefined;
-        const startPoint = getClientCoordinates(event.activatorEvent);
-
-        if (calendarData?.getTimeRangeFromClientY && startPoint) {
-          const dropY = startPoint.clientY + event.delta.y;
-          const times = calendarData.getTimeRangeFromClientY(dropY);
-
-          if (times) {
-            const task = tasks.find((item) => item.id === active.id);
-            if (task) {
-              const plannedTime = task.plannedTime && task.plannedTime > 0 ? task.plannedTime : 60;
-              const startDate = new Date(times.startTime);
-              const endTime = new Date(
-                startDate.getTime() + plannedTime * 60 * 1000
-              ).toISOString();
-
-              useTaskStore.getState().updateTask(task.id, {
-                scheduledDate: times.scheduledDate,
-                scheduledStart: times.startTime,
-                scheduledEnd: endTime,
-                plannedTime,
-                isBacklog: false,
-                backlogBucket: undefined,
-                backlogFolder: undefined,
-              });
-              useUIStore.getState().setCalendarPlanningTaskId(task.id);
-            }
-          }
-        }
-
+      // 1) Calendar drop — always use DOM-based detection for reliability.
+      //    dnd-kit droppable measurement can be stale when the calendar opens
+      //    mid-drag, so we query the actual DOM element directly.
+      if (startPoint && isPointerInCalendarGrid(dropX, dropY)) {
+        scheduleTaskOnCalendar(active.id as string, tasks, dropY);
         return;
       }
 
-      if (active.id !== over.id) {
-        const sortableData = active.data?.current?.sortable;
-        const overSortable = over.data?.current?.sortable;
+      // 2) Sorting within task list
+      if (!over || active.id === over.id) return;
 
-        if (sortableData && overSortable) {
-          const oldIndex = sortableData.index;
-          const newIndex = overSortable.index;
+      const sortableData = active.data?.current?.sortable;
+      const overSortable = over.data?.current?.sortable;
 
-          const dayTasks = tasks
-            .filter((task) => {
-              const currentTask = tasks.find((item) => item.id === active.id);
-              return (
-                task.scheduledDate === currentTask?.scheduledDate &&
-                !task.isBacklog
-              );
-            })
-            .sort((first, second) => first.position - second.position);
+      if (sortableData && overSortable) {
+        const oldIndex = sortableData.index;
+        const newIndex = overSortable.index;
 
-          const reordered = arrayMove(dayTasks, oldIndex, newIndex);
-          useTaskStore.getState().reorderTasks(reordered.map((task) => task.id));
-        }
+        const dayTasks = tasks
+          .filter((task) => {
+            const currentTask = tasks.find((item) => item.id === active.id);
+            return (
+              task.scheduledDate === currentTask?.scheduledDate &&
+              !task.isBacklog
+            );
+          })
+          .sort((first, second) => first.position - second.position);
+
+        const reordered = arrayMove(dayTasks, oldIndex, newIndex);
+        useTaskStore.getState().reorderTasks(reordered.map((task) => task.id));
       }
     },
     [tasks]

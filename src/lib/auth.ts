@@ -1,5 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { compare } from "bcryptjs";
+import { getSupabaseClient } from "@/lib/supabase";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -10,16 +12,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // For now, return a placeholder user
-        // Will be replaced with real DB lookup later
-        if (credentials?.email && credentials?.password) {
-          return {
-            id: "demo-user-001",
-            name: "Demo User",
-            email: credentials.email as string,
-          };
-        }
-        return null;
+        const email = credentials?.email as string | undefined;
+        const password = credentials?.password as string | undefined;
+
+        if (!email || !password) return null;
+
+        const supabase = getSupabaseClient();
+        const { data: user, error } = await supabase
+          .from("User")
+          .select("id, name, email, password")
+          .eq("email", email)
+          .maybeSingle();
+
+        if (error || !user || !user.password) return null;
+
+        const isValid = await compare(password, user.password);
+        if (!isValid) return null;
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        };
       },
     }),
   ],

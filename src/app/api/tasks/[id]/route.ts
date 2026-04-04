@@ -58,6 +58,7 @@ export async function PATCH(
     .from("Task")
     .update(data)
     .eq("id", id)
+    .eq("userId", userId)
     .select("*, channel:Channel(*)")
     .single();
 
@@ -87,7 +88,7 @@ export async function DELETE(
     return Response.json({ error: "Task not found" }, { status: 404 });
   }
 
-  const { error } = await supabase.from("Task").delete().eq("id", id);
+  const { error } = await supabase.from("Task").delete().eq("id", id).eq("userId", userId);
   if (error) throw error;
 
   return Response.json({ success: true });

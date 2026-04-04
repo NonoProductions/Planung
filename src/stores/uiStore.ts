@@ -78,6 +78,7 @@ interface UIState {
   setAutoPlanningPromptedDate: (date: string | null) => void;
   setAutoShutdownPromptedDate: (date: string | null) => void;
   clearQuietMode: () => void;
+  fetchRitualCompletions: () => Promise<void>;
   setCelebrationEnabled: (enabled: boolean) => void;
   setCelebrationType: (type: CelebrationType) => void;
   triggerCelebration: (payload: {
@@ -242,6 +243,13 @@ export const useUIStore = create<UIState>()(
           ),
         }));
         get().triggerCelebration({ trigger: "planning_ritual" });
+
+        // Persist to server so other devices see the completion
+        fetch("/api/rituals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date, type: "planning" }),
+        }).catch(() => {});
       },
 
       openShutdownRitual: (date) =>
@@ -312,9 +320,62 @@ export const useUIStore = create<UIState>()(
           ),
         }));
         get().triggerCelebration({ trigger: "shutdown_ritual" });
+
+        // Persist to server so other devices see the completion
+        fetch("/api/rituals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date,
+            type: "shutdown",
+            note: reflection.trim() || undefined,
+          }),
+        }).catch(() => {});
       },
 
       clearQuietMode: () => set({ quietMode: false }),
+
+      fetchRitualCompletions: async () => {
+        try {
+          const res = await fetch("/api/rituals");
+          if (!res.ok) return;
+          const data = (await res.json()) as {
+            planning: string[];
+            shutdown: string[];
+            notes: Record<string, string>;
+          };
+
+          set((state) => {
+            // Merge server dates into local dates (union, deduplicated)
+            const mergedPlanning = Array.from(
+              new Set([...state.planningRitualCompletedDates, ...data.planning])
+            )
+              .sort((a, b) => b.localeCompare(a))
+              .slice(0, MAX_RITUAL_HISTORY);
+
+            const mergedShutdown = Array.from(
+              new Set([...state.shutdownRitualCompletedDates, ...data.shutdown])
+            )
+              .sort((a, b) => b.localeCompare(a))
+              .slice(0, MAX_RITUAL_HISTORY);
+
+            const mergedNotes = { ...data.notes, ...state.dailyShutdownNotes };
+            const trimmedNotes = Object.fromEntries(
+              Object.entries(mergedNotes)
+                .sort((a, b) => b[0].localeCompare(a[0]))
+                .slice(0, MAX_RITUAL_HISTORY)
+            );
+
+            return {
+              planningRitualCompletedDates: mergedPlanning,
+              shutdownRitualCompletedDates: mergedShutdown,
+              dailyShutdownNotes: trimmedNotes,
+            };
+          });
+        } catch {
+          // Offline / API unavailable – keep local state as-is
+        }
+      },
 
       setCelebrationEnabled: (enabled: boolean) =>
         set((state) => ({

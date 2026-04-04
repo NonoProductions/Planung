@@ -41,6 +41,7 @@ export async function PATCH(
     .from("CalendarEvent")
     .update(data)
     .eq("id", id)
+    .eq("userId", userId)
     .select()
     .single();
 
@@ -70,7 +71,7 @@ export async function DELETE(
     return Response.json({ error: "Event not found" }, { status: 404 });
   }
 
-  const { error } = await supabase.from("CalendarEvent").delete().eq("id", id);
+  const { error } = await supabase.from("CalendarEvent").delete().eq("id", id).eq("userId", userId);
   if (error) throw error;
 
   return Response.json({ success: true });

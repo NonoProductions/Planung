@@ -101,6 +101,9 @@ export default function AppShell({ children, bodyClassName }: AppShellProps) {
   const quietMode = useUIStore((state) => state.quietMode);
   const quietModeDate = useUIStore((state) => state.quietModeDate);
   const clearQuietMode = useUIStore((state) => state.clearQuietMode);
+  const fetchRitualCompletions = useUIStore(
+    (state) => state.fetchRitualCompletions
+  );
   const planningTime = useSettingsStore(
     (state) => state.settings.planning.planningTime
   );
@@ -117,6 +120,11 @@ export default function AppShell({ children, bodyClassName }: AppShellProps) {
     if (typeof document === "undefined") return;
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
+
+  // Sync ritual completions from server so rituals completed on other devices are recognized
+  useEffect(() => {
+    fetchRitualCompletions();
+  }, [fetchRitualCompletions]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;

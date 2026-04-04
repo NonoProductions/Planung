@@ -5,9 +5,10 @@ export default auth((req) => {
   const callbackUrl = `${req.nextUrl.pathname}${req.nextUrl.search}`;
   const isApiRoute = req.nextUrl.pathname.startsWith("/api/");
   const isAuthRoute = req.nextUrl.pathname.startsWith("/api/auth/");
+  const isRegisterRoute = req.nextUrl.pathname === "/api/register";
   const isLoginRoute = req.nextUrl.pathname === "/login";
 
-  if (isAuthRoute || isLoginRoute || req.auth) {
+  if (isAuthRoute || isRegisterRoute || isLoginRoute || req.auth) {
     return;
   }
 

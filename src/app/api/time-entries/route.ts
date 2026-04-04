@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from("TimeEntry")
       .select("id, taskId, startTime, endTime, duration")
+      .eq("userId", userId)
       .gte("startTime", range.start)
       .lte("startTime", range.end)
       .order("startTime", { ascending: false });
@@ -106,7 +107,8 @@ export async function POST(request: NextRequest) {
       actualTime: (existingTask.actualTime ?? 0) + durationMinutes,
       updatedAt: new Date().toISOString(),
     })
-    .eq("id", body.taskId);
+    .eq("id", body.taskId)
+    .eq("userId", userId);
 
   if (taskUpdateError) {
     throw taskUpdateError;
@@ -115,6 +117,7 @@ export async function POST(request: NextRequest) {
   const fallbackEntry = {
     id: crypto.randomUUID(),
     taskId: body.taskId as string,
+    userId,
     startTime,
     endTime: endTime ?? new Date(new Date(startTime).getTime() + durationSeconds * 1000).toISOString(),
     duration: durationSeconds,
