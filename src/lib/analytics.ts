@@ -27,12 +27,12 @@ function parseDateBoundary(value: string, end = false) {
 
 function safeMinutesFromEntry(entry: TimeEntry) {
   if (typeof entry.duration === "number" && Number.isFinite(entry.duration)) {
-    return Math.max(1, Math.round(entry.duration / 60));
+    return Math.max(0, entry.duration / 60);
   }
 
   if (entry.endTime) {
     const diff = parseISO(entry.endTime).getTime() - parseISO(entry.startTime).getTime();
-    return Math.max(1, Math.round(diff / 60000));
+    return Math.max(0, diff / 60000);
   }
 
   return 0;

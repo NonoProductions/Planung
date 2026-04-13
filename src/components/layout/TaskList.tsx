@@ -109,7 +109,12 @@ export default function TaskList() {
   const [newChannelId, setNewChannelId] = useState("");
   const [newPlannedTime, setNewPlannedTime] = useState("");
   const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const addInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     fetchChannels();
@@ -208,6 +213,14 @@ export default function TaskList() {
       clearQuickAddRequest();
     }
   };
+
+  if (!isMounted) {
+    // Avoid hydration mismatch: this component's entire content depends on
+    // client-only state (current date via `new Date()`, localStorage-persisted
+    // zustand state, and `window.matchMedia`), so we skip rendering on the
+    // server and during the first client render.
+    return <section className="planning-board" aria-busy="true" />;
+  }
 
   return (
     <section className="planning-board">

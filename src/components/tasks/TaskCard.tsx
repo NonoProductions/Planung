@@ -11,7 +11,7 @@ import {
 } from "react";
 import { format, parseISO } from "date-fns";
 import { motion } from "framer-motion";
-import { Check, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, GripVertical, Pencil, Play, Plus, Square, Trash2 } from "lucide-react";
 import {
   DndContext,
   PointerSensor,
@@ -27,7 +27,9 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { formatElapsed, formatSeconds, minutesToSeconds } from "@/lib/time-tracking";
 import { useTaskStore } from "@/stores/taskStore";
+import { useTimeTrackingStore } from "@/stores/timeTrackingStore";
 import { useUIStore } from "@/stores/uiStore";
 import type { Channel, Task } from "@/types";
 
@@ -72,6 +74,10 @@ export default function TaskCard({ task }: TaskCardProps) {
   const renameSubtask = useTaskStore((state) => state.renameSubtask);
   const reorderSubtasks = useTaskStore((state) => state.reorderSubtasks);
   const channels = useTaskStore((state) => state.channels);
+  const runningTimer = useTimeTrackingStore((state) => state.runningTimer);
+  const timerSubmitting = useTimeTrackingStore((state) => state.submitting);
+  const startTimer = useTimeTrackingStore((state) => state.startTimer);
+  const stopTimer = useTimeTrackingStore((state) => state.stopTimer);
   const selectedTaskId = useUIStore((state) => state.selectedTaskId);
   const editingTaskId = useUIStore((state) => state.editingTaskId);
   const selectTask = useUIStore((state) => state.selectTask);
@@ -97,6 +103,7 @@ export default function TaskCard({ task }: TaskCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isCompactLayout, setIsCompactLayout] = useState(false);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const isSelected = selectedTaskId === task.id;
   const editing = editingTaskId === task.id;
   const isCompleted = task.status === "COMPLETED";
@@ -104,6 +111,16 @@ export default function TaskCard({ task }: TaskCardProps) {
   const hasSubtasks = (task.subtasks?.length ?? 0) > 0;
   const scheduledWindow = formatScheduledWindow(task);
   const showMobileActions = isCompactLayout && mobileActionsOpen && isSelected;
+  const isTrackingThisTask = runningTimer?.taskId === task.id;
+  const isAnotherTimerRunning = Boolean(runningTimer && !isTrackingThisTask);
+  const trackedSeconds = minutesToSeconds(task.actualTime ?? 0);
+  const timerLabel = isTrackingThisTask
+    ? formatElapsed(runningTimer.startedAt, now, trackedSeconds)
+    : isAnotherTimerRunning
+      ? "Belegt"
+      : trackedSeconds > 0
+        ? `Weiter ${formatSeconds(trackedSeconds)}`
+        : "Track";
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -121,6 +138,13 @@ export default function TaskCard({ task }: TaskCardProps) {
     mediaQuery.addListener(updateLayout);
     return () => mediaQuery.removeListener(updateLayout);
   }, []);
+
+  useEffect(() => {
+    if (!isTrackingThisTask) return undefined;
+
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [isTrackingThisTask]);
 
   const handleCardClick = () => {
     selectTask(task.id);
@@ -253,6 +277,45 @@ export default function TaskCard({ task }: TaskCardProps) {
 
       <div className="planning-card__footer">
         <div className="planning-card__controls">
+          <button
+            className={`planning-card__timer-action ${
+              isTrackingThisTask ? "planning-card__timer-action--running" : ""
+            }`}
+            onClick={(event) => {
+              event.stopPropagation();
+
+              if (isTrackingThisTask) {
+                void stopTimer();
+                return;
+              }
+
+              setNow(Date.now());
+              void startTimer(task.id);
+            }}
+            disabled={timerSubmitting || isAnotherTimerRunning}
+            aria-label={isTrackingThisTask ? "Timer stoppen" : "Timer starten"}
+            title={
+              isAnotherTimerRunning
+                ? "Es laeuft bereits ein anderer Timer."
+                : isTrackingThisTask
+                  ? "Timer stoppen"
+                  : "Timer starten"
+            }
+          >
+            <span
+              className={`planning-card__timer-dot ${
+                isTrackingThisTask ? "planning-card__timer-dot--live time-dot-pulse" : ""
+              }`}
+              aria-hidden="true"
+            />
+            {isTrackingThisTask ? (
+              <Square size={10} strokeWidth={2.8} />
+            ) : (
+              <Play size={10} strokeWidth={2.6} />
+            )}
+            <span className="planning-card__timer-text">{timerLabel}</span>
+          </button>
+
           <button
             className="planning-card__toggle"
             style={{

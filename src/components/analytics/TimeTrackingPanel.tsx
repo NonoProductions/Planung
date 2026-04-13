@@ -5,55 +5,35 @@ import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { Clock3, LayoutGrid, PauseCircle, PlayCircle, TimerReset } from "lucide-react";
+import {
+  createTimeEntry,
+  formatCompactDuration,
+  formatCompactMinutes,
+  formatElapsed,
+  formatSeconds,
+  minutesToSeconds,
+  secondsToMinutes,
+} from "@/lib/time-tracking";
+import { useTaskStore } from "@/stores/taskStore";
+import { useTimeTrackingStore } from "@/stores/timeTrackingStore";
 import type { AnalyticsTaskOption, TimeEntry } from "@/types";
-
-const RUNNING_TIMER_KEY = "sunsama-running-timer";
-
-interface RunningTimerState {
-  taskId: string;
-  startedAt: string;
-}
 
 interface TimeTrackingPanelProps {
   tasks: AnalyticsTaskOption[];
   entries: TimeEntry[];
-  onEntryCreated: (entry: TimeEntry) => void;
-}
-
-function formatMinutes(minutes: number) {
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
-}
-
-function formatDurationFromSeconds(seconds: number) {
-  const totalMinutes = Math.max(1, Math.round(seconds / 60));
-  return formatMinutes(totalMinutes);
 }
 
 function getEntryMinutes(entry: TimeEntry) {
   if (typeof entry.duration === "number" && Number.isFinite(entry.duration)) {
-    return Math.max(1, Math.round(entry.duration / 60));
+    return secondsToMinutes(entry.duration);
   }
 
   if (entry.endTime) {
     const diff = new Date(entry.endTime).getTime() - new Date(entry.startTime).getTime();
-    return Math.max(1, Math.round(diff / 60000));
+    return Math.max(0, diff / 60000);
   }
 
   return 0;
-}
-
-function formatElapsed(startedAt: string, now: number) {
-  const seconds = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 1000));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainingSeconds = seconds % 60;
-
-  return `${hours.toString().padStart(2, "0")}:${minutes
-    .toString()
-    .padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
 function toDateTimeLocalValue(date: Date) {
@@ -68,121 +48,52 @@ function toDateTimeLocalValue(date: Date) {
 export default function TimeTrackingPanel({
   tasks,
   entries,
-  onEntryCreated,
 }: TimeTrackingPanelProps) {
-  const [selectedTaskId, setSelectedTaskId] = useState("");
-  const [manualTaskId, setManualTaskId] = useState("");
+  const [selectedTaskIdState, setSelectedTaskIdState] = useState("");
+  const [manualTaskIdState, setManualTaskIdState] = useState("");
   const [manualMinutes, setManualMinutes] = useState("45");
   const [manualStartedAt, setManualStartedAt] = useState(() =>
     toDateTimeLocalValue(new Date())
   );
-  const [runningTimer, setRunningTimer] = useState<RunningTimerState | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const runningTimer = useTimeTrackingStore((state) => state.runningTimer);
+  const submitting = useTimeTrackingStore((state) => state.submitting);
+  const startTimer = useTimeTrackingStore((state) => state.startTimer);
+  const stopTimer = useTimeTrackingStore((state) => state.stopTimer);
+  const applyTrackedTime = useTaskStore((state) => state.applyTrackedTime);
+  const selectedTaskId =
+    selectedTaskIdState && tasks.some((task) => task.id === selectedTaskIdState)
+      ? selectedTaskIdState
+      : tasks[0]?.id ?? "";
+  const manualTaskId =
+    manualTaskIdState && tasks.some((task) => task.id === manualTaskIdState)
+      ? manualTaskIdState
+      : tasks[0]?.id ?? "";
 
   useEffect(() => {
-    if (!tasks.length) return;
+    if (!runningTimer) return undefined;
 
-    setSelectedTaskId((current) =>
-      current && tasks.some((task) => task.id === current) ? current : tasks[0].id
-    );
-    setManualTaskId((current) =>
-      current && tasks.some((task) => task.id === current) ? current : tasks[0].id
-    );
-  }, [tasks]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const persisted = window.localStorage.getItem(RUNNING_TIMER_KEY);
-    if (!persisted) return;
-
-    try {
-      const parsed = JSON.parse(persisted) as RunningTimerState;
-      if (parsed.taskId && parsed.startedAt) {
-        setRunningTimer(parsed);
-      }
-    } catch {
-      window.localStorage.removeItem(RUNNING_TIMER_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    if (runningTimer) {
-      window.localStorage.setItem(RUNNING_TIMER_KEY, JSON.stringify(runningTimer));
-      const timer = window.setInterval(() => setNow(Date.now()), 1000);
-      return () => window.clearInterval(timer);
-    }
-
-    window.localStorage.removeItem(RUNNING_TIMER_KEY);
-    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
   }, [runningTimer]);
-
-  async function persistEntry(payload: {
-    taskId: string;
-    startTime: string;
-    endTime: string;
-    duration: number;
-  }) {
-    const response = await fetch("/api/time-entries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      throw new Error("time-entry-save-failed");
-    }
-
-    return response.json() as Promise<TimeEntry>;
-  }
 
   function handleStartTimer() {
     if (!selectedTaskId || runningTimer) return;
     setMessage(null);
-    setRunningTimer({
-      taskId: selectedTaskId,
-      startedAt: new Date().toISOString(),
-    });
+    setNow(Date.now());
+    void startTimer(selectedTaskId);
   }
 
   async function handleStopTimer() {
     if (!runningTimer) return;
 
-    const startTime = runningTimer.startedAt;
-    const endTime = new Date().toISOString();
-    const duration = Math.max(
-      60,
-      Math.round((new Date(endTime).getTime() - new Date(startTime).getTime()) / 1000)
-    );
-
-    setSubmitting(true);
     setMessage(null);
 
-    try {
-      const createdEntry = await persistEntry({
-        taskId: runningTimer.taskId,
-        startTime,
-        endTime,
-        duration,
-      });
-      onEntryCreated(createdEntry);
-      setMessage("Timer gespeichert");
-    } catch {
-      onEntryCreated({
-        id: `local-${Date.now()}`,
-        taskId: runningTimer.taskId,
-        startTime,
-        endTime,
-        duration,
-      });
-      setMessage("Timer lokal uebernommen");
-    } finally {
-      setRunningTimer(null);
-      setSubmitting(false);
-    }
+    const result = await stopTimer();
+    if (!result) return;
+
+    setMessage(result.persisted ? "Timer gespeichert" : "Timer lokal uebernommen");
   }
 
   async function handleManualEntry(event: FormEvent<HTMLFormElement>) {
@@ -196,40 +107,33 @@ export default function TimeTrackingPanel({
     const endTime = new Date(new Date(startTime).getTime() + durationMinutes * 60 * 1000).toISOString();
     const duration = durationMinutes * 60;
 
-    setSubmitting(true);
     setMessage(null);
 
     try {
-      const createdEntry = await persistEntry({
+      const result = await createTimeEntry({
         taskId: manualTaskId,
         startTime,
         endTime,
         duration,
       });
-      onEntryCreated(createdEntry);
-      setMessage("Zeitblock gespeichert");
+      applyTrackedTime(manualTaskId, durationMinutes);
+      setMessage(result.persisted ? "Zeitblock gespeichert" : "Zeitblock lokal uebernommen");
       setManualStartedAt(toDateTimeLocalValue(new Date()));
     } catch {
-      onEntryCreated({
-        id: `local-${Date.now()}`,
-        taskId: manualTaskId,
-        startTime,
-        endTime,
-        duration,
-      });
-      setMessage("Zeitblock lokal uebernommen");
-    } finally {
-      setSubmitting(false);
+      setMessage("Zeitblock konnte nicht erstellt werden");
     }
   }
 
   const runningTask = tasks.find((task) => task.id === runningTimer?.taskId);
+  const runningTaskBaseSeconds = minutesToSeconds(runningTask?.actualTime ?? 0);
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId);
+  const selectedTaskBaseSeconds = minutesToSeconds(selectedTask?.actualTime ?? 0);
   const recentEntries = [...entries]
     .sort((first, second) => new Date(second.startTime).getTime() - new Date(first.startTime).getTime())
     .slice(0, 5);
   const totalTrackedMinutes = entries.reduce((sum, entry) => sum + getEntryMinutes(entry), 0);
   const averageSessionMinutes =
-    entries.length > 0 ? Math.round(totalTrackedMinutes / entries.length) : 0;
+    entries.length > 0 ? totalTrackedMinutes / entries.length : 0;
   const activeTaskCount = new Set(entries.map((entry) => entry.taskId)).size;
 
   return (
@@ -253,7 +157,7 @@ export default function TimeTrackingPanel({
       <div className="analytics-time-grid">
         <div className="analytics-time-stat">
           <p className="analytics-time-stat__eyebrow">Getrackt</p>
-          <p className="analytics-time-stat__value">{formatMinutes(totalTrackedMinutes)}</p>
+          <p className="analytics-time-stat__value">{formatCompactMinutes(totalTrackedMinutes)}</p>
           <p className="analytics-time-stat__detail">im gewaehlten Zeitraum</p>
         </div>
 
@@ -266,7 +170,7 @@ export default function TimeTrackingPanel({
         <div className="analytics-time-stat">
           <p className="analytics-time-stat__eyebrow">Session-Schnitt</p>
           <p className="analytics-time-stat__value">
-            {averageSessionMinutes > 0 ? formatMinutes(averageSessionMinutes) : "0m"}
+            {averageSessionMinutes > 0 ? formatCompactMinutes(averageSessionMinutes) : "0s"}
           </p>
           <p className="analytics-time-stat__detail">durchschnittlich pro Eintrag</p>
         </div>
@@ -284,7 +188,7 @@ export default function TimeTrackingPanel({
             </span>
             <select
               value={selectedTaskId}
-              onChange={(event) => setSelectedTaskId(event.target.value)}
+              onChange={(event) => setSelectedTaskIdState(event.target.value)}
               disabled={Boolean(runningTimer)}
               className="workspace-input"
             >
@@ -302,10 +206,12 @@ export default function TimeTrackingPanel({
                 className="text-[38px] font-semibold leading-[0.95] tracking-[-0.065em]"
                 style={{ color: "var(--text-primary)" }}
               >
-                {runningTimer ? formatElapsed(runningTimer.startedAt, now) : "00:00:00"}
+                {runningTimer
+                  ? formatElapsed(runningTimer.startedAt, now, runningTaskBaseSeconds)
+                  : formatSeconds(selectedTaskBaseSeconds)}
               </p>
               <p className="truncate text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                {runningTask ? runningTask.title : "Keine Aufgabe ausgewaehlt"}
+                {runningTask?.title ?? selectedTask?.title ?? "Keine Aufgabe ausgewaehlt"}
               </p>
             </div>
 
@@ -361,7 +267,7 @@ export default function TimeTrackingPanel({
             </span>
             <select
               value={manualTaskId}
-              onChange={(event) => setManualTaskId(event.target.value)}
+              onChange={(event) => setManualTaskIdState(event.target.value)}
               className="workspace-input"
             >
               {tasks.map((task) => (
@@ -442,7 +348,7 @@ export default function TimeTrackingPanel({
 
                     <span className="workspace-badge">
                       <LayoutGrid size={12} />
-                      {formatDurationFromSeconds(entry.duration ?? 0)}
+                      {formatCompactDuration(entry.duration ?? 0)}
                     </span>
                   </div>
                 </div>

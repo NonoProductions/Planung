@@ -27,16 +27,13 @@ import {
 } from "recharts";
 import { buildAnalyticsSnapshot } from "@/lib/analytics";
 import { toLocalDateString } from "@/lib/date";
+import {
+  formatCompactMinutes,
+  secondsToMinutes,
+  TIME_ENTRY_CREATED_EVENT,
+} from "@/lib/time-tracking";
 import type { AnalyticsSnapshot, TimeEntry } from "@/types";
 import TimeTrackingPanel from "@/components/analytics/TimeTrackingPanel";
-
-function formatMinutes(minutes: number) {
-  if (minutes <= 0) return "0m";
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
-}
 
 function axisTick(minutes: number) {
   if (minutes <= 0) return "0h";
@@ -44,8 +41,8 @@ function axisTick(minutes: number) {
 }
 
 function formatDelta(minutes: number) {
-  if (minutes === 0) return "0m";
-  return `${minutes > 0 ? "+" : "-"}${formatMinutes(Math.abs(minutes))}`;
+  if (minutes === 0) return "0s";
+  return `${minutes > 0 ? "+" : "-"}${formatCompactMinutes(Math.abs(minutes))}`;
 }
 
 function getActiveDays(snapshot: AnalyticsSnapshot) {
@@ -90,7 +87,7 @@ function ChartTooltip({
             />
             <span style={{ color: "var(--text-secondary)" }}>{item.name}</span>
             <span className="ml-auto font-medium" style={{ color: "var(--text-primary)" }}>
-              {formatMinutes(item.value)}
+              {formatCompactMinutes(item.value)}
             </span>
           </div>
         ))}
@@ -224,12 +221,12 @@ function HeroSummaryCard({
         <div className="analytics-hero-card__metric-row">
           <div>
             <p className="analytics-hero-card__label">Getrackt</p>
-            <p className="analytics-hero-card__value">{formatMinutes(actualMinutes)}</p>
+            <p className="analytics-hero-card__value">{formatCompactMinutes(actualMinutes)}</p>
           </div>
           <div>
             <p className="analytics-hero-card__label">Geplant</p>
             <p className="analytics-hero-card__value analytics-hero-card__value--secondary">
-              {formatMinutes(plannedMinutes)}
+              {formatCompactMinutes(plannedMinutes)}
             </p>
           </div>
         </div>
@@ -240,7 +237,7 @@ function HeroSummaryCard({
         <StatusPill
           label={
             averageSessionMinutes > 0
-              ? `${formatMinutes(averageSessionMinutes)} pro Session`
+              ? `${formatCompactMinutes(averageSessionMinutes)} pro Session`
               : "Noch keine Sessions"
           }
           tone="warning"
@@ -337,7 +334,7 @@ export default function AnalyticsDashboard() {
     setSnapshot((current) => {
       if (!current) return current;
 
-      const durationMinutes = Math.max(1, Math.round((entry.duration ?? 0) / 60));
+      const durationMinutes = secondsToMinutes(entry.duration ?? 0);
       const updatedTasks = current.taskOptions.map((task) =>
         task.id === entry.taskId
           ? { ...task, actualTime: (task.actualTime ?? 0) + durationMinutes }
@@ -353,6 +350,24 @@ export default function AnalyticsDashboard() {
     });
   }
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const handleTimeEntryCreated = (event: Event) => {
+      const entry = (event as CustomEvent<TimeEntry>).detail;
+      if (!entry) return;
+      handleEntryCreated(entry);
+    };
+
+    window.addEventListener(TIME_ENTRY_CREATED_EVENT, handleTimeEntryCreated as EventListener);
+    return () => {
+      window.removeEventListener(
+        TIME_ENTRY_CREATED_EVENT,
+        handleTimeEntryCreated as EventListener
+      );
+    };
+  }, []);
+
   const totalPlannedMinutes = snapshot?.summary.totalPlannedMinutes ?? 0;
   const totalActualMinutes = snapshot?.summary.totalActualMinutes ?? 0;
   const alignmentRate =
@@ -366,7 +381,7 @@ export default function AnalyticsDashboard() {
   const bestDay = snapshot ? getBestDay(snapshot) : null;
   const averageSessionMinutes =
     snapshot && snapshot.summary.trackedEntries > 0
-      ? Math.round(totalActualMinutes / snapshot.summary.trackedEntries)
+      ? totalActualMinutes / snapshot.summary.trackedEntries
       : 0;
   const alignmentTone =
     totalPlannedMinutes === 0
@@ -467,7 +482,7 @@ export default function AnalyticsDashboard() {
                   <StatCard
                     icon={<BarChart3 size={18} />}
                     label="Getrackte Zeit"
-                    value={formatMinutes(totalActualMinutes)}
+                    value={formatCompactMinutes(totalActualMinutes)}
                     detail={
                       totalPlannedMinutes > 0
                         ? `${formatDelta(planDelta)} gegenueber deinem Plan`
@@ -501,13 +516,13 @@ export default function AnalyticsDashboard() {
                     label="Staerkster Fokuspunkt"
                     detail={
                       bestDay && bestDay.actualMinutes > 0
-                        ? `${formatMinutes(bestDay.actualMinutes)} getrackte Zeit`
+                        ? `${formatCompactMinutes(bestDay.actualMinutes)} getrackte Zeit`
                         : "Noch kein Tag mit nennenswerter Fokuszeit."
                     }
                   />
                   <InsightCard
                     eyebrow="Session-Schnitt"
-                    value={averageSessionMinutes > 0 ? formatMinutes(averageSessionMinutes) : "0m"}
+                    value={averageSessionMinutes > 0 ? formatCompactMinutes(averageSessionMinutes) : "0s"}
                     label="Durchschnitt pro Eintrag"
                     detail={`${snapshot.summary.trackedEntries} Sessions im gewaehlten Zeitraum`}
                   />
@@ -636,7 +651,6 @@ export default function AnalyticsDashboard() {
                 <TimeTrackingPanel
                   tasks={snapshot.taskOptions}
                   entries={snapshot.timeEntries}
-                  onEntryCreated={handleEntryCreated}
                 />
 
                 <SurfaceCard
@@ -670,10 +684,10 @@ export default function AnalyticsDashboard() {
                             className="mt-5 text-[28px] font-semibold tracking-[-0.055em]"
                             style={{ color: "var(--text-primary)" }}
                           >
-                            {formatMinutes(channel.actualMinutes)}
+                            {formatCompactMinutes(channel.actualMinutes)}
                           </p>
                           <p className="mt-4 text-[12px] leading-6" style={{ color: "var(--text-muted)" }}>
-                            {channel.taskCount} Aufgaben, {formatMinutes(channel.plannedMinutes)} geplant
+                            {channel.taskCount} Aufgaben, {formatCompactMinutes(channel.plannedMinutes)} geplant
                           </p>
                         </div>
                       ))

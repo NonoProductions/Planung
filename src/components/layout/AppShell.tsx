@@ -13,6 +13,7 @@ import ShortcutOverlay from "@/components/ui/ShortcutOverlay";
 import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
 import { toLocalDateString } from "@/lib/date";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useTimeTrackingStore } from "@/stores/timeTrackingStore";
 import { useUIStore } from "@/stores/uiStore";
 
 interface AppShellProps {
@@ -107,6 +108,9 @@ export default function AppShell({ children, bodyClassName }: AppShellProps) {
   const planningTime = useSettingsStore(
     (state) => state.settings.planning.planningTime
   );
+  const hydrateRunningTimer = useTimeTrackingStore(
+    (state) => state.hydrateRunningTimer
+  );
   const autoPlanningPromptedDate = useUIStore((state) => state.autoPlanningPromptedDate);
   const setAutoPlanningPromptedDate = useUIStore((state) => state.setAutoPlanningPromptedDate);
   const autoPromptedDate = useUIStore((state) => state.autoShutdownPromptedDate);
@@ -120,6 +124,10 @@ export default function AppShell({ children, bodyClassName }: AppShellProps) {
     if (typeof document === "undefined") return;
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
+
+  useEffect(() => {
+    void hydrateRunningTimer();
+  }, [hydrateRunningTimer]);
 
   // Sync ritual completions from server so rituals completed on other devices are recognized
   useEffect(() => {

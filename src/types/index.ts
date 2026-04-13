@@ -35,7 +35,7 @@ export interface Task {
   description?: string;
   status: TaskStatus;
   plannedTime?: number; // minutes
-  actualTime?: number; // minutes
+  actualTime?: number; // minutes, may be fractional
   scheduledDate?: string; // ISO date string
   scheduledStart?: string; // ISO datetime
   scheduledEnd?: string; // ISO datetime
@@ -95,6 +95,7 @@ export interface TimeEntry {
   startTime: string;
   endTime?: string;
   duration?: number; // seconds
+  status?: "running" | "completed";
 }
 
 export interface AnalyticsTaskOption {

@@ -4,14 +4,16 @@
  * Executes all DDL changes:
  *  1. Enables RLS on User table
  *  2. Creates RLS policies on User table
- *  3. Adds userId column to TimeEntry (if missing)
- *  4. Backfills TimeEntry.userId from Task
- *  5. Creates RLS policies on all data tables
+ *  3. Allows Task.actualTime to store fractional minutes
+ *  4. Adds userId column to TimeEntry (if missing)
+ *  5. Backfills TimeEntry.userId from Task
+ *  6. Adds status column to TimeEntry (if missing)
+ *  7. Creates RLS policies on all data tables
  *
  * Usage:
  *   node supabase/setup.mjs <database-password>
  *
- *   Find the password in: Supabase Dashboard → Project Settings → Database → Connection string
+ *   Find the password in: Supabase Dashboard -> Project Settings -> Database -> Connection string
  */
 
 import pg from "pg";
@@ -27,14 +29,14 @@ if (!DB_PASSWORD) {
   console.error(
     "\n  Usage: node supabase/setup.mjs <database-password>\n\n" +
     "  Find the password in:\n" +
-    "  Supabase Dashboard → Project Settings → Database → Connection string\n"
+    "  Supabase Dashboard -> Project Settings -> Database -> Connection string\n"
   );
   process.exit(1);
 }
 
 // Try pooler first (session mode), fall back to direct
 const client = new pg.Client({
-  host: `aws-0-eu-central-1.pooler.supabase.com`,
+  host: "aws-0-eu-central-1.pooler.supabase.com",
   port: 5432,
   database: "postgres",
   user: `postgres.${PROJECT_REF}`,
@@ -43,7 +45,7 @@ const client = new pg.Client({
 });
 
 const SQL_STATEMENTS = [
-  // ─── 1. RLS on User table ───────────────────────────────
+  // 1. RLS on User table
   `ALTER TABLE "User" ENABLE ROW LEVEL SECURITY`,
 
   `ALTER TABLE "User" FORCE ROW LEVEL SECURITY`,
@@ -58,7 +60,23 @@ const SQL_STATEMENTS = [
      FOR ALL USING (current_setting('role') = 'service_role')
      WITH CHECK (current_setting('role') = 'service_role')`,
 
-  // ─── 2. Add userId to TimeEntry (if missing) ───────────
+  // 2. Allow fractional actualTime on Task
+  `DO $$ BEGIN
+     IF EXISTS (
+       SELECT 1
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'Task'
+         AND column_name = 'actualTime'
+         AND data_type <> 'double precision'
+     ) THEN
+       ALTER TABLE "Task"
+       ALTER COLUMN "actualTime" TYPE double precision
+       USING "actualTime"::double precision;
+     END IF;
+   END $$`,
+
+  // 3. Add userId to TimeEntry (if missing)
   `DO $$ BEGIN
      IF NOT EXISTS (
        SELECT 1 FROM information_schema.columns
@@ -75,7 +93,20 @@ const SQL_STATEMENTS = [
      WHERE te."taskId" = t."id"
        AND te."userId" IS NULL`,
 
-  // ─── 3. RLS policies on all data tables ─────────────────
+  `DO $$ BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_name = 'TimeEntry' AND column_name = 'status'
+     ) THEN
+       ALTER TABLE "TimeEntry" ADD COLUMN "status" text NOT NULL DEFAULT 'completed';
+     END IF;
+   END $$`,
+
+  `UPDATE "TimeEntry"
+     SET "status" = 'completed'
+     WHERE "status" IS NULL`,
+
+  // 4. RLS policies on all data tables
   // Task
   ...tablePolicies("Task"),
   // Channel

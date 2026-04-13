@@ -99,6 +99,10 @@ function mapApiEvent(e: Record<string, unknown>): CalendarEvent {
   };
 }
 
+function toPersistedEventId(eventId: string) {
+  return eventId.includes("_") ? eventId.split("_")[0] : eventId;
+}
+
 // Fallback calendar categories used when API is unavailable
 const FALLBACK_CALENDAR_CATEGORIES: CalendarCategory[] = [
   { id: "cal1", name: "Persönlich", color: "#4F46E5" },
@@ -221,6 +225,7 @@ interface TaskState {
   ) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   toggleTaskStatus: (taskId: string) => void;
+  applyTrackedTime: (taskId: string, durationMinutes: number) => void;
   reorderTasks: (taskIds: string[]) => void;
   scheduleBacklogTask: (taskId: string, date: string) => Promise<void>;
   addSubtask: (parentId: string, title: string) => Promise<void>;
@@ -473,36 +478,35 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       });
     }
 
-    if (state.apiAvailable) {
-      try {
-        const requestBody: Record<string, unknown> = { ...updates };
-        const nullableKeys = [
-          "description",
-          "plannedTime",
-          "actualTime",
-          "scheduledDate",
-          "scheduledStart",
-          "scheduledEnd",
-          "channelId",
-          "backlogBucket",
-          "backlogFolder",
-        ];
+    try {
+      const requestBody: Record<string, unknown> = { ...updates };
+      const nullableKeys = [
+        "description",
+        "plannedTime",
+        "actualTime",
+        "scheduledDate",
+        "scheduledStart",
+        "scheduledEnd",
+        "channelId",
+        "backlogBucket",
+        "backlogFolder",
+      ];
 
-        nullableKeys.forEach((key) => {
-          if (hasOwn(key) && updates[key as keyof typeof updates] === undefined) {
-            requestBody[key] = null;
-          }
-        });
+      nullableKeys.forEach((key) => {
+        if (hasOwn(key) && updates[key as keyof typeof updates] === undefined) {
+          requestBody[key] = null;
+        }
+      });
 
-        const res = await fetch(`/api/tasks/${taskId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        });
-        assertApiResponse(res);
-      } catch {
-        // Optimistic update already applied
-      }
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      assertApiResponse(res);
+      set({ apiAvailable: true });
+    } catch {
+      // Optimistic update already applied
     }
   },
 
@@ -537,6 +541,33 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     const newStatus = task.status === "COMPLETED" ? "OPEN" : "COMPLETED";
     get().updateTask(taskId, { status: newStatus });
+  },
+
+  applyTrackedTime: (taskId: string, durationMinutes: number) => {
+    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) return;
+
+    const applyTrackedMinutes = (task: Task): Task => {
+      if (task.id === taskId) {
+        return {
+          ...task,
+          actualTime: (task.actualTime ?? 0) + durationMinutes,
+        };
+      }
+
+      if (!task.subtasks?.length) {
+        return task;
+      }
+
+      return {
+        ...task,
+        subtasks: task.subtasks.map(applyTrackedMinutes),
+      };
+    };
+
+    set((state) => ({
+      tasks: state.tasks.map(applyTrackedMinutes),
+      backlogTasks: state.backlogTasks.map(applyTrackedMinutes),
+    }));
   },
 
   reorderTasks: (taskIds: string[]) => {
@@ -724,6 +755,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   updateEvent: async (eventId, updates) => {
     const state = get();
+    const persistedEventId = toPersistedEventId(eventId);
 
     // Optimistic update
     set((s) => ({
@@ -734,7 +766,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     if (state.apiAvailable) {
       try {
-        const res = await fetch(`/api/events/${eventId}`, {
+        const res = await fetch(`/api/events/${persistedEventId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(updates),
@@ -748,13 +780,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   deleteEvent: async (eventId) => {
     const state = get();
+    const persistedEventId = toPersistedEventId(eventId);
 
     // Optimistic delete
     set((s) => ({ events: s.events.filter((e) => e.id !== eventId) }));
 
     if (state.apiAvailable) {
       try {
-        const res = await fetch(`/api/events/${eventId}`, { method: "DELETE" });
+        const res = await fetch(`/api/events/${persistedEventId}`, {
+          method: "DELETE",
+        });
         assertApiResponse(res);
       } catch {
         // Already removed locally

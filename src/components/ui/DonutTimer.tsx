@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { formatCompactMinutes } from "@/lib/time-tracking";
 
 interface DonutTimerProps {
   planned: number;
@@ -35,7 +36,7 @@ export default function DonutTimer({
     <div
       className="relative flex shrink-0 items-center justify-center"
       style={{ width: size, height: size }}
-      title={`Geplant: ${planned}min${actual ? ` / Tatsächlich: ${actual}min` : ""}`}
+      title={`Geplant: ${formatCompactMinutes(planned)}${actual ? ` / Tatsaechlich: ${formatCompactMinutes(actual)}` : ""}`}
     >
       <svg width={size} height={size} className="-rotate-90">
         {/* Background ring */}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Clock3, TimerReset, X } from "lucide-react";
+import { toLocalDateTimeString } from "@/lib/date";
 import type { Task } from "@/types";
 
 interface TaskScheduleFormProps {
@@ -139,8 +140,12 @@ export default function TaskScheduleForm({
 
     onSave({
       scheduledDate: scheduleDate,
-      scheduledStart: new Date(`${scheduleDate}T${startTime}:00`).toISOString(),
-      scheduledEnd: new Date(`${scheduleDate}T${endTime}:00`).toISOString(),
+      scheduledStart: toLocalDateTimeString(
+        new Date(`${scheduleDate}T${startTime}:00`)
+      ),
+      scheduledEnd: toLocalDateTimeString(
+        new Date(`${scheduleDate}T${endTime}:00`)
+      ),
       plannedTime: nextDuration,
     });
   };

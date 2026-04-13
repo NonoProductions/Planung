@@ -2252,10 +2252,9 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  width: 100%;
-  min-height: 44px;
+  width: calc(100% - 4px);
   margin-top: 24px;
-  padding: 11px 18px 11px 21px;
+  padding: 14px 16px 13px;
   border: 1px solid #e4ddd6;
   border-radius: 8px;
   background: #ffffff;
@@ -2462,6 +2461,72 @@ textarea {
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+.planning-card__timer-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(216, 207, 198, 0.92);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 248, 0.96), rgba(248, 243, 237, 0.92));
+  color: #746b62;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease;
+}
+
+.planning-card__timer-action:hover:not(:disabled) {
+  border-color: rgba(196, 186, 176, 0.96);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 242, 235, 0.94));
+  color: #5e574f;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 6px 12px rgba(103, 85, 64, 0.05);
+}
+
+.planning-card__timer-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.planning-card__timer-action--running {
+  border-color: rgba(240, 166, 84, 0.38);
+  background:
+    linear-gradient(180deg, rgba(255, 248, 239, 0.98), rgba(255, 242, 224, 0.94));
+  color: #a66416;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 8px 16px rgba(240, 166, 84, 0.08);
+}
+
+.planning-card__timer-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: rgba(141, 132, 123, 0.45);
+}
+
+.planning-card__timer-dot--live {
+  background: #f0a654;
+  box-shadow: 0 0 0 4px rgba(240, 166, 84, 0.12);
+}
+
+.planning-card__timer-text {
+  font-variant-numeric: tabular-nums;
 }
 
 .planning-card__toggle {
@@ -3382,6 +3447,10 @@ input[type="number"] {
 
   .planning-card__controls {
     flex-wrap: wrap;
+  }
+
+  .planning-card__timer-action {
+    order: -1;
   }
 
   .planning-card__ghost-action {

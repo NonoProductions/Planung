@@ -2,6 +2,12 @@ import { NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 
+function resolveEventId(paramId: string) {
+  // Recurring occurrences are exposed as `${baseId}_${timestamp}` in the API read model.
+  // For writes we must always target the persisted base event row.
+  return paramId.includes("_") ? paramId.split("_")[0] : paramId;
+}
+
 // PATCH /api/events/:id
 export async function PATCH(
   request: NextRequest,
@@ -11,12 +17,13 @@ export async function PATCH(
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const targetId = resolveEventId(id);
   const body = await request.json();
 
   const { data: existing } = await supabase
     .from("CalendarEvent")
     .select("id")
-    .eq("id", id)
+    .eq("id", targetId)
     .eq("userId", userId)
     .maybeSingle();
 
@@ -40,7 +47,7 @@ export async function PATCH(
   const { data: event, error } = await supabase
     .from("CalendarEvent")
     .update(data)
-    .eq("id", id)
+    .eq("id", targetId)
     .eq("userId", userId)
     .select()
     .single();
@@ -59,11 +66,12 @@ export async function DELETE(
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const targetId = resolveEventId(id);
 
   const { data: existing } = await supabase
     .from("CalendarEvent")
     .select("id")
-    .eq("id", id)
+    .eq("id", targetId)
     .eq("userId", userId)
     .maybeSingle();
 
@@ -71,7 +79,11 @@ export async function DELETE(
     return Response.json({ error: "Event not found" }, { status: 404 });
   }
 
-  const { error } = await supabase.from("CalendarEvent").delete().eq("id", id).eq("userId", userId);
+  const { error } = await supabase
+    .from("CalendarEvent")
+    .delete()
+    .eq("id", targetId)
+    .eq("userId", userId);
   if (error) throw error;
 
   return Response.json({ success: true });

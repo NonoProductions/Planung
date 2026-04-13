@@ -1,6 +1,19 @@
 import { NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
+import { toLocalDateTimeString } from "@/lib/date";
+
+function normalizeLocalDateTimeInput(value: string) {
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
+    return `${value}:00`;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)) {
+    return value;
+  }
+
+  return toLocalDateTimeString(new Date(value));
+}
 
 // PATCH /api/tasks/:id
 export async function PATCH(
@@ -47,11 +60,11 @@ export async function PATCH(
     data.backlogFolder = body.backlogFolder || null;
   if (body.scheduledStart !== undefined)
     data.scheduledStart = body.scheduledStart
-      ? new Date(body.scheduledStart).toISOString()
+      ? normalizeLocalDateTimeInput(body.scheduledStart)
       : null;
   if (body.scheduledEnd !== undefined)
     data.scheduledEnd = body.scheduledEnd
-      ? new Date(body.scheduledEnd).toISOString()
+      ? normalizeLocalDateTimeInput(body.scheduledEnd)
       : null;
 
   const { data: task, error } = await supabase

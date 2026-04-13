@@ -38,6 +38,7 @@ function mapTimeEntry(record: Record<string, unknown>): TimeEntry {
     startTime: record.startTime as string,
     endTime: (record.endTime as string | null) ?? undefined,
     duration: (record.duration as number | null) ?? undefined,
+    status: (record.status as "running" | "completed" | null) ?? undefined,
   };
 }
 
@@ -77,7 +78,9 @@ export async function GET(request: Request) {
         .neq("status", "ARCHIVED"),
       supabase
         .from("TimeEntry")
-        .select("id, taskId, startTime, endTime, duration")
+        .select("id, taskId, startTime, endTime, duration, status")
+        .eq("userId", userId)
+        .eq("status", "completed")
         .gte("startTime", parseISO(range.start).toISOString())
         .lte("startTime", endOfDay(parseISO(range.end)).toISOString()),
     ]);

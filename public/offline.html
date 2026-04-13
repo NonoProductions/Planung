@@ -90,12 +90,57 @@
         Noes Planer ist installiert, aber fuer aktuelle Daten brauchst du wieder
         eine Internetverbindung. Sobald du online bist, kannst du die App neu laden.
       </p>
-      <button type="button" onclick="window.location.reload()">
+      <button id="retry-button" type="button">
         Erneut versuchen
       </button>
     </main>
     <script>
-      window.addEventListener("online", () => window.location.reload());
+      const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]"]);
+      const retryButton = document.getElementById("retry-button");
+
+      async function resetLocalServiceWorker() {
+        const isLocalhost = LOCAL_HOSTS.has(window.location.hostname);
+
+        if (!isLocalhost) {
+          window.location.reload();
+          return;
+        }
+
+        retryButton.disabled = true;
+        retryButton.textContent = "Lokalen Cache zuruecksetzen...";
+
+        try {
+          if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+          }
+
+          if ("caches" in window) {
+            const cacheKeys = await caches.keys();
+            await Promise.all(
+              cacheKeys
+                .filter((cacheKey) => cacheKey.startsWith("noes-planer-"))
+                .map((cacheKey) => caches.delete(cacheKey))
+            );
+          }
+        } catch (error) {
+          console.error("Local service worker reset failed.", error);
+        }
+
+        window.location.replace("/");
+      }
+
+      retryButton.addEventListener("click", () => {
+        void resetLocalServiceWorker();
+      });
+
+      window.addEventListener("online", () => {
+        void resetLocalServiceWorker();
+      });
+
+      if (LOCAL_HOSTS.has(window.location.hostname)) {
+        void resetLocalServiceWorker();
+      }
     </script>
   </body>
 </html>

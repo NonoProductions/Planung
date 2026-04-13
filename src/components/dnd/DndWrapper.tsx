@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -19,6 +19,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
+import { toLocalDateTimeString } from "@/lib/date";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
 import type { Task } from "@/types";
@@ -95,13 +96,13 @@ function scheduleTaskOnCalendar(
 
   const plannedTime =
     task.plannedTime && task.plannedTime > 0 ? task.plannedTime : 60;
-  const endTime = new Date(
+  const endTime = toLocalDateTimeString(new Date(
     startDate.getTime() + plannedTime * 60 * 1000
-  ).toISOString();
+  ));
 
   useTaskStore.getState().updateTask(task.id, {
     scheduledDate: selectedDate,
-    scheduledStart: startDate.toISOString(),
+    scheduledStart: toLocalDateTimeString(startDate),
     scheduledEnd: endTime,
     plannedTime,
     isBacklog: false,
@@ -140,6 +141,11 @@ const customCollisionDetection: CollisionDetection = (args) => {
 export default function DndWrapper({ children }: DndWrapperProps) {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const tasks = useTaskStore((state) => state.tasks);
+  const backlogTasks = useTaskStore((state) => state.backlogTasks);
+  const allTasks = useMemo(
+    () => [...tasks, ...backlogTasks],
+    [backlogTasks, tasks]
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -150,7 +156,7 @@ export default function DndWrapper({ children }: DndWrapperProps) {
   );
 
   const activeTask = activeId
-    ? tasks.find((task) => task.id === activeId) || null
+    ? allTasks.find((task) => task.id === activeId) || null
     : null;
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -174,7 +180,7 @@ export default function DndWrapper({ children }: DndWrapperProps) {
       //    dnd-kit droppable measurement can be stale when the calendar opens
       //    mid-drag, so we query the actual DOM element directly.
       if (startPoint && isPointerInCalendarGrid(dropX, dropY)) {
-        scheduleTaskOnCalendar(active.id as string, tasks, dropY);
+        scheduleTaskOnCalendar(active.id as string, allTasks, dropY);
         return;
       }
 
@@ -185,12 +191,14 @@ export default function DndWrapper({ children }: DndWrapperProps) {
       const overSortable = over.data?.current?.sortable;
 
       if (sortableData && overSortable) {
+        const currentTask = allTasks.find((item) => item.id === active.id);
+        if (!currentTask || currentTask.isBacklog) return;
+
         const oldIndex = sortableData.index;
         const newIndex = overSortable.index;
 
         const dayTasks = tasks
           .filter((task) => {
-            const currentTask = tasks.find((item) => item.id === active.id);
             return (
               task.scheduledDate === currentTask?.scheduledDate &&
               !task.isBacklog
@@ -202,7 +210,7 @@ export default function DndWrapper({ children }: DndWrapperProps) {
         useTaskStore.getState().reorderTasks(reordered.map((task) => task.id));
       }
     },
-    [tasks]
+    [allTasks, tasks]
   );
 
   return (
