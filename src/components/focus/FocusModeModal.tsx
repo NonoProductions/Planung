@@ -1,19 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, type ReactNode } from "react";
-import { format, parseISO } from "date-fns";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { addDays, format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  CalendarDays,
   Check,
   Clock3,
   Crosshair,
   Edit3,
   Layers3,
+  Plus,
   X,
 } from "lucide-react";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
+import { toLocalDateString } from "@/lib/date";
 
 function formatPlannedTime(minutes?: number) {
   if (!minutes || minutes <= 0) return "Ohne Zeitschaetzung";
@@ -31,11 +34,22 @@ export default function FocusModeModal() {
   const closeFocusMode = useUIStore((state) => state.closeFocusMode);
   const startEditingTask = useUIStore((state) => state.startEditingTask);
   const selectTask = useUIStore((state) => state.selectTask);
+  const selectedDate = useUIStore((state) => state.selectedDate);
 
   const tasks = useTaskStore((state) => state.tasks);
   const backlogTasks = useTaskStore((state) => state.backlogTasks);
+  const channels = useTaskStore((state) => state.channels);
+  const fetchChannels = useTaskStore((state) => state.fetchChannels);
+  const addTask = useTaskStore((state) => state.addTask);
   const toggleTaskStatus = useTaskStore((state) => state.toggleTaskStatus);
   const toggleSubtaskStatus = useTaskStore((state) => state.toggleSubtaskStatus);
+
+  const [newTaskDate, setNewTaskDate] = useState(selectedDate);
+  const [newTitle, setNewTitle] = useState("");
+  const [newChannelId, setNewChannelId] = useState("");
+  const [newPlannedTime, setNewPlannedTime] = useState("");
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const task = useMemo(() => {
     if (!focusTaskId) return null;
@@ -53,6 +67,18 @@ export default function FocusModeModal() {
     }
   }, [closeFocusMode, focusTaskId, task]);
 
+  useEffect(() => {
+    fetchChannels();
+  }, [fetchChannels]);
+
+  useEffect(() => {
+    setNewTaskDate(selectedDate);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [newTaskDate]);
+
   if (!task) return null;
 
   const isCompleted = task.status === "COMPLETED";
@@ -60,6 +86,60 @@ export default function FocusModeModal() {
   const taskDateLabel = task.scheduledDate
     ? format(parseISO(task.scheduledDate), "EEEE, d. MMMM", { locale: de })
     : "Backlog";
+  const baseDate = parseISO(selectedDate);
+  const dayOptions = Array.from({ length: 7 }, (_, index) => {
+    const day = addDays(baseDate, index);
+    const isoDate = toLocalDateString(day);
+    const dayTasks = tasks.filter(
+      (item) => item.scheduledDate === isoDate && !item.isBacklog
+    );
+
+    return {
+      isoDate,
+      weekdayLabel: format(day, "EEE", { locale: de }),
+      dateLabel: format(day, "d. MMM", { locale: de }),
+      totalPlannedMinutes: dayTasks.reduce(
+        (sum, item) => sum + (item.plannedTime ?? 0),
+        0
+      ),
+      taskCount: dayTasks.length,
+    };
+  });
+
+  const handleCreateTask = async () => {
+    if (!newTitle.trim() || isAddingTask) return;
+
+    const dayTasks = tasks.filter(
+      (item) => item.scheduledDate === newTaskDate && !item.isBacklog
+    );
+
+    setIsAddingTask(true);
+    try {
+      await addTask({
+        title: newTitle.trim(),
+        scheduledDate: newTaskDate,
+        channelId: newChannelId || undefined,
+        plannedTime: newPlannedTime ? parseInt(newPlannedTime, 10) : undefined,
+        position: dayTasks.length,
+      });
+
+      setNewTitle("");
+      setNewChannelId("");
+      setNewPlannedTime("");
+      inputRef.current?.focus();
+    } finally {
+      setIsAddingTask(false);
+    }
+  };
+
+  const handleAddKeyDown = (
+    event: ReactKeyboardEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void handleCreateTask();
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -140,7 +220,7 @@ export default function FocusModeModal() {
               </button>
             </div>
 
-            <div className="grid gap-5 px-5 py-5 lg:grid-cols-[1.08fr_0.92fr] sm:px-7 sm:py-6">
+            <div className="grid max-h-[68vh] gap-5 overflow-y-auto px-5 py-5 lg:grid-cols-[1.08fr_0.92fr] sm:px-7 sm:py-6">
               <section
                 className="rounded-[30px] border p-5 sm:p-6"
                 style={{
@@ -293,6 +373,148 @@ export default function FocusModeModal() {
                       feiner schneiden.
                     </div>
                   )}
+                </div>
+
+                <div
+                  className="mt-6 rounded-[24px] border p-4"
+                  style={{
+                    borderColor: "rgba(144, 165, 223, 0.16)",
+                    background:
+                      "linear-gradient(180deg, rgba(26, 36, 56, 0.9), rgba(20, 30, 47, 0.94))",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <CalendarDays size={14} strokeWidth={2} color="rgba(211, 225, 255, 0.85)" />
+                    <p
+                      className="text-[11px] font-semibold uppercase tracking-[0.2em]"
+                      style={{ color: "rgba(204, 217, 243, 0.62)" }}
+                    >
+                      Task fuer jeden Tag hinzufuegen
+                    </p>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {dayOptions.map((day) => {
+                      const isActive = day.isoDate === newTaskDate;
+                      const plannedLabel = day.totalPlannedMinutes > 0
+                        ? `${Math.floor(day.totalPlannedMinutes / 60)}:${(day.totalPlannedMinutes % 60).toString().padStart(2, "0")}`
+                        : "0:00";
+
+                      return (
+                        <button
+                          key={day.isoDate}
+                          type="button"
+                          onClick={() => setNewTaskDate(day.isoDate)}
+                          className="rounded-[16px] border px-3 py-2 text-left transition-colors"
+                          style={{
+                            borderColor: isActive
+                              ? "rgba(147, 182, 255, 0.5)"
+                              : "rgba(144, 165, 223, 0.2)",
+                            backgroundColor: isActive
+                              ? "rgba(122, 158, 241, 0.22)"
+                              : "rgba(255,255,255,0.04)",
+                          }}
+                        >
+                          <p
+                            className="text-[11px] font-semibold uppercase tracking-[0.08em]"
+                            style={{
+                              color: isActive
+                                ? "rgba(241, 246, 255, 0.92)"
+                                : "rgba(204, 217, 243, 0.72)",
+                            }}
+                          >
+                            {day.weekdayLabel}
+                          </p>
+                          <p
+                            className="mt-1 text-[13px] font-medium"
+                            style={{
+                              color: isActive
+                                ? "rgba(247, 250, 255, 0.96)"
+                                : "rgba(220, 229, 248, 0.86)",
+                            }}
+                          >
+                            {day.dateLabel}
+                          </p>
+                          <p
+                            className="mt-1 text-[11px]"
+                            style={{ color: "rgba(204, 217, 243, 0.6)" }}
+                          >
+                            {day.taskCount} Tasks · {plannedLabel}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-3 space-y-2">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={newTitle}
+                      onChange={(event) => setNewTitle(event.target.value)}
+                      onKeyDown={handleAddKeyDown}
+                      placeholder="Task title"
+                      className="w-full rounded-[14px] border px-3 py-2 text-[14px]"
+                      style={{
+                        borderColor: "rgba(144, 165, 223, 0.24)",
+                        color: "rgba(247, 250, 255, 0.96)",
+                        backgroundColor: "rgba(8, 14, 25, 0.34)",
+                      }}
+                    />
+
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <select
+                        value={newChannelId}
+                        onChange={(event) => setNewChannelId(event.target.value)}
+                        onKeyDown={handleAddKeyDown}
+                        className="min-h-[40px] flex-1 rounded-[14px] border px-3 text-[13px]"
+                        style={{
+                          borderColor: "rgba(144, 165, 223, 0.24)",
+                          color: "rgba(220, 229, 248, 0.92)",
+                          backgroundColor: "rgba(8, 14, 25, 0.34)",
+                        }}
+                      >
+                        <option value="">No channel</option>
+                        {channels.map((channel) => (
+                          <option key={channel.id} value={channel.id}>
+                            #{channel.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      <input
+                        type="number"
+                        min={0}
+                        value={newPlannedTime}
+                        onChange={(event) => setNewPlannedTime(event.target.value)}
+                        onKeyDown={handleAddKeyDown}
+                        placeholder="Min"
+                        className="min-h-[40px] w-full rounded-[14px] border px-3 text-[13px] sm:w-[88px]"
+                        style={{
+                          borderColor: "rgba(144, 165, 223, 0.24)",
+                          color: "rgba(220, 229, 248, 0.92)",
+                          backgroundColor: "rgba(8, 14, 25, 0.34)",
+                        }}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleCreateTask();
+                        }}
+                        disabled={!newTitle.trim() || isAddingTask}
+                        className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[14px] border px-4 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{
+                          borderColor: "rgba(115, 200, 154, 0.34)",
+                          backgroundColor: "rgba(92, 183, 135, 0.2)",
+                          color: "rgba(247, 250, 255, 0.96)",
+                        }}
+                      >
+                        <Plus size={14} strokeWidth={2.4} />
+                        {isAddingTask ? "Saving..." : "Add task"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </section>
             </div>

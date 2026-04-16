@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2, Check, Target } from "lucide-react";
+import { Plus, Trash2, Check, Target, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useObjectiveStore } from "@/stores/objectiveStore";
 import type { Objective } from "@/types";
@@ -10,13 +10,15 @@ const MAX_OBJECTIVES = 5;
 
 interface Props {
   weekStart: string;
+  collapsible?: boolean;
 }
 
-export default function WeeklyObjectives({ weekStart }: Props) {
+export default function WeeklyObjectives({ weekStart, collapsible = false }: Props) {
   const { objectives, loading, fetchObjectives, addObjective, updateObjective, deleteObjective } =
     useObjectiveStore();
 
   const [showAdd, setShowAdd] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -83,211 +85,242 @@ export default function WeeklyObjectives({ weekStart }: Props) {
         >
           {weekObjectives.length}/{MAX_OBJECTIVES}
         </span>
+
+        {collapsible && (
+          <button
+            type="button"
+            onClick={() => setCollapsed((prev) => !prev)}
+            className="weekly-objectives__collapse"
+            aria-label={collapsed ? "Wochenziele ausklappen" : "Wochenziele zuklappen"}
+            aria-expanded={!collapsed}
+          >
+            <ChevronDown
+              size={15}
+              strokeWidth={2}
+              style={{ transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
+            />
+          </button>
+        )}
       </div>
 
-      {loading && weekObjectives.length === 0 ? (
-        <div className="weekly-objectives__list">
-          {[1, 2].map((item) => (
-            <div
-              key={item}
-              className="h-16 animate-pulse rounded-[18px]"
-              style={{ backgroundColor: "var(--bg-hover)" }}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="weekly-objectives__list">
-          <AnimatePresence mode="popLayout">
-            {weekObjectives.map((objective) => (
-              <motion.div
-                key={objective.id}
-                layout
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ duration: 0.18 }}
-                className="weekly-objectives__card group"
-              >
-                {editingId === objective.id ? (
-                  <form onSubmit={(event) => handleEditSubmit(event, objective.id)}>
-                    <input
-                      ref={editRef}
-                      value={editTitle}
-                      onChange={(event) => setEditTitle(event.target.value)}
-                      onBlur={(event) =>
-                        handleEditSubmit(event as unknown as React.FormEvent, objective.id)
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Escape") setEditingId(null);
-                      }}
-                      className="w-full rounded-lg bg-transparent text-[14px] font-medium outline-none"
-                      style={{ color: "var(--text-primary)" }}
+      <AnimatePresence initial={false}>
+        {!collapsed && (
+          <motion.div
+            key="weekly-objectives-content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <div className="weekly-objectives__content">
+              {loading && weekObjectives.length === 0 ? (
+                <div className="weekly-objectives__list">
+                  {[1, 2].map((item) => (
+                    <div
+                      key={item}
+                      className="h-16 animate-pulse rounded-[18px]"
+                      style={{ backgroundColor: "var(--bg-hover)" }}
                     />
-                  </form>
-                ) : (
-                  <>
-                    <div className="flex items-start gap-3">
-                      <button
-                        onClick={() => toggleProgress(objective)}
-                        className="mt-0.5 shrink-0 rounded-md transition-all duration-150"
-                        aria-label="Fortschritt aendern"
+                  ))}
+                </div>
+              ) : (
+                <div className="weekly-objectives__list">
+                  <AnimatePresence mode="popLayout">
+                    {weekObjectives.map((objective) => (
+                      <motion.div
+                        key={objective.id}
+                        layout
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.96 }}
+                        transition={{ duration: 0.18 }}
+                        className="weekly-objectives__card group"
                       >
-                        <ProgressIcon progress={objective.progress} />
-                      </button>
+                        {editingId === objective.id ? (
+                          <form onSubmit={(event) => handleEditSubmit(event, objective.id)}>
+                            <input
+                              ref={editRef}
+                              value={editTitle}
+                              onChange={(event) => setEditTitle(event.target.value)}
+                              onBlur={(event) =>
+                                handleEditSubmit(event as unknown as React.FormEvent, objective.id)
+                              }
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") setEditingId(null);
+                              }}
+                              className="w-full rounded-lg bg-transparent text-[14px] font-medium outline-none"
+                              style={{ color: "var(--text-primary)" }}
+                            />
+                          </form>
+                        ) : (
+                          <>
+                            <div className="flex items-start gap-3">
+                              <button
+                                onClick={() => toggleProgress(objective)}
+                                className="mt-0.5 shrink-0 rounded-md transition-all duration-150"
+                                aria-label="Fortschritt aendern"
+                              >
+                                <ProgressIcon progress={objective.progress} />
+                              </button>
 
-                      <span
-                        className="flex-1 cursor-pointer select-none text-[14px] font-medium leading-[1.5]"
+                              <span
+                                className="flex-1 cursor-pointer select-none text-[14px] font-medium leading-[1.5]"
+                                style={{
+                                  color:
+                                    objective.progress >= 100
+                                      ? "var(--text-muted)"
+                                      : "var(--text-primary)",
+                                  textDecoration: objective.progress >= 100 ? "line-through" : "none",
+                                }}
+                                onDoubleClick={() => startEdit(objective)}
+                                title="Doppelklick zum Bearbeiten"
+                              >
+                                {objective.title}
+                              </span>
+
+                              <button
+                                onClick={() => deleteObjective(objective.id)}
+                                className="shrink-0 rounded-lg p-1 opacity-60 transition-all duration-150 md:opacity-0 md:group-hover:opacity-100"
+                                style={{ color: "var(--text-muted)" }}
+                                onMouseEnter={(event) => {
+                                  event.currentTarget.style.color = "var(--accent-danger)";
+                                  event.currentTarget.style.backgroundColor = "var(--accent-danger-light)";
+                                }}
+                                onMouseLeave={(event) => {
+                                  event.currentTarget.style.color = "var(--text-muted)";
+                                  event.currentTarget.style.backgroundColor = "transparent";
+                                }}
+                                aria-label="Ziel loeschen"
+                              >
+                                <Trash2 size={13} strokeWidth={1.8} />
+                              </button>
+                            </div>
+
+                            <div className="mt-3.5">
+                              <div
+                                className="h-1 overflow-hidden rounded-full"
+                                style={{ backgroundColor: "var(--bg-hover)" }}
+                              >
+                                <motion.div
+                                  initial={false}
+                                  animate={{ width: `${objective.progress}%` }}
+                                  transition={{ duration: 0.35, ease: "easeOut" }}
+                                  className="h-full rounded-full"
+                                  style={{
+                                    backgroundColor:
+                                      objective.progress >= 100
+                                        ? "var(--accent-success)"
+                                        : objective.progress >= 50
+                                          ? "var(--accent-primary)"
+                                          : "var(--accent-warning)",
+                                  }}
+                                />
+                              </div>
+                              <div className="mt-1.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                                {objective.progress >= 100
+                                  ? "Abgeschlossen"
+                                  : objective.progress >= 50
+                                    ? "In Arbeit"
+                                    : "Noch nicht gestartet"}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+
+              <AnimatePresence>
+                {showAdd ? (
+                  <motion.form
+                    key="add-form"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.16 }}
+                    onSubmit={handleAddSubmit}
+                    className="weekly-objectives__card"
+                  >
+                    <input
+                      ref={inputRef}
+                      value={newTitle}
+                      onChange={(event) => setNewTitle(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          setShowAdd(false);
+                          setNewTitle("");
+                        }
+                      }}
+                      placeholder="Ziel fuer diese Woche..."
+                      className="w-full bg-transparent text-[13.5px] font-medium outline-none placeholder:text-[var(--text-muted)]"
+                      style={{ color: "var(--text-primary)" }}
+                      maxLength={120}
+                    />
+                    <div className="mt-3.5 flex items-center gap-2">
+                      <button
+                        type="submit"
+                        disabled={!newTitle.trim()}
+                        className="rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all duration-150 disabled:opacity-40"
                         style={{
-                          color:
-                            objective.progress >= 100
-                              ? "var(--text-muted)"
-                              : "var(--text-primary)",
-                          textDecoration: objective.progress >= 100 ? "line-through" : "none",
+                          backgroundColor: "var(--accent-primary)",
+                          color: "white",
                         }}
-                        onDoubleClick={() => startEdit(objective)}
-                        title="Doppelklick zum Bearbeiten"
                       >
-                        {objective.title}
-                      </span>
-
+                        Speichern
+                      </button>
                       <button
-                        onClick={() => deleteObjective(objective.id)}
-                        className="shrink-0 rounded-lg p-1 opacity-60 transition-all duration-150 md:opacity-0 md:group-hover:opacity-100"
+                        type="button"
+                        onClick={() => {
+                          setShowAdd(false);
+                          setNewTitle("");
+                        }}
+                        className="rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all duration-150"
                         style={{ color: "var(--text-muted)" }}
-                        onMouseEnter={(event) => {
-                          event.currentTarget.style.color = "var(--accent-danger)";
-                          event.currentTarget.style.backgroundColor = "var(--accent-danger-light)";
-                        }}
-                        onMouseLeave={(event) => {
-                          event.currentTarget.style.color = "var(--text-muted)";
-                          event.currentTarget.style.backgroundColor = "transparent";
-                        }}
-                        aria-label="Ziel loeschen"
                       >
-                        <Trash2 size={13} strokeWidth={1.8} />
+                        Abbrechen
                       </button>
                     </div>
-
-                    <div className="mt-3.5">
-                      <div
-                        className="h-1 overflow-hidden rounded-full"
-                        style={{ backgroundColor: "var(--bg-hover)" }}
-                      >
-                        <motion.div
-                          initial={false}
-                          animate={{ width: `${objective.progress}%` }}
-                          transition={{ duration: 0.35, ease: "easeOut" }}
-                          className="h-full rounded-full"
-                          style={{
-                            backgroundColor:
-                              objective.progress >= 100
-                                ? "var(--accent-success)"
-                                : objective.progress >= 50
-                                  ? "var(--accent-primary)"
-                                  : "var(--accent-warning)",
-                          }}
-                        />
-                      </div>
-                      <div className="mt-1.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                        {objective.progress >= 100
-                          ? "Abgeschlossen"
-                          : objective.progress >= 50
-                            ? "In Arbeit"
-                            : "Noch nicht gestartet"}
-                      </div>
-                    </div>
-                  </>
+                  </motion.form>
+                ) : canAddMore ? (
+                  <motion.button
+                    key="add-btn"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    onClick={() => setShowAdd(true)}
+                    className="weekly-objectives__add-button"
+                    style={{ color: "var(--text-muted)" }}
+                    onMouseEnter={(event) => {
+                      event.currentTarget.style.backgroundColor = "var(--bg-hover)";
+                      event.currentTarget.style.color = "var(--text-secondary)";
+                    }}
+                    onMouseLeave={(event) => {
+                      event.currentTarget.style.backgroundColor = "transparent";
+                      event.currentTarget.style.color = "var(--text-muted)";
+                    }}
+                  >
+                    <Plus size={14} strokeWidth={2} />
+                    Ziel hinzufuegen
+                  </motion.button>
+                ) : (
+                  <p className="mt-2 px-1 text-[12px]" style={{ color: "var(--text-muted)" }}>
+                    Maximal {MAX_OBJECTIVES} Ziele pro Woche.
+                  </p>
                 )}
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
+              </AnimatePresence>
 
-      <AnimatePresence>
-        {showAdd ? (
-          <motion.form
-            key="add-form"
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.16 }}
-            onSubmit={handleAddSubmit}
-            className="weekly-objectives__card"
-          >
-            <input
-              ref={inputRef}
-              value={newTitle}
-              onChange={(event) => setNewTitle(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  setShowAdd(false);
-                  setNewTitle("");
-                }
-              }}
-              placeholder="Ziel fuer diese Woche..."
-              className="w-full bg-transparent text-[13.5px] font-medium outline-none placeholder:text-[var(--text-muted)]"
-              style={{ color: "var(--text-primary)" }}
-              maxLength={120}
-            />
-            <div className="mt-3.5 flex items-center gap-2">
-              <button
-                type="submit"
-                disabled={!newTitle.trim()}
-                className="rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all duration-150 disabled:opacity-40"
-                style={{
-                  backgroundColor: "var(--accent-primary)",
-                  color: "white",
-                }}
-              >
-                Speichern
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAdd(false);
-                  setNewTitle("");
-                }}
-                className="rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all duration-150"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Abbrechen
-              </button>
+              {weekObjectives.length > 0 && (
+                <p className="mt-2 px-1 text-[11.5px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                  Klicke auf das Icon zum Fortschritt-Wechseln. Doppelklick auf den Titel zum
+                  Bearbeiten.
+                </p>
+              )}
             </div>
-          </motion.form>
-        ) : canAddMore ? (
-          <motion.button
-            key="add-btn"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            onClick={() => setShowAdd(true)}
-            className="weekly-objectives__add-button"
-            style={{ color: "var(--text-muted)" }}
-            onMouseEnter={(event) => {
-              event.currentTarget.style.backgroundColor = "var(--bg-hover)";
-              event.currentTarget.style.color = "var(--text-secondary)";
-            }}
-            onMouseLeave={(event) => {
-              event.currentTarget.style.backgroundColor = "transparent";
-              event.currentTarget.style.color = "var(--text-muted)";
-            }}
-          >
-            <Plus size={14} strokeWidth={2} />
-            Ziel hinzufuegen
-          </motion.button>
-        ) : (
-          <p className="mt-2 px-1 text-[12px]" style={{ color: "var(--text-muted)" }}>
-            Maximal {MAX_OBJECTIVES} Ziele pro Woche.
-          </p>
+          </motion.div>
         )}
       </AnimatePresence>
-
-      {weekObjectives.length > 0 && (
-        <p className="mt-2 px-1 text-[11.5px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          Klicke auf das Icon zum Fortschritt-Wechseln. Doppelklick auf den Titel zum
-          Bearbeiten.
-        </p>
-      )}
     </div>
   );
 }

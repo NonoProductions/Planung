@@ -21,8 +21,10 @@ export default function WeekPage() {
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
   const [showReview, setShowReview] = useState(false);
+  const [objectivesVisible, setObjectivesVisible] = useState(false);
 
   const weekStartStr = getWeekStart(currentWeek);
+
   const weekLabel = `${format(currentWeek, "d. MMM", { locale: de })} - ${format(addWeeks(currentWeek, 1), "d. MMM yyyy", {
     locale: de,
   })}`;
@@ -95,12 +97,21 @@ export default function WeekPage() {
                 </button>
               </div>
 
-              <div
-                className="week-page-toolbar__meta"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Wochenplanung
+              <div className="week-page-toolbar__meta" style={{ color: "var(--text-muted)" }}>
+                Wochenfokus
               </div>
+
+              <button
+                type="button"
+                onClick={() => setObjectivesVisible((prev) => !prev)}
+                className="week-page-toolbar__toggle"
+                aria-pressed={objectivesVisible}
+                aria-label={
+                  objectivesVisible ? "Linke Spalte ausblenden" : "Linke Spalte einblenden"
+                }
+              >
+                {objectivesVisible ? "Ziele ausblenden" : "Ziele einblenden"}
+              </button>
 
               <div className="ml-auto">
                 <motion.button
@@ -125,9 +136,16 @@ export default function WeekPage() {
               </div>
             </div>
 
+
             <div className="week-page-layout">
-              <div className="week-page-objectives">
-                <WeeklyObjectives weekStart={weekStartStr} />
+              <div
+                className={
+                  objectivesVisible
+                    ? "week-page-objectives"
+                    : "week-page-objectives week-page-objectives--collapsed"
+                }
+              >
+                {objectivesVisible && <WeeklyObjectives weekStart={weekStartStr} />}
               </div>
 
               <div className="week-page-grid">

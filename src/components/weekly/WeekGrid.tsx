@@ -1,9 +1,15 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { addDays, format, isSameDay, isToday, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
-import { CheckCircle2, Circle, Clock } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Plus, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useTaskStore } from "@/stores/taskStore";
@@ -13,13 +19,18 @@ import { extractDateOnly, toLocalDateString } from "@/lib/date";
 
 interface Props {
   weekStart: string;
+  showWeekRow?: boolean;
 }
 
-export default function WeekGrid({ weekStart }: Props) {
-  const { tasks, fetchTasks, toggleTaskStatus } = useTaskStore();
+export default function WeekGrid({ weekStart, showWeekRow = true }: Props) {
+  const { tasks, fetchTasks, toggleTaskStatus, addTask } = useTaskStore();
   const { setSelectedDate } = useUIStore();
   const router = useRouter();
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
+  const [quickAddDate, setQuickAddDate] = useState<string | null>(null);
+  const [quickAddTitle, setQuickAddTitle] = useState("");
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const quickAddInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchTasks(undefined);
@@ -51,6 +62,18 @@ export default function WeekGrid({ weekStart }: Props) {
       .catch(() => {});
   }, [weekStart, fetchTasks]);
 
+  useEffect(() => {
+    setQuickAddDate(null);
+    setQuickAddTitle("");
+  }, [weekStart]);
+
+  useEffect(() => {
+    if (quickAddDate) {
+      quickAddInputRef.current?.focus();
+      quickAddInputRef.current?.select();
+    }
+  }, [quickAddDate]);
+
   const weekDays = useMemo(() => {
     const start = parseISO(weekStart);
     return Array.from({ length: 7 }, (_, index) => addDays(start, index));
@@ -78,9 +101,54 @@ export default function WeekGrid({ weekStart }: Props) {
     router.push("/");
   }
 
+  function openQuickAdd(date: string) {
+    setQuickAddDate(date);
+    setQuickAddTitle("");
+  }
+
+  function closeQuickAdd() {
+    setQuickAddDate(null);
+    setQuickAddTitle("");
+  }
+
+  async function handleAddTaskForDay(date: string) {
+    const title = quickAddTitle.trim();
+    if (!title || isAddingTask) return;
+
+    const dayTasks = tasksForDay(parseISO(date));
+
+    setIsAddingTask(true);
+    try {
+      await addTask({
+        title,
+        scheduledDate: date,
+        position: dayTasks.length,
+      });
+      closeQuickAdd();
+    } finally {
+      setIsAddingTask(false);
+    }
+  }
+
+  function handleQuickAddKeyDown(
+    event: ReactKeyboardEvent<HTMLInputElement>,
+    date: string
+  ) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void handleAddTaskForDay(date);
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeQuickAdd();
+    }
+  }
+
   return (
-    <div className="week-grid">
+    <div className={showWeekRow ? "week-grid" : "week-grid week-grid--headers-hidden"}>
       {weekDays.map((day) => {
+        const dayDate = toLocalDateString(day);
         const dayTasks = tasksForDay(day);
         const today = isToday(day);
         const completedCount = dayTasks.filter((task) => task.status === "COMPLETED").length;
@@ -155,100 +223,161 @@ export default function WeekGrid({ weekStart }: Props) {
             </div>
 
             <div className="week-grid__body">
-              <AnimatePresence mode="popLayout">
-                {dayTasks.map((task) => (
-                  <motion.div
-                    key={task.id}
-                    layout
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.96 }}
-                    transition={{ duration: 0.16 }}
-                    className="week-grid__task group"
-                    style={{
-                      backgroundColor:
-                        hoveredTaskId === task.id ? "var(--bg-hover)" : "rgba(255, 255, 255, 0.78)",
-                      borderColor:
-                        hoveredTaskId === task.id
-                          ? "rgba(214, 206, 197, 0.92)"
-                          : "rgba(230, 223, 215, 0.68)",
-                      boxShadow:
-                        hoveredTaskId === task.id
-                          ? "0 6px 18px rgba(89, 72, 48, 0.07)"
-                          : "0 1px 0 rgba(89, 72, 48, 0.03)",
-                    }}
-                    onMouseEnter={() => setHoveredTaskId(task.id)}
-                    onMouseLeave={() => setHoveredTaskId(null)}
-                  >
-                    <button
-                      onClick={() => toggleTaskStatus(task.id)}
-                      className="mt-0.5 shrink-0 transition-all duration-150"
-                      aria-label={
-                        task.status === "COMPLETED"
-                          ? "Als offen markieren"
-                          : "Als erledigt markieren"
-                      }
-                    >
-                      {task.status === "COMPLETED" ? (
-                        <CheckCircle2
-                          size={15}
-                          strokeWidth={1.8}
-                          style={{ color: "var(--accent-success)" }}
-                        />
-                      ) : (
-                        <Circle
-                          size={15}
-                          strokeWidth={1.6}
-                          style={{ color: "var(--text-muted)" }}
-                        />
-                      )}
-                    </button>
-
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className="text-[13px] font-medium leading-[1.45]"
+              <div className="week-grid__tasks">
+                <div className="week-grid__task-list">
+                  <AnimatePresence mode="popLayout">
+                    {dayTasks.map((task) => (
+                      <motion.div
+                        key={task.id}
+                        layout
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.96 }}
+                        transition={{ duration: 0.16 }}
+                        className="week-grid__task group"
                         style={{
-                          color:
-                            task.status === "COMPLETED"
-                              ? "var(--text-muted)"
-                              : "var(--text-primary)",
-                          textDecoration: task.status === "COMPLETED" ? "line-through" : "none",
+                          backgroundColor:
+                            hoveredTaskId === task.id ? "var(--bg-hover)" : "rgba(255, 255, 255, 0.78)",
+                          borderColor:
+                            hoveredTaskId === task.id
+                              ? "rgba(214, 206, 197, 0.92)"
+                              : "rgba(230, 223, 215, 0.68)",
+                          boxShadow:
+                            hoveredTaskId === task.id
+                              ? "0 6px 18px rgba(89, 72, 48, 0.07)"
+                              : "0 1px 0 rgba(89, 72, 48, 0.03)",
                         }}
+                        onMouseEnter={() => setHoveredTaskId(task.id)}
+                        onMouseLeave={() => setHoveredTaskId(null)}
                       >
-                        {task.title}
-                      </p>
-
-                      {task.channel && (
-                        <span
-                          className="mt-1 inline-flex items-center gap-1.5 text-[10.5px] font-medium"
-                          style={{ color: task.channel.color }}
+                        <button
+                          onClick={() => toggleTaskStatus(task.id)}
+                          className="mt-0.5 shrink-0 transition-all duration-150"
+                          aria-label={
+                            task.status === "COMPLETED"
+                              ? "Als offen markieren"
+                              : "Als erledigt markieren"
+                          }
                         >
+                          {task.status === "COMPLETED" ? (
+                            <CheckCircle2
+                              size={15}
+                              strokeWidth={1.8}
+                              style={{ color: "var(--accent-success)" }}
+                            />
+                          ) : (
+                            <Circle
+                              size={15}
+                              strokeWidth={1.6}
+                              style={{ color: "var(--text-muted)" }}
+                            />
+                          )}
+                        </button>
+
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className="text-[13px] font-medium leading-[1.45]"
+                            style={{
+                              color:
+                                task.status === "COMPLETED"
+                                  ? "var(--text-muted)"
+                                  : "var(--text-primary)",
+                              textDecoration: task.status === "COMPLETED" ? "line-through" : "none",
+                            }}
+                          >
+                            {task.title}
+                          </p>
+
+                          {task.channel && (
+                            <span
+                              className="mt-1 inline-flex items-center gap-1.5 text-[10.5px] font-medium"
+                              style={{ color: task.channel.color }}
+                            >
+                              <span
+                                className="inline-block h-1.5 w-1.5 rounded-full"
+                                style={{ backgroundColor: task.channel.color }}
+                              />
+                              {task.channel.name}
+                            </span>
+                          )}
+                        </div>
+
+                        {task.plannedTime && (
                           <span
-                            className="inline-block h-1.5 w-1.5 rounded-full"
-                            style={{ backgroundColor: task.channel.color }}
-                          />
-                          {task.channel.name}
-                        </span>
-                      )}
+                            className="shrink-0 pt-0.5 text-[10.5px] font-medium"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            {formatMinutes(task.plannedTime)}
+                          </span>
+                        )}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+
+                  {dayTasks.length === 0 && (
+                    <div className="week-grid__empty" style={{ color: "var(--text-muted)" }}>
+                      Keine Aufgaben
                     </div>
-
-                    {task.plannedTime && (
-                      <span
-                        className="shrink-0 pt-0.5 text-[10.5px] font-medium"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        {formatMinutes(task.plannedTime)}
-                      </span>
-                    )}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-
-              {dayTasks.length === 0 && (
-                <div className="week-grid__empty" style={{ color: "var(--text-muted)" }}>
-                  Keine Aufgaben
+                  )}
                 </div>
-              )}
+
+                <div className="week-grid__footer">
+                  {quickAddDate === dayDate ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.985 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+                      className="week-grid__quick-add-panel"
+                    >
+                      <div className="week-grid__quick-add-panel-head">
+                        <p className="text-[12px] font-semibold" style={{ color: "var(--text-secondary)" }}>
+                          Neue Aufgabe
+                        </p>
+                        <button
+                          type="button"
+                          className="week-grid__quick-add-close"
+                          aria-label="Quick Add schliessen"
+                          onClick={closeQuickAdd}
+                        >
+                          <X size={14} strokeWidth={2.2} />
+                        </button>
+                      </div>
+
+                      <input
+                        ref={quickAddInputRef}
+                        type="text"
+                        value={quickAddTitle}
+                        onChange={(event) => setQuickAddTitle(event.target.value)}
+                        onKeyDown={(event) => handleQuickAddKeyDown(event, dayDate)}
+                        placeholder="Task title"
+                        className="week-grid__quick-add-input"
+                      />
+
+                      <div className="week-grid__quick-add-actions">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleAddTaskForDay(dayDate);
+                          }}
+                          disabled={!quickAddTitle.trim() || isAddingTask}
+                          className="week-grid__quick-add-submit"
+                        >
+                          {isAddingTask ? "Speichere..." : "Hinzufuegen"}
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openQuickAdd(dayDate)}
+                      className="week-grid__footer-add"
+                    >
+                      <Plus size={14} strokeWidth={2.2} />
+                      Aufgabe hinzufuegen
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         );

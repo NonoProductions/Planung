@@ -48,6 +48,7 @@ interface UIState {
   quickAddRequest: QuickAddRequest;
   autoPlanningPromptedDate: string | null;
   autoShutdownPromptedDate: string | null;
+  weekRowVisible: boolean;
   planningRitualCompletedDates: string[];
   shutdownRitualCompletedDates: string[];
   dailyShutdownNotes: Record<string, string>;
@@ -77,6 +78,8 @@ interface UIState {
   completeShutdownRitual: (date: string, reflection?: string) => void;
   setAutoPlanningPromptedDate: (date: string | null) => void;
   setAutoShutdownPromptedDate: (date: string | null) => void;
+  toggleWeekRowVisible: () => void;
+  setWeekRowVisible: (visible: boolean) => void;
   clearQuietMode: () => void;
   fetchRitualCompletions: () => Promise<void>;
   setCelebrationEnabled: (enabled: boolean) => void;
@@ -171,6 +174,7 @@ export const useUIStore = create<UIState>()(
       quickAddRequest: null,
       autoPlanningPromptedDate: null,
       autoShutdownPromptedDate: null,
+      weekRowVisible: true,
       planningRitualCompletedDates: [],
       shutdownRitualCompletedDates: [],
       dailyShutdownNotes: {},
@@ -303,6 +307,11 @@ export const useUIStore = create<UIState>()(
       setAutoShutdownPromptedDate: (date: string | null) =>
         set({ autoShutdownPromptedDate: date }),
 
+      toggleWeekRowVisible: () =>
+        set((state) => ({ weekRowVisible: !state.weekRowVisible })),
+
+      setWeekRowVisible: (visible: boolean) => set({ weekRowVisible: visible }),
+
       completeShutdownRitual: (date: string, reflection = "") => {
         set((state) => ({
           shutdownRitualOpen: false,
@@ -415,6 +424,7 @@ export const useUIStore = create<UIState>()(
         quietModeDate: state.quietModeDate,
         celebrationEnabled: state.celebrationEnabled,
         celebrationType: state.celebrationType,
+        weekRowVisible: state.weekRowVisible,
         planningRitualCompletedDates: state.planningRitualCompletedDates,
         shutdownRitualCompletedDates: state.shutdownRitualCompletedDates,
         dailyShutdownNotes: state.dailyShutdownNotes,

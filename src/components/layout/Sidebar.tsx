@@ -34,7 +34,7 @@ const dayLinks = [
 ];
 
 const weekLinks = [
-  { label: "Weekly planning", icon: CalendarRange },
+  { label: "Weekly planning", icon: CalendarRange, href: "/weekly-planning" },
   { label: "Weekly review", icon: ClipboardList },
 ];
 
@@ -181,11 +181,33 @@ export default function Sidebar({ onClose }: SidebarProps) {
             <p className="sidebar-group__label">Week</p>
           </div>
           <div className="sidebar-group__stack">
-            {weekLinks.map((item) => (
-              <button key={item.label} type="button" className="sidebar-item sidebar-item--button">
-                <SidebarRow label={item.label} icon={item.icon} />
-              </button>
-            ))}
+            {weekLinks.map((item) => {
+              if (item.href) {
+                const active = isActiveRoute(item.href);
+
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="sidebar-item"
+                    onClick={handleClose}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <SidebarRow label={item.label} icon={item.icon} active={active} />
+                  </Link>
+                );
+              }
+
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  className="sidebar-item sidebar-item--button"
+                >
+                  <SidebarRow label={item.label} icon={item.icon} />
+                </button>
+              );
+            })}
           </div>
         </section>
       </aside>

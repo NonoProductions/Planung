@@ -50,6 +50,13 @@ function getPageMeta(pathname: string) {
     };
   }
 
+  if (pathname.startsWith("/weekly-planning")) {
+    return {
+      eyebrow: "Weekly",
+      title: "Weekly Planning",
+    };
+  }
+
   if (pathname.startsWith("/week")) {
     return {
       eyebrow: "Weekly",
