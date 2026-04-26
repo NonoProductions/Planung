@@ -6,13 +6,11 @@ import {
   createTimeEntry,
   fetchActiveTimeEntry,
   RUNNING_TIMER_STORAGE_KEY,
-  secondsToMinutes,
   startRunningTimeEntry,
   stopRunningTimeEntry,
   toRunningTimerState,
   type RunningTimerState,
 } from "@/lib/time-tracking";
-import { useTaskStore } from "@/stores/taskStore";
 
 interface TimerResult {
   persisted: boolean;
@@ -84,9 +82,6 @@ export const useTimeTrackingStore = create<TimeTrackingState>()(
                 ),
               })
             : await stopRunningTimeEntry(runningTimer.entryId);
-          const durationMinutes = secondsToMinutes(result.entry.duration ?? 0);
-
-          useTaskStore.getState().applyTrackedTime(runningTimer.taskId, durationMinutes);
 
           return { persisted: result.persisted };
         } finally {

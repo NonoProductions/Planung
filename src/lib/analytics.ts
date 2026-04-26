@@ -73,12 +73,17 @@ export function buildAnalyticsSnapshot(input: {
   const taskMap = new Map(tasks.map((task) => [task.id, task]));
   const channelMap = new Map<string, AnalyticsChannelPoint>();
   const trackedMinutesByTask = new Map<string, number>();
+  const filteredTimeEntries: TimeEntry[] = [];
+  let trackedEntries = 0;
 
   for (const entry of timeEntries) {
     const startedAt = parseISO(entry.startTime);
     if (!isWithinInterval(startedAt, { start, end })) {
       continue;
     }
+
+    filteredTimeEntries.push(entry);
+    trackedEntries += 1;
 
     const minutes = safeMinutesFromEntry(entry);
     const dayKey = format(startedAt, "yyyy-MM-dd");
@@ -222,13 +227,13 @@ export function buildAnalyticsSnapshot(input: {
       streak,
       totalTasks,
       completedTasks,
-      trackedEntries: timeEntries.length,
+      trackedEntries,
       mostUsedChannel: channels[0]?.name,
     },
     daily: dayRows,
     channels,
     topChannels: channels.slice(0, 3),
     taskOptions: tasks,
-    timeEntries,
+    timeEntries: filteredTimeEntries,
   };
 }

@@ -13,7 +13,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  MoonStar,
   Plus,
 } from "lucide-react";
 import {
@@ -95,7 +94,6 @@ function getDayProgress(dayTasks: Task[]) {
 export default function TaskList() {
   const selectedDate = useUIStore((s) => s.selectedDate);
   const setSelectedDate = useUIStore((s) => s.setSelectedDate);
-  const openShutdownRitual = useUIStore((s) => s.openShutdownRitual);
   const quickAddRequest = useUIStore((s) => s.quickAddRequest);
   const requestDayQuickAdd = useUIStore((s) => s.requestDayQuickAdd);
   const clearQuickAddRequest = useUIStore((s) => s.clearQuickAddRequest);
@@ -109,12 +107,7 @@ export default function TaskList() {
   const [newChannelId, setNewChannelId] = useState("");
   const [newPlannedTime, setNewPlannedTime] = useState("");
   const [isCompactLayout, setIsCompactLayout] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const addInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   useEffect(() => {
     fetchChannels();
@@ -214,14 +207,6 @@ export default function TaskList() {
     }
   };
 
-  if (!isMounted) {
-    // Avoid hydration mismatch: this component's entire content depends on
-    // client-only state (current date via `new Date()`, localStorage-persisted
-    // zustand state, and `window.matchMedia`), so we skip rendering on the
-    // server and during the first client render.
-    return <section className="planning-board" aria-busy="true" />;
-  }
-
   return (
     <section className="planning-board">
       <div className="planning-toolbar">
@@ -253,19 +238,6 @@ export default function TaskList() {
             <ChevronRight size={15} strokeWidth={2} />
           </button>
         </div>
-
-        {!isCompactLayout ? (
-          <div className="planning-toolbar__group">
-            <button
-              type="button"
-              onClick={() => openShutdownRitual(selectedDate)}
-              className="planning-toolbar__button"
-            >
-              <MoonStar size={15} strokeWidth={1.9} />
-              Shutdown
-            </button>
-          </div>
-        ) : null}
 
       </div>
 

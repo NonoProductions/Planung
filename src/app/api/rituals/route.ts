@@ -29,19 +29,15 @@ export async function GET(request: NextRequest) {
     if (error) throw error;
 
     const planning: string[] = [];
-    const shutdown: string[] = [];
-    const notes: Record<string, string> = {};
 
     for (const row of data ?? []) {
       if (row.type === "planning") planning.push(row.date);
-      if (row.type === "shutdown") shutdown.push(row.date);
-      if (row.type === "shutdown" && row.note) notes[row.date] = row.note;
     }
 
-    return Response.json({ planning, shutdown, notes });
+    return Response.json({ planning });
   } catch (error) {
     if (isDatabaseUnavailableError(error)) {
-      return createDbUnavailableResponse({ planning: [], shutdown: [], notes: {} });
+      return createDbUnavailableResponse({ planning: [] });
     }
     throw error;
   }
@@ -67,9 +63,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (body.type !== "planning" && body.type !== "shutdown") {
+    if (body.type !== "planning") {
       return Response.json(
-        { error: "type must be 'planning' or 'shutdown'" },
+        { error: "type must be 'planning'" },
         { status: 400 }
       );
     }

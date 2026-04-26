@@ -618,16 +618,6 @@ export default function SettingsDashboard() {
                       }
                     />
                     <ToggleRow
-                      label="Shutdown-Ritual"
-                      description="Ein sanfter Hinweis zum Tagesabschluss am Abend."
-                      checked={settings.notifications.shutdownReminder}
-                      onToggle={() =>
-                        updateSection("notifications", {
-                          shutdownReminder: !settings.notifications.shutdownReminder,
-                        })
-                      }
-                    />
-                    <ToggleRow
                       label="Timer fertig"
                       description="Benachrichtigt dich, sobald ein Fokusblock endet."
                       checked={settings.notifications.timerDone}

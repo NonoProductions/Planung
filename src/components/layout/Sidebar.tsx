@@ -8,7 +8,6 @@ import {
   ClipboardList,
   Coffee,
   House,
-  NotebookText,
   PencilLine,
   Settings2,
   X,
@@ -29,7 +28,6 @@ const mobileDockNav = mainNav.filter((item) => item.href !== "/week");
 
 const dayLinks = [
   { label: "Daily planning", icon: CalendarCheck2, href: "/planning" },
-  { label: "Daily shutdown", icon: NotebookText, action: "shutdown" },
   { label: "Daily highlights", icon: PencilLine },
 ];
 
@@ -65,7 +63,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
   const sidebarExpanded = useUIStore((state) => state.sidebarExpanded);
   const setSidebarExpanded = useUIStore((state) => state.setSidebarExpanded);
-  const openShutdownRitual = useUIStore((state) => state.openShutdownRitual);
 
   const isActiveRoute = (href: string) => {
     if (href === "/") {
@@ -78,13 +75,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const handleClose = () => {
     setSidebarExpanded(false);
     onClose?.();
-  };
-
-  const handleDayAction = (action?: string) => {
-    if (action === "shutdown") {
-      openShutdownRitual();
-      handleClose();
-    }
   };
 
   const sidebarClassName = [
@@ -167,7 +157,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
                   key={item.label}
                   type="button"
                   className="sidebar-item sidebar-item--button"
-                  onClick={() => handleDayAction(item.action)}
                 >
                   <SidebarRow label={item.label} icon={item.icon} />
                 </button>

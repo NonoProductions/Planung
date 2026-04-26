@@ -14,7 +14,6 @@ import {
   minutesToSeconds,
   secondsToMinutes,
 } from "@/lib/time-tracking";
-import { useTaskStore } from "@/stores/taskStore";
 import { useTimeTrackingStore } from "@/stores/timeTrackingStore";
 import type { AnalyticsTaskOption, TimeEntry } from "@/types";
 
@@ -61,7 +60,6 @@ export default function TimeTrackingPanel({
   const submitting = useTimeTrackingStore((state) => state.submitting);
   const startTimer = useTimeTrackingStore((state) => state.startTimer);
   const stopTimer = useTimeTrackingStore((state) => state.stopTimer);
-  const applyTrackedTime = useTaskStore((state) => state.applyTrackedTime);
   const selectedTaskId =
     selectedTaskIdState && tasks.some((task) => task.id === selectedTaskIdState)
       ? selectedTaskIdState
@@ -116,7 +114,6 @@ export default function TimeTrackingPanel({
         endTime,
         duration,
       });
-      applyTrackedTime(manualTaskId, durationMinutes);
       setMessage(result.persisted ? "Zeitblock gespeichert" : "Zeitblock lokal uebernommen");
       setManualStartedAt(toDateTimeLocalValue(new Date()));
     } catch {

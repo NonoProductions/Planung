@@ -16,8 +16,7 @@ export type RecurringFrequency = "daily" | "weekly" | "monthly";
 export type CelebrationType = "confetti" | "checkmark" | "fireworks";
 export type CelebrationTrigger =
   | "all_tasks_complete"
-  | "planning_ritual"
-  | "shutdown_ritual";
+  | "planning_ritual";
 
 export interface RecurringRule {
   frequency: RecurringFrequency;
@@ -201,7 +200,6 @@ export interface PlannerSettings {
   };
   notifications: {
     planningReminder: boolean;
-    shutdownReminder: boolean;
     timerDone: boolean;
     taskDue: boolean;
   };

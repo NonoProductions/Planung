@@ -29,7 +29,6 @@ import { buildAnalyticsSnapshot } from "@/lib/analytics";
 import { toLocalDateString } from "@/lib/date";
 import {
   formatCompactMinutes,
-  secondsToMinutes,
   TIME_ENTRY_CREATED_EVENT,
 } from "@/lib/time-tracking";
 import type { AnalyticsSnapshot, TimeEntry } from "@/types";
@@ -334,16 +333,14 @@ export default function AnalyticsDashboard() {
     setSnapshot((current) => {
       if (!current) return current;
 
-      const durationMinutes = secondsToMinutes(entry.duration ?? 0);
-      const updatedTasks = current.taskOptions.map((task) =>
-        task.id === entry.taskId
-          ? { ...task, actualTime: (task.actualTime ?? 0) + durationMinutes }
-          : task
-      );
+      const dedupedEntries = [
+        entry,
+        ...current.timeEntries.filter((existingEntry) => existingEntry.id !== entry.id),
+      ];
 
       return buildAnalyticsSnapshot({
-        tasks: updatedTasks,
-        timeEntries: [entry, ...current.timeEntries],
+        tasks: current.taskOptions,
+        timeEntries: dedupedEntries,
         rangeStart: current.rangeStart,
         rangeEnd: current.rangeEnd,
       });

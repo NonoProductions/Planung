@@ -44,7 +44,6 @@ export const defaultSettings: PlannerSettings = {
   },
   notifications: {
     planningReminder: true,
-    shutdownReminder: true,
     timerDone: true,
     taskDue: true,
   },

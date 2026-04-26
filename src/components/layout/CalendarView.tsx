@@ -132,6 +132,7 @@ export default function CalendarView() {
 
   const { active: dndActive } = useDndContext();
   const isDragActive = dndActive !== null;
+  const visibleFormState = isDragActive ? null : formState;
 
   useEffect(() => {
     fetchEvents(selectedDate);
@@ -148,13 +149,6 @@ export default function CalendarView() {
 
     return () => window.cancelAnimationFrame(frame);
   }, [selectedDate, scrollToCurrentTime]);
-
-  // Close any open form when a new drag starts so the grid is clear for drops
-  useEffect(() => {
-    if (isDragActive) {
-      setFormState(null);
-    }
-  }, [isDragActive]);
 
   useEffect(() => {
     if (!calendarPlanningTaskId) return;
@@ -484,7 +478,7 @@ export default function CalendarView() {
 
           <CurrentTimeLine startHour={START_HOUR} hourHeight={HOUR_HEIGHT} />
 
-          {isDragActive && !formState && (
+          {isDragActive && !visibleFormState && (
             <div className="calendar-drop-hint" aria-hidden="true">
               <div className="calendar-drop-hint__content">
                 Zum Einplanen hierher ziehen
@@ -492,30 +486,30 @@ export default function CalendarView() {
             </div>
           )}
 
-          {formState?.kind === "event" && (
+          {visibleFormState?.kind === "event" && (
             <EventForm
-              key={formState.event?.id ?? "new-event"}
-              event={formState.event}
-              defaultStart={formState.defaultStart}
-              defaultEnd={formState.defaultEnd}
+              key={visibleFormState.event?.id ?? "new-event"}
+              event={visibleFormState.event}
+              defaultStart={visibleFormState.defaultStart}
+              defaultEnd={visibleFormState.defaultEnd}
               selectedDate={selectedDate}
               calendarCategories={calendarCategories}
               onSave={handleSaveEvent}
-              onDelete={formState.mode === "edit" ? handleDeleteEvent : undefined}
+              onDelete={visibleFormState.mode === "edit" ? handleDeleteEvent : undefined}
               onClose={() => setFormState(null)}
-              position={{ top: formState.top, left: formState.left }}
+              position={{ top: visibleFormState.top, left: visibleFormState.left }}
             />
           )}
 
-          {formState?.kind === "task" && formState.task && (
+          {visibleFormState?.kind === "task" && visibleFormState.task && (
             <TaskScheduleForm
-              key={formState.task.id}
-              task={formState.task}
+              key={visibleFormState.task.id}
+              task={visibleFormState.task}
               selectedDate={selectedDate}
               onSave={handleSaveTaskSchedule}
               onUnschedule={handleUnscheduleTask}
               onClose={() => setFormState(null)}
-              position={{ top: formState.top, left: formState.left }}
+              position={{ top: visibleFormState.top, left: visibleFormState.left }}
             />
           )}
         </div>

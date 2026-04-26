@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { addDays, addWeeks, format, parseISO, startOfWeek, subWeeks } from "date-fns";
+import { addDays, addWeeks, format, startOfWeek, subWeeks } from "date-fns";
 import { de } from "date-fns/locale";
 import { motion } from "framer-motion";
 import {

@@ -78,14 +78,12 @@ export default function useKeyboardShortcuts() {
   const selectedDate = useUIStore((state) => state.selectedDate);
   const selectedTaskId = useUIStore((state) => state.selectedTaskId);
   const editingTaskId = useUIStore((state) => state.editingTaskId);
-  const shutdownRitualOpen = useUIStore((state) => state.shutdownRitualOpen);
   const shortcutHelpOpen = useUIStore((state) => state.shortcutHelpOpen);
   const focusTaskId = useUIStore((state) => state.focusTaskId);
   const quickAddRequest = useUIStore((state) => state.quickAddRequest);
   const setSelectedDate = useUIStore((state) => state.setSelectedDate);
   const toggleDarkMode = useUIStore((state) => state.toggleDarkMode);
   const toggleCalendar = useUIStore((state) => state.toggleCalendar);
-  const closeShutdownRitual = useUIStore((state) => state.closeShutdownRitual);
   const openShortcutHelp = useUIStore((state) => state.openShortcutHelp);
   const closeShortcutHelp = useUIStore((state) => state.closeShortcutHelp);
   const openFocusMode = useUIStore((state) => state.openFocusMode);
@@ -145,12 +143,6 @@ export default function useKeyboardShortcuts() {
           return;
         }
 
-        if (shutdownRitualOpen) {
-          event.preventDefault();
-          closeShutdownRitual();
-          return;
-        }
-
         if (editingTaskId) {
           event.preventDefault();
           stopEditingTask();
@@ -170,7 +162,6 @@ export default function useKeyboardShortcuts() {
       if (
         shortcutHelpOpen ||
         focusTaskId !== null ||
-        shutdownRitualOpen ||
         editingTaskId !== null ||
         quickAddRequest !== null
       ) {
@@ -277,7 +268,6 @@ export default function useKeyboardShortcuts() {
     clearQuickAddRequest,
     closeFocusMode,
     closeShortcutHelp,
-    closeShutdownRitual,
     deleteTask,
     editingTaskId,
     focusTaskId,
@@ -292,7 +282,6 @@ export default function useKeyboardShortcuts() {
     selectedTaskId,
     setSelectedDate,
     shortcutHelpOpen,
-    shutdownRitualOpen,
     startEditingTask,
     stopEditingTask,
     tasks,

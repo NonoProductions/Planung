@@ -29,6 +29,13 @@ function formatPlannedTime(minutes?: number) {
   return `${hours} h ${remainingMinutes} min`;
 }
 
+function formatHoursFromMinutes(minutes: number) {
+  if (minutes <= 0) return "0 h";
+
+  const hours = (minutes / 60).toFixed(1).replace(".0", "");
+  return `${hours} h`;
+}
+
 export default function FocusModeModal() {
   const focusTaskId = useUIStore((state) => state.focusTaskId);
   const closeFocusMode = useUIStore((state) => state.closeFocusMode);
@@ -396,9 +403,7 @@ export default function FocusModeModal() {
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {dayOptions.map((day) => {
                       const isActive = day.isoDate === newTaskDate;
-                      const plannedLabel = day.totalPlannedMinutes > 0
-                        ? `${Math.floor(day.totalPlannedMinutes / 60)}:${(day.totalPlannedMinutes % 60).toString().padStart(2, "0")}`
-                        : "0:00";
+                      const plannedLabel = formatHoursFromMinutes(day.totalPlannedMinutes);
 
                       return (
                         <button

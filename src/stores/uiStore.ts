@@ -36,10 +36,6 @@ interface UIState {
   editingTaskId: string | null;
   calendarPlanningTaskId: string | null;
   planningRitualOpen: boolean;
-  shutdownRitualOpen: boolean;
-  shutdownRitualDate: string | null;
-  quietMode: boolean;
-  quietModeDate: string | null;
   celebrationEnabled: boolean;
   celebrationType: CelebrationType;
   activeCelebration: ActiveCelebration | null;
@@ -47,11 +43,8 @@ interface UIState {
   focusTaskId: string | null;
   quickAddRequest: QuickAddRequest;
   autoPlanningPromptedDate: string | null;
-  autoShutdownPromptedDate: string | null;
   weekRowVisible: boolean;
   planningRitualCompletedDates: string[];
-  shutdownRitualCompletedDates: string[];
-  dailyShutdownNotes: Record<string, string>;
   toggleSidebar: () => void;
   setSidebarExpanded: (expanded: boolean) => void;
   toggleDarkMode: () => void;
@@ -66,8 +59,6 @@ interface UIState {
   openPlanningRitual: () => void;
   closePlanningRitual: () => void;
   completePlanningRitual: (date: string) => void;
-  openShutdownRitual: (date?: string) => void;
-  closeShutdownRitual: () => void;
   openShortcutHelp: () => void;
   closeShortcutHelp: () => void;
   openFocusMode: (taskId: string) => void;
@@ -75,12 +66,9 @@ interface UIState {
   requestDayQuickAdd: (date: string) => void;
   requestBacklogQuickAdd: (target?: string) => void;
   clearQuickAddRequest: () => void;
-  completeShutdownRitual: (date: string, reflection?: string) => void;
   setAutoPlanningPromptedDate: (date: string | null) => void;
-  setAutoShutdownPromptedDate: (date: string | null) => void;
   toggleWeekRowVisible: () => void;
   setWeekRowVisible: (visible: boolean) => void;
-  clearQuietMode: () => void;
   fetchRitualCompletions: () => Promise<void>;
   setCelebrationEnabled: (enabled: boolean) => void;
   setCelebrationType: (type: CelebrationType) => void;
@@ -100,27 +88,6 @@ function trimDateHistory(dates: string[], nextDate: string) {
   );
 }
 
-function trimNoteHistory(
-  notes: Record<string, string>,
-  date: string,
-  note: string
-) {
-  const nextNotes = { ...notes };
-  const cleanNote = note.trim();
-
-  if (cleanNote) {
-    nextNotes[date] = cleanNote;
-  } else {
-    delete nextNotes[date];
-  }
-
-  return Object.fromEntries(
-    Object.entries(nextNotes)
-      .sort((first, second) => second[0].localeCompare(first[0]))
-      .slice(0, MAX_RITUAL_HISTORY)
-  );
-}
-
 function getCelebrationCopy(trigger: CelebrationTrigger) {
   switch (trigger) {
     case "all_tasks_complete":
@@ -132,11 +99,6 @@ function getCelebrationCopy(trigger: CelebrationTrigger) {
       return {
         title: "Planung steht",
         subtitle: "Der Tag hat jetzt einen klaren Fokus.",
-      };
-    case "shutdown_ritual":
-      return {
-        title: "Shutdown geschafft",
-        subtitle: "Feierabend kann sich jetzt gut anfuehlen.",
       };
     default:
       return {
@@ -162,10 +124,6 @@ export const useUIStore = create<UIState>()(
       editingTaskId: null,
       calendarPlanningTaskId: null,
       planningRitualOpen: false,
-      shutdownRitualOpen: false,
-      shutdownRitualDate: null,
-      quietMode: false,
-      quietModeDate: null,
       celebrationEnabled: true,
       celebrationType: "confetti",
       activeCelebration: null,
@@ -173,11 +131,8 @@ export const useUIStore = create<UIState>()(
       focusTaskId: null,
       quickAddRequest: null,
       autoPlanningPromptedDate: null,
-      autoShutdownPromptedDate: null,
       weekRowVisible: true,
       planningRitualCompletedDates: [],
-      shutdownRitualCompletedDates: [],
-      dailyShutdownNotes: {},
 
       toggleSidebar: () =>
         set((state) => ({ sidebarExpanded: !state.sidebarExpanded })),
@@ -229,7 +184,6 @@ export const useUIStore = create<UIState>()(
       openPlanningRitual: () =>
         set({
           planningRitualOpen: true,
-          shutdownRitualOpen: false,
           editingTaskId: null,
           shortcutHelpOpen: false,
           focusTaskId: null,
@@ -255,20 +209,6 @@ export const useUIStore = create<UIState>()(
           body: JSON.stringify({ date, type: "planning" }),
         }).catch(() => {});
       },
-
-      openShutdownRitual: (date) =>
-        set((state) => ({
-          shutdownRitualOpen: true,
-          shutdownRitualDate: date ?? state.selectedDate,
-          planningRitualOpen: false,
-          editingTaskId: null,
-          shortcutHelpOpen: false,
-          focusTaskId: null,
-          quickAddRequest: null,
-        })),
-
-      closeShutdownRitual: () =>
-        set({ shutdownRitualOpen: false, shutdownRitualDate: null }),
 
       openShortcutHelp: () =>
         set({ shortcutHelpOpen: true, focusTaskId: null }),
@@ -304,45 +244,10 @@ export const useUIStore = create<UIState>()(
       setAutoPlanningPromptedDate: (date: string | null) =>
         set({ autoPlanningPromptedDate: date }),
 
-      setAutoShutdownPromptedDate: (date: string | null) =>
-        set({ autoShutdownPromptedDate: date }),
-
       toggleWeekRowVisible: () =>
         set((state) => ({ weekRowVisible: !state.weekRowVisible })),
 
       setWeekRowVisible: (visible: boolean) => set({ weekRowVisible: visible }),
-
-      completeShutdownRitual: (date: string, reflection = "") => {
-        set((state) => ({
-          shutdownRitualOpen: false,
-          shutdownRitualDate: null,
-          quietMode: true,
-          quietModeDate: date,
-          shutdownRitualCompletedDates: trimDateHistory(
-            state.shutdownRitualCompletedDates,
-            date
-          ),
-          dailyShutdownNotes: trimNoteHistory(
-            state.dailyShutdownNotes,
-            date,
-            reflection
-          ),
-        }));
-        get().triggerCelebration({ trigger: "shutdown_ritual" });
-
-        // Persist to server so other devices see the completion
-        fetch("/api/rituals", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            date,
-            type: "shutdown",
-            note: reflection.trim() || undefined,
-          }),
-        }).catch(() => {});
-      },
-
-      clearQuietMode: () => set({ quietMode: false }),
 
       fetchRitualCompletions: async () => {
         try {
@@ -350,35 +255,17 @@ export const useUIStore = create<UIState>()(
           if (!res.ok) return;
           const data = (await res.json()) as {
             planning: string[];
-            shutdown: string[];
-            notes: Record<string, string>;
           };
 
           set((state) => {
-            // Merge server dates into local dates (union, deduplicated)
             const mergedPlanning = Array.from(
               new Set([...state.planningRitualCompletedDates, ...data.planning])
             )
               .sort((a, b) => b.localeCompare(a))
               .slice(0, MAX_RITUAL_HISTORY);
 
-            const mergedShutdown = Array.from(
-              new Set([...state.shutdownRitualCompletedDates, ...data.shutdown])
-            )
-              .sort((a, b) => b.localeCompare(a))
-              .slice(0, MAX_RITUAL_HISTORY);
-
-            const mergedNotes = { ...data.notes, ...state.dailyShutdownNotes };
-            const trimmedNotes = Object.fromEntries(
-              Object.entries(mergedNotes)
-                .sort((a, b) => b[0].localeCompare(a[0]))
-                .slice(0, MAX_RITUAL_HISTORY)
-            );
-
             return {
               planningRitualCompletedDates: mergedPlanning,
-              shutdownRitualCompletedDates: mergedShutdown,
-              dailyShutdownNotes: trimmedNotes,
             };
           });
         } catch {
@@ -420,14 +307,10 @@ export const useUIStore = create<UIState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         darkMode: state.darkMode,
-        quietMode: state.quietMode,
-        quietModeDate: state.quietModeDate,
         celebrationEnabled: state.celebrationEnabled,
         celebrationType: state.celebrationType,
         weekRowVisible: state.weekRowVisible,
         planningRitualCompletedDates: state.planningRitualCompletedDates,
-        shutdownRitualCompletedDates: state.shutdownRitualCompletedDates,
-        dailyShutdownNotes: state.dailyShutdownNotes,
       }),
       onRehydrateStorage: () => (state) => {
         applyDarkModeClass(Boolean(state?.darkMode));
