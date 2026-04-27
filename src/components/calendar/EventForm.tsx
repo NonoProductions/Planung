@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import {
-  AlignLeft,
   CalendarDays,
+  Check,
   ChevronDown,
   Clock3,
-  Palette,
   RefreshCw,
   Trash2,
-  Type,
   X,
 } from "lucide-react";
 import type { CalendarCategory, CalendarEvent, RecurringRule } from "@/types";
@@ -65,7 +64,6 @@ function formatDurationLabel(startTime: string, endTime: string) {
   const totalMinutes = Math.max(0, timeToMinutes(endTime) - timeToMinutes(startTime));
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-
   if (hours === 0) return `${minutes} min`;
   if (minutes === 0) return `${hours} h`;
   return `${hours} h ${minutes} min`;
@@ -131,11 +129,9 @@ export default function EventForm({
         onClose();
       }
     };
-
     const timer = setTimeout(() => {
       document.addEventListener("mousedown", handleClick);
     }, 100);
-
     return () => {
       clearTimeout(timer);
       document.removeEventListener("mousedown", handleClick);
@@ -161,30 +157,25 @@ export default function EventForm({
 
   const frequencyLabel: Record<string, string> = {
     none: "Nie",
-    daily: "Taeglich",
-    weekly: "Woechentlich",
+    daily: "Täglich",
+    weekly: "Wöchentlich",
     monthly: "Monatlich",
   };
 
   const handleSubmit = () => {
     if (!title.trim()) return;
-
     const startISO = new Date(`${selectedDate}T${startTime}:00`).toISOString();
     const endISO = new Date(`${selectedDate}T${endTime}:00`).toISOString();
     const isRecurring = isRecurringEnabled;
-
     const recurringRule: RecurringRule | null = isRecurring
       ? {
           frequency: frequency as "daily" | "weekly" | "monthly",
           interval: interval > 1 ? interval : undefined,
           daysOfWeek:
-            frequency === "weekly" && daysOfWeek.length > 0
-              ? daysOfWeek
-              : undefined,
+            frequency === "weekly" && daysOfWeek.length > 0 ? daysOfWeek : undefined,
           endDate: endDate || undefined,
         }
       : null;
-
     onSave({
       title: title.trim(),
       description: description || undefined,
@@ -202,7 +193,6 @@ export default function EventForm({
       event.preventDefault();
       handleSubmit();
     }
-
     if (event.key === "Escape") {
       onClose();
     }
@@ -213,39 +203,54 @@ export default function EventForm({
       onDelete?.();
       return;
     }
-
     setConfirmDelete(true);
     setTimeout(() => setConfirmDelete(false), 3000);
   };
 
   return (
-    <div
+    <motion.div
       ref={formRef}
       data-calendar-form
-      className="absolute z-50 flex flex-col overflow-hidden rounded-[12px] border shadow-xl"
+      className="absolute z-50 flex flex-col overflow-hidden"
+      initial={{ opacity: 0, scale: 0.96, y: 6 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 4 }}
+      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
       style={{
-        width: 360,
-        maxWidth: "calc(100% - 20px)",
+        width: 380,
+        maxWidth: "calc(100% - 32px)",
         maxHeight: "min(720px, calc(100dvh - 40px))",
-        background:
-          "linear-gradient(180deg, rgba(255,253,250,0.995) 0%, rgba(247,242,235,0.985) 100%)",
-        borderColor: "rgba(228, 221, 214, 0.98)",
-        boxShadow: "0 24px 52px rgba(82, 67, 48, 0.16)",
+        borderRadius: 18,
+        border: "1.5px solid rgba(224, 215, 205, 0.95)",
+        background: "linear-gradient(180deg, #fffefb 0%, #faf6f0 100%)",
+        boxShadow:
+          "0 4px 6px rgba(0,0,0,0.02), 0 22px 50px rgba(82, 67, 48, 0.2), 0 0 0 0.5px rgba(224,215,205,0.5)",
         top: position?.top ?? 0,
         left: position?.left ?? 0,
       }}
     >
+      {/* Color accent strip */}
       <div
-        className="border-b px-5 py-5"
         style={{
-          borderColor: "rgba(229, 222, 214, 0.98)",
-          background: `linear-gradient(180deg, ${color}14 0%, rgba(255,255,255,0.72) 100%)`,
+          height: 3,
+          background: `linear-gradient(90deg, ${color}, ${color}88)`,
+          flexShrink: 0,
+          borderRadius: "18px 18px 0 0",
+        }}
+      />
+
+      {/* Header */}
+      <div
+        className="px-6 pt-6 pb-5"
+        style={{
+          borderBottom: "1px solid rgba(232, 223, 213, 0.85)",
+          background: `linear-gradient(180deg, ${color}0d 0%, rgba(255,254,251,0) 100%)`,
         }}
       >
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p
               className="text-[10px] font-semibold uppercase tracking-[0.18em]"
               style={{ color: "var(--text-muted)" }}
@@ -253,8 +258,8 @@ export default function EventForm({
               {isEditing ? "Eintrag bearbeiten" : "Neuer Eintrag"}
             </p>
             <h3
-              className="mt-2 break-words text-[22px] font-semibold leading-[1.04] tracking-[-0.05em]"
-              style={{ color: "var(--text-primary)" }}
+              className="mt-2 break-words text-[20px] font-bold leading-[1.1] tracking-[-0.04em]"
+              style={{ color: title.trim() ? "var(--text-primary)" : "var(--text-muted)" }}
             >
               {title.trim() || "Kalendereintrag"}
             </h3>
@@ -263,40 +268,39 @@ export default function EventForm({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border transition-colors"
+            className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] transition-colors hover:bg-[rgba(225,215,202,0.95)]"
             style={{
-              backgroundColor: "rgba(255,255,255,0.88)",
-              borderColor: "rgba(226, 218, 208, 0.92)",
+              backgroundColor: "rgba(237, 230, 222, 0.85)",
               color: "var(--text-muted)",
             }}
           >
-            <X size={14} />
+            <X size={13} />
           </button>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
           <span
-            className="inline-flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-[10px] font-semibold"
+            className="inline-flex items-center gap-1 rounded-[6px] px-2.5 py-1 text-[11px] font-semibold"
             style={{
-              backgroundColor: "rgba(255,255,255,0.92)",
+              backgroundColor: "rgba(238, 231, 222, 0.88)",
               color: "var(--text-secondary)",
             }}
           >
-            <CalendarDays size={11} />
+            <CalendarDays size={10} />
             {formatDateLabel(selectedDate)}
           </span>
           <span
-            className="inline-flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-[10px] font-semibold"
+            className="inline-flex items-center gap-1 rounded-[6px] px-2.5 py-1 text-[11px] font-semibold"
             style={{
-              backgroundColor: "rgba(255,255,255,0.92)",
+              backgroundColor: "rgba(238, 231, 222, 0.88)",
               color: "var(--text-secondary)",
             }}
           >
-            <Clock3 size={11} />
-            {startTime} - {endTime}
+            <Clock3 size={10} />
+            {startTime} – {endTime}
           </span>
           <span
-            className="inline-flex items-center rounded-[8px] px-3 py-2 text-[10px] font-semibold"
+            className="inline-flex items-center rounded-[6px] px-2.5 py-1 text-[11px] font-semibold"
             style={{
               backgroundColor: `${color}18`,
               color,
@@ -306,14 +310,14 @@ export default function EventForm({
           </span>
           {selectedCategory ? (
             <span
-              className="inline-flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-[10px] font-semibold"
+              className="inline-flex items-center gap-1 rounded-[6px] px-2.5 py-1 text-[11px] font-semibold"
               style={{
-                backgroundColor: "rgba(255,255,255,0.92)",
+                backgroundColor: "rgba(238, 231, 222, 0.88)",
                 color: selectedCategory.color,
               }}
             >
               <span
-                className="h-2 w-2 rounded-full"
+                className="h-1.5 w-1.5 flex-shrink-0 rounded-full"
                 style={{ backgroundColor: selectedCategory.color }}
               />
               {selectedCategory.name}
@@ -322,20 +326,21 @@ export default function EventForm({
         </div>
       </div>
 
-      <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-5">
+      {/* Body */}
+      <div className="min-h-0 space-y-3.5 overflow-y-auto px-5 py-5">
+        {/* Title + Note */}
         <section
-          className="space-y-3 rounded-[10px] border px-5 py-5"
+          className="space-y-4 rounded-[14px] px-5 py-5"
           style={{
-            backgroundColor: "rgba(255,255,255,0.9)",
-            borderColor: "rgba(232, 225, 217, 0.98)",
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+            border: "1px solid rgba(232, 224, 215, 0.9)",
           }}
         >
-          <div className="space-y-1.5">
+          <div className="space-y-2.5">
             <label
-              className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
+              className="block text-[10px] font-semibold uppercase tracking-[0.16em]"
               style={{ color: "var(--text-muted)" }}
             >
-              <Type size={11} />
               Titel
             </label>
             <input
@@ -345,21 +350,20 @@ export default function EventForm({
               onChange={(event) => setTitle(event.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Worum geht es?"
-              className="w-full rounded-[8px] border px-4 py-3.5 text-[14px] outline-none"
+              className="event-form-input w-full rounded-[9px] px-4 py-3 text-[14px]"
               style={{
-                backgroundColor: "rgba(250, 246, 241, 0.92)",
-                borderColor: "rgba(228, 221, 214, 0.92)",
+                backgroundColor: "rgba(249, 244, 239, 0.88)",
+                border: "1px solid rgba(225, 218, 210, 0.88)",
                 color: "var(--text-primary)",
               }}
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2.5">
             <label
-              className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
+              className="block text-[10px] font-semibold uppercase tracking-[0.16em]"
               style={{ color: "var(--text-muted)" }}
             >
-              <AlignLeft size={11} />
               Notiz
             </label>
             <textarea
@@ -367,188 +371,194 @@ export default function EventForm({
               onChange={(event) => setDescription(event.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Optionaler Kontext"
-              rows={4}
-              className="w-full resize-none rounded-[8px] border px-4 py-3.5 text-[13px] leading-[1.5] outline-none"
+              rows={3}
+              className="event-form-input w-full resize-none rounded-[9px] px-4 py-3 text-[13px] leading-relaxed"
               style={{
-                backgroundColor: "rgba(250, 246, 241, 0.92)",
-                borderColor: "rgba(228, 221, 214, 0.92)",
+                backgroundColor: "rgba(249, 244, 239, 0.88)",
+                border: "1px solid rgba(225, 218, 210, 0.88)",
                 color: "var(--text-secondary)",
               }}
             />
           </div>
         </section>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <section
-            className="rounded-[10px] border px-5 py-5"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.9)",
-              borderColor: "rgba(232, 225, 217, 0.98)",
-            }}
+        {/* Time */}
+        <section
+          className="rounded-[14px] px-5 py-5"
+          style={{
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+            border: "1px solid rgba(232, 224, 215, 0.9)",
+          }}
+        >
+          <p
+            className="mb-3.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
+            style={{ color: "var(--text-muted)" }}
           >
-            <div className="mb-3">
-              <p
-                className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <Clock3 size={11} />
-                Zeit
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <div
-                className="rounded-[8px] border px-4 py-3.5"
-                style={{
-                  backgroundColor: "rgba(250, 246, 241, 0.92)",
-                  borderColor: "rgba(228, 221, 214, 0.92)",
-                }}
-              >
-                <p
-                  className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Start
-                </p>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(event) => setStartTime(event.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="mt-1.5 w-full bg-transparent text-[15px] font-semibold outline-none"
-                  style={{ color: "var(--text-primary)" }}
-                />
-              </div>
-
-              <div
-                className="rounded-[8px] border px-4 py-3.5"
-                style={{
-                  backgroundColor: "rgba(250, 246, 241, 0.92)",
-                  borderColor: "rgba(228, 221, 214, 0.92)",
-                }}
-              >
-                <p
-                  className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Ende
-                </p>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(event) => setEndTime(event.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="mt-1.5 w-full bg-transparent text-[15px] font-semibold outline-none"
-                  style={{ color: "var(--text-primary)" }}
-                />
-              </div>
-            </div>
-
+            Zeit
+          </p>
+          <div className="grid grid-cols-3 gap-2.5">
             <div
-              className="mt-3 rounded-[8px] border px-4 py-3.5"
+              className="rounded-[9px] px-3 py-3"
               style={{
-                backgroundColor: "rgba(255,255,255,0.94)",
-                borderColor: "rgba(232, 225, 217, 0.98)",
+                backgroundColor: "rgba(249, 244, 239, 0.88)",
+                border: "1px solid rgba(225, 218, 210, 0.88)",
               }}
             >
               <p
-                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
+                className="text-[9px] font-semibold uppercase tracking-[0.14em]"
                 style={{ color: "var(--text-muted)" }}
+              >
+                Start
+              </p>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(event) => setStartTime(event.target.value)}
+                onKeyDown={handleKeyDown}
+                className="mt-1.5 w-full bg-transparent text-[13px] font-semibold outline-none"
+                style={{ color: "var(--text-primary)" }}
+              />
+            </div>
+
+            <div
+              className="rounded-[9px] px-3 py-3"
+              style={{
+                backgroundColor: "rgba(249, 244, 239, 0.88)",
+                border: "1px solid rgba(225, 218, 210, 0.88)",
+              }}
+            >
+              <p
+                className="text-[9px] font-semibold uppercase tracking-[0.14em]"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Ende
+              </p>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(event) => setEndTime(event.target.value)}
+                onKeyDown={handleKeyDown}
+                className="mt-1.5 w-full bg-transparent text-[13px] font-semibold outline-none"
+                style={{ color: "var(--text-primary)" }}
+              />
+            </div>
+
+            <div
+              className="rounded-[9px] px-3 py-3"
+              style={{
+                backgroundColor: `${color}12`,
+                border: `1px solid ${color}30`,
+              }}
+            >
+              <p
+                className="text-[9px] font-semibold uppercase tracking-[0.14em]"
+                style={{ color: `${color}bb` }}
               >
                 Dauer
               </p>
-              <p className="mt-1 text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
+              <p
+                className="mt-1.5 text-[13px] font-semibold"
+                style={{ color }}
+              >
                 {durationLabel}
               </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Calendar + Color */}
+        <div className="grid grid-cols-2 gap-3">
+          <section
+            className="rounded-[14px] px-5 py-5"
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.9)",
+              border: "1px solid rgba(232, 224, 215, 0.9)",
+            }}
+          >
+            <label
+              className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.16em]"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Kalender
+            </label>
+            <div
+              className="relative flex items-center gap-2 rounded-[9px] px-3 py-2.5"
+              style={{
+                backgroundColor: "rgba(249, 244, 239, 0.88)",
+                border: "1px solid rgba(225, 218, 210, 0.88)",
+              }}
+            >
+              <span
+                className="h-2 w-2 flex-shrink-0 rounded-full"
+                style={{
+                  backgroundColor: selectedCategory?.color || "rgba(178, 170, 161, 0.55)",
+                }}
+              />
+              <select
+                value={calendarCategoryId}
+                onChange={(event) => setCalendarCategoryId(event.target.value)}
+                className="min-w-0 flex-1 appearance-none bg-transparent pr-4 text-[11px] outline-none"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                <option value="">Kein Kalender</option>
+                {calendarCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={11}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                style={{ color: "var(--text-muted)" }}
+              />
             </div>
           </section>
 
           <section
-            className="space-y-3 rounded-[10px] border px-5 py-5"
+            className="rounded-[14px] px-5 py-5"
             style={{
-              backgroundColor: "rgba(255,255,255,0.9)",
-              borderColor: "rgba(232, 225, 217, 0.98)",
+              backgroundColor: "rgba(255, 255, 255, 0.9)",
+              border: "1px solid rgba(232, 224, 215, 0.9)",
             }}
           >
-            <div className="space-y-1.5">
-              <label
-                className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <CalendarDays size={11} />
-                Kalender
-              </label>
-              <div
-                className="relative flex items-center gap-2 rounded-[8px] border px-4 py-3.5"
-                style={{
-                  backgroundColor: "rgba(250, 246, 241, 0.92)",
-                  borderColor: "rgba(228, 221, 214, 0.92)",
-                }}
-              >
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
+            <label
+              className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.16em]"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Farbe
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {EVENT_COLORS.map((eventColor) => (
+                <button
+                  key={eventColor}
+                  type="button"
+                  onClick={() => setColor(eventColor)}
+                  className="relative flex h-8 w-full items-center justify-center rounded-[6px] transition-transform hover:scale-105"
                   style={{
-                    backgroundColor: selectedCategory?.color || "rgba(178,170,161,0.55)",
+                    backgroundColor: eventColor,
+                    boxShadow:
+                      color === eventColor
+                        ? `0 0 0 2px white, 0 0 0 3.5px ${eventColor}`
+                        : `0 2px 5px ${eventColor}30`,
                   }}
-                />
-                <select
-                  value={calendarCategoryId}
-                  onChange={(event) => setCalendarCategoryId(event.target.value)}
-                  className="min-w-0 flex-1 appearance-none bg-transparent pr-5 text-[13px] outline-none"
-                  style={{ color: "var(--text-secondary)" }}
                 >
-                  <option value="">Kein Kalender</option>
-                  {calendarCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2"
-                  style={{ color: "var(--text-muted)" }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label
-                className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <Palette size={11} />
-                Farbe
-              </label>
-              <div className="grid grid-cols-4 gap-2.5">
-                {EVENT_COLORS.map((eventColor) => (
-                  <button
-                    key={eventColor}
-                    type="button"
-                    onClick={() => setColor(eventColor)}
-                    className="h-12 w-full rounded-[8px] border transition-all"
-                    style={{
-                      backgroundColor: eventColor,
-                      borderColor: color === eventColor ? "#ffffff" : "transparent",
-                      boxShadow:
-                        color === eventColor
-                          ? `0 0 0 2px ${eventColor}, 0 8px 18px ${eventColor}30`
-                          : "0 4px 10px rgba(77, 66, 54, 0.08)",
-                    }}
-                  />
-                ))}
-              </div>
+                  {color === eventColor && (
+                    <Check size={9} color="white" strokeWidth={3} />
+                  )}
+                </button>
+              ))}
             </div>
           </section>
         </div>
 
+        {/* Recurring */}
         <section
-              className="rounded-[10px] border px-5 py-5"
+          className="rounded-[14px] px-5 py-5"
           style={{
-            backgroundColor: "rgba(255,255,255,0.9)",
-            borderColor: showRecurring
-              ? "rgba(141, 124, 246, 0.28)"
-              : "rgba(232, 225, 217, 0.98)",
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+            border: `1px solid ${showRecurring ? "rgba(141, 124, 246, 0.28)" : "rgba(232, 224, 215, 0.9)"}`,
+            transition: "border-color 180ms ease",
           }}
         >
           <button
@@ -558,18 +568,22 @@ export default function EventForm({
           >
             <div className="flex items-center gap-2.5">
               <span
-                className="inline-flex h-10 w-10 items-center justify-center rounded-[8px]"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[8px]"
                 style={{
                   backgroundColor: showRecurring
                     ? "var(--accent-primary-light)"
-                    : "rgba(244, 239, 232, 0.92)",
+                    : "rgba(242, 237, 230, 0.9)",
                   color: showRecurring ? "var(--accent-primary)" : "var(--text-muted)",
+                  transition: "all 180ms ease",
                 }}
               >
-                <RefreshCw size={14} />
+                <RefreshCw size={12} />
               </span>
               <div>
-                <p className="text-[12px] font-semibold" style={{ color: "var(--text-primary)" }}>
+                <p
+                  className="text-[12px] font-semibold"
+                  style={{ color: "var(--text-primary)" }}
+                >
                   Wiederholung
                 </p>
                 <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
@@ -578,12 +592,13 @@ export default function EventForm({
               </div>
             </div>
             <span
-              className="rounded-[8px] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em]"
+              className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
               style={{
                 backgroundColor: showRecurring
                   ? "rgba(141, 124, 246, 0.12)"
-                  : "rgba(244, 239, 232, 0.92)",
+                  : "rgba(242, 237, 230, 0.9)",
                 color: showRecurring ? "var(--accent-primary)" : "var(--text-muted)",
+                transition: "all 180ms ease",
               }}
             >
               {showRecurring ? "An" : "Aus"}
@@ -591,17 +606,19 @@ export default function EventForm({
           </button>
 
           {showRecurring && (
-            <div className="mt-4 space-y-3.5">
+            <div className="mt-4 space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 {(["none", "daily", "weekly", "monthly"] as const).map((value) => (
                   <button
                     key={value}
                     type="button"
                     onClick={() => setFrequency(value)}
-                    className="rounded-[8px] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
+                    className="rounded-[8px] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] transition-colors"
                     style={{
                       backgroundColor:
-                        frequency === value ? "var(--accent-primary)" : "rgba(244, 239, 232, 0.92)",
+                        frequency === value
+                          ? "var(--accent-primary)"
+                          : "rgba(242, 237, 230, 0.9)",
                       color: frequency === value ? "#ffffff" : "var(--text-muted)",
                     }}
                   >
@@ -611,7 +628,7 @@ export default function EventForm({
               </div>
 
               {frequency !== "none" && (
-                <div className="grid gap-3 sm:grid-cols-[auto_72px_1fr] sm:items-center">
+                <div className="flex items-center gap-2.5">
                   <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
                     Alle
                   </span>
@@ -623,10 +640,10 @@ export default function EventForm({
                     onChange={(event) =>
                       setInterval(Math.max(1, parseInt(event.target.value, 10) || 1))
                     }
-                    className="rounded-[8px] border px-3 py-2.5 text-center text-[12px] outline-none"
+                    className="w-14 rounded-[8px] px-3 py-2 text-center text-[12px] outline-none"
                     style={{
-                      backgroundColor: "rgba(250, 246, 241, 0.92)",
-                      borderColor: "rgba(228, 221, 214, 0.92)",
+                      backgroundColor: "rgba(249, 244, 239, 0.88)",
+                      border: "1px solid rgba(225, 218, 210, 0.88)",
                       color: "var(--text-primary)",
                     }}
                   />
@@ -641,17 +658,17 @@ export default function EventForm({
               )}
 
               {frequency === "weekly" && (
-                <div className="grid grid-cols-7 gap-1.5">
+                <div className="grid grid-cols-7 gap-1">
                   {DAY_LABELS.map((label, index) => (
                     <button
                       key={label}
                       type="button"
                       onClick={() => toggleDayOfWeek(index)}
-                      className="rounded-[6px] px-1.5 py-2.5 text-[10px] font-semibold"
+                      className="rounded-[6px] py-2 text-[10px] font-semibold transition-colors"
                       style={{
                         backgroundColor: daysOfWeek.includes(index)
                           ? "var(--accent-primary)"
-                          : "rgba(244, 239, 232, 0.92)",
+                          : "rgba(242, 237, 230, 0.9)",
                         color: daysOfWeek.includes(index) ? "#ffffff" : "var(--text-muted)",
                       }}
                     >
@@ -662,18 +679,18 @@ export default function EventForm({
               )}
 
               {frequency !== "none" && (
-                <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
-                  <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
+                <div className="flex items-center gap-2.5">
+                  <span className="shrink-0 text-[12px]" style={{ color: "var(--text-secondary)" }}>
                     Endet
                   </span>
                   <input
                     type="date"
                     value={endDate}
                     onChange={(event) => setEndDate(event.target.value)}
-                    className="rounded-[8px] border px-3.5 py-2.5 text-[12px] outline-none"
+                    className="flex-1 rounded-[8px] px-3.5 py-2 text-[12px] outline-none"
                     style={{
-                      backgroundColor: "rgba(250, 246, 241, 0.92)",
-                      borderColor: "rgba(228, 221, 214, 0.92)",
+                      backgroundColor: "rgba(249, 244, 239, 0.88)",
+                      border: "1px solid rgba(225, 218, 210, 0.88)",
                       color: "var(--text-secondary)",
                     }}
                   />
@@ -684,25 +701,29 @@ export default function EventForm({
         </section>
       </div>
 
+      {/* Footer */}
       <div
-        className="space-y-3 border-t px-5 py-5"
-        style={{ borderColor: "rgba(229, 222, 214, 0.98)" }}
+        className="space-y-3 px-5 py-5"
+        style={{
+          borderTop: "1px solid rgba(232, 223, 213, 0.85)",
+          background: "linear-gradient(180deg, rgba(255,254,251,0) 0%, rgba(250,246,240,0.6) 100%)",
+        }}
       >
         {isEditing && onDelete ? (
           <button
             type="button"
             onClick={handleDelete}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-[8px] px-4 py-3 text-[11px] font-semibold"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-[9px] px-4 py-2.5 text-[11px] font-semibold transition-colors"
             style={{
               backgroundColor: confirmDelete
                 ? "var(--accent-danger-light)"
-                : "rgba(255,255,255,0.92)",
+                : "rgba(249, 244, 239, 0.9)",
               color: confirmDelete ? "var(--accent-danger)" : "var(--text-muted)",
-              border: "1px solid rgba(232, 215, 215, 0.96)",
+              border: `1px solid ${confirmDelete ? "rgba(224, 111, 111, 0.3)" : "rgba(228, 220, 211, 0.9)"}`,
             }}
           >
-            <Trash2 size={12} />
-            {confirmDelete ? "Bestaetigen?" : "Loeschen"}
+            <Trash2 size={11} />
+            {confirmDelete ? "Bestätigen?" : "Löschen"}
           </button>
         ) : null}
 
@@ -710,10 +731,11 @@ export default function EventForm({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-[8px] px-4 py-3 text-[11px] font-semibold"
+            className="rounded-[9px] px-4 py-3 text-[12px] font-semibold transition-colors"
             style={{
-              backgroundColor: "rgba(244, 239, 232, 0.92)",
-              color: "var(--text-muted)",
+              backgroundColor: "rgba(242, 237, 230, 0.92)",
+              color: "var(--text-secondary)",
+              border: "1px solid rgba(225, 218, 210, 0.88)",
             }}
           >
             Abbrechen
@@ -722,16 +744,16 @@ export default function EventForm({
             type="button"
             onClick={handleSubmit}
             disabled={!title.trim()}
-            className="rounded-[8px] px-4 py-3 text-[11px] font-semibold text-white disabled:opacity-40"
+            className="rounded-[9px] px-4 py-3 text-[12px] font-semibold text-white transition-opacity disabled:opacity-40"
             style={{
               background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
-              boxShadow: `0 10px 20px ${color}30`,
+              boxShadow: `0 8px 20px ${color}30`,
             }}
           >
             {isEditing ? "Speichern" : "Erstellen"}
           </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

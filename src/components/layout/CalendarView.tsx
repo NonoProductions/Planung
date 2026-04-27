@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useEffect, useState, useCallback, startTransition } from "react";
+import { AnimatePresence } from "framer-motion";
 import { format, isSameDay, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { PanelsTopLeft, Plus, Search, X } from "lucide-react";
@@ -18,9 +19,9 @@ export const END_HOUR = 22;
 export const HOUR_HEIGHT = 72;
 
 const GRID_GUTTER = 62;
-const FORM_MARGIN = 12;
-const EVENT_FORM_WIDTH = 360;
-const EVENT_FORM_HEIGHT = 720;
+const FORM_MARGIN = 16;
+const EVENT_FORM_WIDTH = 316;
+const EVENT_FORM_HEIGHT = 680;
 const TASK_FORM_WIDTH = 336;
 const TASK_FORM_HEIGHT = 560;
 const HOURS = Array.from(
@@ -56,6 +57,7 @@ export default function CalendarView() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
 
   const [formState, setFormState] = useState<FormState | null>(null);
   const selectedDateObj = parseISO(selectedDate);
@@ -66,9 +68,10 @@ export default function CalendarView() {
 
     const now = new Date();
     const minutesSinceStart = (now.getHours() - START_HOUR) * 60 + now.getMinutes();
-    const scrollTo = Math.max(0, (minutesSinceStart / 60) * HOUR_HEIGHT - HOUR_HEIGHT);
+    const currentTimePixel = (minutesSinceStart / 60) * HOUR_HEIGHT;
+    const scrollTo = Math.max(0, currentTimePixel - container.clientHeight / 2);
 
-    container.scrollTop = scrollTo;
+    container.scrollTo({ top: scrollTo, behavior: "smooth" });
   }, []);
 
   const clampFormPosition = useCallback((
@@ -149,6 +152,17 @@ export default function CalendarView() {
 
     return () => window.cancelAnimationFrame(frame);
   }, [selectedDate, scrollToCurrentTime]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        scrollToCurrentTime();
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [scrollToCurrentTime]);
 
   useEffect(() => {
     if (!calendarPlanningTaskId) return;
@@ -364,7 +378,7 @@ export default function CalendarView() {
   }, [formState, updateTask]);
 
   return (
-    <aside className="calendar-panel">
+    <aside ref={panelRef} className="calendar-panel">
       <header className="calendar-toolbar">
         <div className="calendar-toolbar__meta">
           <span className="calendar-toolbar__eyebrow">Calendar</span>
@@ -486,32 +500,36 @@ export default function CalendarView() {
             </div>
           )}
 
-          {visibleFormState?.kind === "event" && (
-            <EventForm
-              key={visibleFormState.event?.id ?? "new-event"}
-              event={visibleFormState.event}
-              defaultStart={visibleFormState.defaultStart}
-              defaultEnd={visibleFormState.defaultEnd}
-              selectedDate={selectedDate}
-              calendarCategories={calendarCategories}
-              onSave={handleSaveEvent}
-              onDelete={visibleFormState.mode === "edit" ? handleDeleteEvent : undefined}
-              onClose={() => setFormState(null)}
-              position={{ top: visibleFormState.top, left: visibleFormState.left }}
-            />
-          )}
+          <AnimatePresence>
+            {visibleFormState?.kind === "event" && (
+              <EventForm
+                key={visibleFormState.event?.id ?? "new-event"}
+                event={visibleFormState.event}
+                defaultStart={visibleFormState.defaultStart}
+                defaultEnd={visibleFormState.defaultEnd}
+                selectedDate={selectedDate}
+                calendarCategories={calendarCategories}
+                onSave={handleSaveEvent}
+                onDelete={visibleFormState.mode === "edit" ? handleDeleteEvent : undefined}
+                onClose={() => setFormState(null)}
+                position={{ top: visibleFormState.top, left: visibleFormState.left }}
+              />
+            )}
+          </AnimatePresence>
 
-          {visibleFormState?.kind === "task" && visibleFormState.task && (
-            <TaskScheduleForm
-              key={visibleFormState.task.id}
-              task={visibleFormState.task}
-              selectedDate={selectedDate}
-              onSave={handleSaveTaskSchedule}
-              onUnschedule={handleUnscheduleTask}
-              onClose={() => setFormState(null)}
-              position={{ top: visibleFormState.top, left: visibleFormState.left }}
-            />
-          )}
+          <AnimatePresence>
+            {visibleFormState?.kind === "task" && visibleFormState.task && (
+              <TaskScheduleForm
+                key={visibleFormState.task.id}
+                task={visibleFormState.task}
+                selectedDate={selectedDate}
+                onSave={handleSaveTaskSchedule}
+                onUnschedule={handleUnscheduleTask}
+                onClose={() => setFormState(null)}
+                position={{ top: visibleFormState.top, left: visibleFormState.left }}
+              />
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
