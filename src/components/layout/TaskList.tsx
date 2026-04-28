@@ -34,6 +34,31 @@ function formatMinutes(minutes: number) {
   return `${hours}:${remainingMinutes.toString().padStart(2, "0")}`;
 }
 
+function computeElapsedWithBreaks(workMinutes: number) {
+  const fullPomodoros = Math.floor(workMinutes / 25);
+  const remainingWork = workMinutes % 25;
+
+  let elapsed = 0;
+  for (let i = 0; i < fullPomodoros; i++) {
+    elapsed += 25;
+    const isLast = i === fullPomodoros - 1 && remainingWork === 0;
+    if (!isLast) {
+      const isFourthInCycle = (i + 1) % 4 === 0;
+      elapsed += isFourthInCycle ? 25 : 5;
+    }
+  }
+  return elapsed + remainingWork;
+}
+
+function formatFinishTime(now: Date, totalMinutes: number) {
+  const elapsedTotal = computeElapsedWithBreaks(totalMinutes);
+  const finish = new Date(now.getTime() + elapsedTotal * 60_000);
+  const sameDay = toLocalDateString(finish) === toLocalDateString(now);
+  return sameDay
+    ? format(finish, "HH:mm")
+    : format(finish, "EEE HH:mm", { locale: de });
+}
+
 function getTaskProgressUnits(task: Task): { totalUnits: number; completedUnits: number } {
   const subtasks = task.subtasks || [];
 
@@ -107,7 +132,13 @@ export default function TaskList() {
   const [newChannelId, setNewChannelId] = useState("");
   const [newPlannedTime, setNewPlannedTime] = useState("");
   const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const [now, setNow] = useState(() => new Date());
   const addInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     fetchChannels();
@@ -246,8 +277,13 @@ export default function TaskList() {
           {visibleDays.map((day, index) => {
             const dayDate = toLocalDateString(day);
             const dayTasks = tasksByDay.get(dayDate) || [];
-            const dayPlannedTotal = dayTasks.reduce((sum, task) => sum + (task.plannedTime || 0), 0);
+            const dayRemainingTotal = dayTasks.reduce(
+              (sum, task) =>
+                task.status === "COMPLETED" ? sum : sum + (task.plannedTime || 0),
+              0
+            );
             const dayProgress = getDayProgress(dayTasks);
+            const isToday = dayDate === toLocalDateString(now);
 
             return (
               <section
@@ -283,9 +319,20 @@ export default function TaskList() {
                         Add task
                       </span>
                       <span className="planning-card__duration">
-                        {dayPlannedTotal > 0
-                          ? formatMinutes(dayPlannedTotal)
+                        {dayRemainingTotal > 0
+                          ? formatMinutes(dayRemainingTotal)
                           : QUICK_ADD_DURATIONS[index % QUICK_ADD_DURATIONS.length] || "0:30"}
+                        {isToday && dayRemainingTotal > 0 && (
+                          <span
+                            style={{
+                              marginLeft: "6px",
+                              color: "var(--text-muted)",
+                              fontWeight: 500,
+                            }}
+                          >
+                            → {formatFinishTime(now, dayRemainingTotal)}
+                          </span>
+                        )}
                       </span>
                     </button>
 
