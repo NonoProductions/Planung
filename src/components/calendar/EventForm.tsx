@@ -207,139 +207,119 @@ export default function EventForm({
     setTimeout(() => setConfirmDelete(false), 3000);
   };
 
+  const inputBaseStyle: React.CSSProperties = {
+    backgroundColor: "var(--bg-input)",
+    border: "1px solid var(--border-color)",
+    color: "var(--text-primary)",
+  };
+
+  const fieldLabelStyle: React.CSSProperties = {
+    color: "var(--text-muted)",
+    letterSpacing: "0.14em",
+  };
+
   return (
     <motion.div
       ref={formRef}
       data-calendar-form
       className="absolute z-50 flex flex-col overflow-hidden"
-      initial={{ opacity: 0, scale: 0.96, y: 6 }}
+      initial={{ opacity: 0, scale: 0.97, y: 6 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: 4 }}
-      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+      exit={{ opacity: 0, scale: 0.96, y: 4 }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
       style={{
         width: 380,
-        maxWidth: "calc(100% - 32px)",
-        maxHeight: "min(720px, calc(100dvh - 40px))",
+        maxWidth: "calc(100vw - 32px)",
+        maxHeight: "min(640px, calc(100dvh - 40px))",
         borderRadius: 18,
-        border: "1.5px solid rgba(224, 215, 205, 0.95)",
-        background: "linear-gradient(180deg, #fffefb 0%, #faf6f0 100%)",
+        border: "1px solid var(--border-color)",
+        background: "var(--bg-card)",
         boxShadow:
-          "0 4px 6px rgba(0,0,0,0.02), 0 22px 50px rgba(82, 67, 48, 0.2), 0 0 0 0.5px rgba(224,215,205,0.5)",
+          "0 1px 2px rgba(76, 70, 63, 0.04), 0 24px 56px rgba(76, 70, 63, 0.18)",
         top: position?.top ?? 0,
         left: position?.left ?? 0,
       }}
     >
-      {/* Color accent strip */}
-      <div
+      <header
+        className="flex items-start justify-between gap-4"
         style={{
-          height: 3,
-          background: `linear-gradient(90deg, ${color}, ${color}88)`,
-          flexShrink: 0,
-          borderRadius: "18px 18px 0 0",
+          padding: "24px 28px 20px 28px",
+        }}
+      >
+        <div className="min-w-0 flex-1">
+          <p
+            className="text-[10px] font-semibold uppercase"
+            style={fieldLabelStyle}
+          >
+            {isEditing ? "Eintrag bearbeiten" : "Neuer Eintrag"}
+          </p>
+          <h3
+            className="mt-3 break-words text-[22px] font-semibold leading-[1.2]"
+            style={{
+              color: title.trim() ? "var(--text-primary)" : "var(--text-muted)",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {title.trim() || "Kalendereintrag"}
+          </h3>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium"
+              style={{
+                backgroundColor: "var(--bg-hover)",
+                color: "var(--text-secondary)",
+              }}
+            >
+              <CalendarDays size={12} />
+              {formatDateLabel(selectedDate)}
+            </span>
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium"
+              style={{
+                backgroundColor: "var(--bg-hover)",
+                color: "var(--text-secondary)",
+              }}
+            >
+              <Clock3 size={12} />
+              {durationLabel}
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Schließen"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--bg-hover)]"
+          style={{ color: "var(--text-muted)" }}
+        >
+          <X size={16} />
+        </button>
+      </header>
+
+      <div
+        aria-hidden="true"
+        style={{
+          height: 1,
+          background: "var(--border-subtle)",
+          margin: "0 28px",
         }}
       />
 
-      {/* Header */}
       <div
-        className="px-6 pt-6 pb-5"
+        className="min-h-0 overflow-y-auto"
         style={{
-          borderBottom: "1px solid rgba(232, 223, 213, 0.85)",
-          background: `linear-gradient(180deg, ${color}0d 0%, rgba(255,254,251,0) 100%)`,
+          padding: "22px 28px 24px 28px",
         }}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p
-              className="text-[10px] font-semibold uppercase tracking-[0.18em]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              {isEditing ? "Eintrag bearbeiten" : "Neuer Eintrag"}
-            </p>
-            <h3
-              className="mt-2 break-words text-[20px] font-bold leading-[1.1] tracking-[-0.04em]"
-              style={{ color: title.trim() ? "var(--text-primary)" : "var(--text-muted)" }}
-            >
-              {title.trim() || "Kalendereintrag"}
-            </h3>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] transition-colors hover:bg-[rgba(225,215,202,0.95)]"
-            style={{
-              backgroundColor: "rgba(237, 230, 222, 0.85)",
-              color: "var(--text-muted)",
-            }}
-          >
-            <X size={13} />
-          </button>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span
-            className="inline-flex items-center gap-1 rounded-[6px] px-2.5 py-1 text-[11px] font-semibold"
-            style={{
-              backgroundColor: "rgba(238, 231, 222, 0.88)",
-              color: "var(--text-secondary)",
-            }}
-          >
-            <CalendarDays size={10} />
-            {formatDateLabel(selectedDate)}
-          </span>
-          <span
-            className="inline-flex items-center gap-1 rounded-[6px] px-2.5 py-1 text-[11px] font-semibold"
-            style={{
-              backgroundColor: "rgba(238, 231, 222, 0.88)",
-              color: "var(--text-secondary)",
-            }}
-          >
-            <Clock3 size={10} />
-            {startTime} – {endTime}
-          </span>
-          <span
-            className="inline-flex items-center rounded-[6px] px-2.5 py-1 text-[11px] font-semibold"
-            style={{
-              backgroundColor: `${color}18`,
-              color,
-            }}
-          >
-            {durationLabel}
-          </span>
-          {selectedCategory ? (
-            <span
-              className="inline-flex items-center gap-1 rounded-[6px] px-2.5 py-1 text-[11px] font-semibold"
-              style={{
-                backgroundColor: "rgba(238, 231, 222, 0.88)",
-                color: selectedCategory.color,
-              }}
-            >
-              <span
-                className="h-1.5 w-1.5 flex-shrink-0 rounded-full"
-                style={{ backgroundColor: selectedCategory.color }}
-              />
-              {selectedCategory.name}
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="min-h-0 space-y-3.5 overflow-y-auto px-5 py-5">
-        {/* Title + Note */}
-        <section
-          className="space-y-4 rounded-[14px] px-5 py-5"
-          style={{
-            backgroundColor: "rgba(255, 255, 255, 0.9)",
-            border: "1px solid rgba(232, 224, 215, 0.9)",
-          }}
-        >
-          <div className="space-y-2.5">
+        <div className="space-y-6">
+          <div>
             <label
-              className="block text-[10px] font-semibold uppercase tracking-[0.16em]"
-              style={{ color: "var(--text-muted)" }}
+              className="block text-[10px] font-semibold uppercase"
+              style={fieldLabelStyle}
             >
               Titel
             </label>
@@ -350,19 +330,18 @@ export default function EventForm({
               onChange={(event) => setTitle(event.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Worum geht es?"
-              className="event-form-input w-full rounded-[9px] px-4 py-3 text-[14px]"
+              className="event-form-input mt-2.5 w-full rounded-[10px] text-[14px]"
               style={{
-                backgroundColor: "rgba(249, 244, 239, 0.88)",
-                border: "1px solid rgba(225, 218, 210, 0.88)",
-                color: "var(--text-primary)",
+                ...inputBaseStyle,
+                padding: "12px 14px",
               }}
             />
           </div>
 
-          <div className="space-y-2.5">
+          <div>
             <label
-              className="block text-[10px] font-semibold uppercase tracking-[0.16em]"
-              style={{ color: "var(--text-muted)" }}
+              className="block text-[10px] font-semibold uppercase"
+              style={fieldLabelStyle}
             >
               Notiz
             </label>
@@ -372,132 +351,116 @@ export default function EventForm({
               onKeyDown={handleKeyDown}
               placeholder="Optionaler Kontext"
               rows={3}
-              className="event-form-input w-full resize-none rounded-[9px] px-4 py-3 text-[13px] leading-relaxed"
+              className="event-form-input mt-2.5 w-full resize-none rounded-[10px] text-[13px] leading-[1.55]"
               style={{
-                backgroundColor: "rgba(249, 244, 239, 0.88)",
-                border: "1px solid rgba(225, 218, 210, 0.88)",
+                ...inputBaseStyle,
                 color: "var(--text-secondary)",
+                padding: "12px 14px",
               }}
             />
           </div>
-        </section>
 
-        {/* Time */}
-        <section
-          className="rounded-[14px] px-5 py-5"
-          style={{
-            backgroundColor: "rgba(255, 255, 255, 0.9)",
-            border: "1px solid rgba(232, 224, 215, 0.9)",
-          }}
-        >
-          <p
-            className="mb-3.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Zeit
-          </p>
-          <div className="grid grid-cols-3 gap-2.5">
-            <div
-              className="rounded-[9px] px-3 py-3"
-              style={{
-                backgroundColor: "rgba(249, 244, 239, 0.88)",
-                border: "1px solid rgba(225, 218, 210, 0.88)",
-              }}
+          <div>
+            <label
+              className="block text-[10px] font-semibold uppercase"
+              style={fieldLabelStyle}
             >
-              <p
-                className="text-[9px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "var(--text-muted)" }}
+              Zeit
+            </label>
+            <div className="mt-2.5 grid grid-cols-3 gap-3">
+              <div
+                className="rounded-[10px]"
+                style={{
+                  ...inputBaseStyle,
+                  padding: "10px 12px",
+                }}
               >
-                Start
-              </p>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(event) => setStartTime(event.target.value)}
-                onKeyDown={handleKeyDown}
-                className="mt-1.5 w-full bg-transparent text-[13px] font-semibold outline-none"
-                style={{ color: "var(--text-primary)" }}
-              />
-            </div>
-
-            <div
-              className="rounded-[9px] px-3 py-3"
-              style={{
-                backgroundColor: "rgba(249, 244, 239, 0.88)",
-                border: "1px solid rgba(225, 218, 210, 0.88)",
-              }}
-            >
-              <p
-                className="text-[9px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "var(--text-muted)" }}
+                <p
+                  className="text-[9px] font-semibold uppercase"
+                  style={{ color: "var(--text-muted)", letterSpacing: "0.12em" }}
+                >
+                  Start
+                </p>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(event) => setStartTime(event.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="mt-1 w-full bg-transparent text-[14px] font-medium outline-none"
+                  style={{ color: "var(--text-primary)" }}
+                />
+              </div>
+              <div
+                className="rounded-[10px]"
+                style={{
+                  ...inputBaseStyle,
+                  padding: "10px 12px",
+                }}
               >
-                Ende
-              </p>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(event) => setEndTime(event.target.value)}
-                onKeyDown={handleKeyDown}
-                className="mt-1.5 w-full bg-transparent text-[13px] font-semibold outline-none"
-                style={{ color: "var(--text-primary)" }}
-              />
-            </div>
-
-            <div
-              className="rounded-[9px] px-3 py-3"
-              style={{
-                backgroundColor: `${color}12`,
-                border: `1px solid ${color}30`,
-              }}
-            >
-              <p
-                className="text-[9px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: `${color}bb` }}
+                <p
+                  className="text-[9px] font-semibold uppercase"
+                  style={{ color: "var(--text-muted)", letterSpacing: "0.12em" }}
+                >
+                  Ende
+                </p>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(event) => setEndTime(event.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="mt-1 w-full bg-transparent text-[14px] font-medium outline-none"
+                  style={{ color: "var(--text-primary)" }}
+                />
+              </div>
+              <div
+                className="rounded-[10px]"
+                style={{
+                  backgroundColor: `${color}14`,
+                  border: `1px solid ${color}33`,
+                  padding: "10px 12px",
+                }}
               >
-                Dauer
-              </p>
-              <p
-                className="mt-1.5 text-[13px] font-semibold"
-                style={{ color }}
-              >
-                {durationLabel}
-              </p>
+                <p
+                  className="text-[9px] font-semibold uppercase"
+                  style={{ color, opacity: 0.75, letterSpacing: "0.12em" }}
+                >
+                  Dauer
+                </p>
+                <p
+                  className="mt-1 text-[14px] font-medium"
+                  style={{ color }}
+                >
+                  {durationLabel}
+                </p>
+              </div>
             </div>
           </div>
-        </section>
 
-        {/* Calendar + Color */}
-        <div className="grid grid-cols-2 gap-3">
-          <section
-            className="rounded-[14px] px-5 py-5"
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.9)",
-              border: "1px solid rgba(232, 224, 215, 0.9)",
-            }}
-          >
+          <div>
             <label
-              className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.16em]"
-              style={{ color: "var(--text-muted)" }}
+              className="block text-[10px] font-semibold uppercase"
+              style={fieldLabelStyle}
             >
               Kalender
             </label>
             <div
-              className="relative flex items-center gap-2 rounded-[9px] px-3 py-2.5"
+              className="relative mt-2.5 flex items-center gap-2.5 rounded-[10px]"
               style={{
-                backgroundColor: "rgba(249, 244, 239, 0.88)",
-                border: "1px solid rgba(225, 218, 210, 0.88)",
+                ...inputBaseStyle,
+                padding: "12px 14px",
               }}
             >
               <span
                 className="h-2 w-2 flex-shrink-0 rounded-full"
                 style={{
-                  backgroundColor: selectedCategory?.color || "rgba(178, 170, 161, 0.55)",
+                  backgroundColor:
+                    selectedCategory?.color || "var(--text-muted)",
                 }}
               />
               <select
                 value={calendarCategoryId}
                 onChange={(event) => setCalendarCategoryId(event.target.value)}
-                className="min-w-0 flex-1 appearance-none bg-transparent pr-4 text-[11px] outline-none"
+                className="min-w-0 flex-1 appearance-none bg-transparent pr-5 text-[13px] outline-none"
                 style={{ color: "var(--text-secondary)" }}
               >
                 <option value="">Kein Kalender</option>
@@ -508,234 +471,267 @@ export default function EventForm({
                 ))}
               </select>
               <ChevronDown
-                size={11}
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                size={14}
+                className="pointer-events-none absolute right-3.5"
                 style={{ color: "var(--text-muted)" }}
               />
             </div>
-          </section>
+          </div>
 
-          <section
-            className="rounded-[14px] px-5 py-5"
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.9)",
-              border: "1px solid rgba(232, 224, 215, 0.9)",
-            }}
-          >
+          <div>
             <label
-              className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.16em]"
-              style={{ color: "var(--text-muted)" }}
+              className="block text-[10px] font-semibold uppercase"
+              style={fieldLabelStyle}
             >
               Farbe
             </label>
-            <div className="grid grid-cols-4 gap-2">
-              {EVENT_COLORS.map((eventColor) => (
-                <button
-                  key={eventColor}
-                  type="button"
-                  onClick={() => setColor(eventColor)}
-                  className="relative flex h-8 w-full items-center justify-center rounded-[6px] transition-transform hover:scale-105"
+            <div className="mt-2.5 grid grid-cols-8 gap-2">
+              {EVENT_COLORS.map((eventColor) => {
+                const isSelected = color === eventColor;
+                return (
+                  <button
+                    key={eventColor}
+                    type="button"
+                    onClick={() => setColor(eventColor)}
+                    aria-label={`Farbe ${eventColor}`}
+                    className="relative flex h-9 w-full items-center justify-center rounded-full transition-transform hover:scale-110"
+                    style={{
+                      backgroundColor: eventColor,
+                      boxShadow: isSelected
+                        ? `0 0 0 2px var(--bg-card), 0 0 0 4px ${eventColor}`
+                        : "none",
+                    }}
+                  >
+                    {isSelected && (
+                      <Check size={12} color="white" strokeWidth={3} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label
+              className="block text-[10px] font-semibold uppercase"
+              style={fieldLabelStyle}
+            >
+              Wiederholung
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowRecurring((value) => !value)}
+              className="mt-2.5 flex w-full items-center justify-between gap-3 rounded-[10px] text-left transition-colors"
+              style={{
+                ...inputBaseStyle,
+                padding: "12px 14px",
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full"
                   style={{
-                    backgroundColor: eventColor,
-                    boxShadow:
-                      color === eventColor
-                        ? `0 0 0 2px white, 0 0 0 3.5px ${eventColor}`
-                        : `0 2px 5px ${eventColor}30`,
+                    backgroundColor: showRecurring
+                      ? "var(--accent-primary-light)"
+                      : "var(--bg-hover)",
+                    color: showRecurring
+                      ? "var(--accent-primary)"
+                      : "var(--text-muted)",
                   }}
                 >
-                  {color === eventColor && (
-                    <Check size={9} color="white" strokeWidth={3} />
-                  )}
-                </button>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        {/* Recurring */}
-        <section
-          className="rounded-[14px] px-5 py-5"
-          style={{
-            backgroundColor: "rgba(255, 255, 255, 0.9)",
-            border: `1px solid ${showRecurring ? "rgba(141, 124, 246, 0.28)" : "rgba(232, 224, 215, 0.9)"}`,
-            transition: "border-color 180ms ease",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setShowRecurring((value) => !value)}
-            className="flex w-full items-center justify-between gap-3 text-left"
-          >
-            <div className="flex items-center gap-2.5">
+                  <RefreshCw size={13} />
+                </span>
+                <span
+                  className="text-[13px] font-medium"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {showRecurring ? frequencyLabel[frequency] : "Nur einmalig"}
+                </span>
+              </div>
               <span
-                className="inline-flex h-8 w-8 items-center justify-center rounded-[8px]"
+                className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase"
                 style={{
                   backgroundColor: showRecurring
                     ? "var(--accent-primary-light)"
-                    : "rgba(242, 237, 230, 0.9)",
-                  color: showRecurring ? "var(--accent-primary)" : "var(--text-muted)",
-                  transition: "all 180ms ease",
+                    : "var(--bg-hover)",
+                  color: showRecurring
+                    ? "var(--accent-primary)"
+                    : "var(--text-muted)",
+                  letterSpacing: "0.1em",
                 }}
               >
-                <RefreshCw size={12} />
+                {showRecurring ? "An" : "Aus"}
               </span>
-              <div>
-                <p
-                  className="text-[12px] font-semibold"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Wiederholung
-                </p>
-                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                  {showRecurring ? frequencyLabel[frequency] : "Nur einmalig"}
-                </p>
-              </div>
-            </div>
-            <span
-              className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
-              style={{
-                backgroundColor: showRecurring
-                  ? "rgba(141, 124, 246, 0.12)"
-                  : "rgba(242, 237, 230, 0.9)",
-                color: showRecurring ? "var(--accent-primary)" : "var(--text-muted)",
-                transition: "all 180ms ease",
-              }}
-            >
-              {showRecurring ? "An" : "Aus"}
-            </span>
-          </button>
+            </button>
 
-          {showRecurring && (
-            <div className="mt-4 space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                {(["none", "daily", "weekly", "monthly"] as const).map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setFrequency(value)}
-                    className="rounded-[8px] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] transition-colors"
-                    style={{
-                      backgroundColor:
-                        frequency === value
-                          ? "var(--accent-primary)"
-                          : "rgba(242, 237, 230, 0.9)",
-                      color: frequency === value ? "#ffffff" : "var(--text-muted)",
-                    }}
-                  >
-                    {frequencyLabel[value]}
-                  </button>
-                ))}
-              </div>
-
-              {frequency !== "none" && (
-                <div className="flex items-center gap-2.5">
-                  <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                    Alle
-                  </span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={99}
-                    value={interval}
-                    onChange={(event) =>
-                      setInterval(Math.max(1, parseInt(event.target.value, 10) || 1))
-                    }
-                    className="w-14 rounded-[8px] px-3 py-2 text-center text-[12px] outline-none"
-                    style={{
-                      backgroundColor: "rgba(249, 244, 239, 0.88)",
-                      border: "1px solid rgba(225, 218, 210, 0.88)",
-                      color: "var(--text-primary)",
-                    }}
-                  />
-                  <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                    {frequency === "daily"
-                      ? "Tag(e)"
-                      : frequency === "weekly"
-                        ? "Woche(n)"
-                        : "Monat(e)"}
-                  </span>
+            {showRecurring && (
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-2 gap-2.5">
+                  {(["none", "daily", "weekly", "monthly"] as const).map((value) => {
+                    const active = frequency === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setFrequency(value)}
+                        className="rounded-[8px] py-2.5 text-[11px] font-semibold transition-colors"
+                        style={{
+                          backgroundColor: active
+                            ? "var(--accent-primary)"
+                            : "var(--bg-hover)",
+                          color: active ? "#ffffff" : "var(--text-secondary)",
+                        }}
+                      >
+                        {frequencyLabel[value]}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
 
-              {frequency === "weekly" && (
-                <div className="grid grid-cols-7 gap-1">
-                  {DAY_LABELS.map((label, index) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => toggleDayOfWeek(index)}
-                      className="rounded-[6px] py-2 text-[10px] font-semibold transition-colors"
-                      style={{
-                        backgroundColor: daysOfWeek.includes(index)
-                          ? "var(--accent-primary)"
-                          : "rgba(242, 237, 230, 0.9)",
-                        color: daysOfWeek.includes(index) ? "#ffffff" : "var(--text-muted)",
-                      }}
+                {frequency !== "none" && (
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="text-[12px]"
+                      style={{ color: "var(--text-secondary)" }}
                     >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
+                      Alle
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={interval}
+                      onChange={(event) =>
+                        setInterval(
+                          Math.max(1, parseInt(event.target.value, 10) || 1)
+                        )
+                      }
+                      className="event-form-input w-16 rounded-[8px] text-center text-[13px] font-medium"
+                      style={{
+                        ...inputBaseStyle,
+                        padding: "8px 10px",
+                      }}
+                    />
+                    <span
+                      className="text-[12px]"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      {frequency === "daily"
+                        ? "Tag(e)"
+                        : frequency === "weekly"
+                          ? "Woche(n)"
+                          : "Monat(e)"}
+                    </span>
+                  </div>
+                )}
 
-              {frequency !== "none" && (
-                <div className="flex items-center gap-2.5">
-                  <span className="shrink-0 text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                    Endet
-                  </span>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(event) => setEndDate(event.target.value)}
-                    className="flex-1 rounded-[8px] px-3.5 py-2 text-[12px] outline-none"
-                    style={{
-                      backgroundColor: "rgba(249, 244, 239, 0.88)",
-                      border: "1px solid rgba(225, 218, 210, 0.88)",
-                      color: "var(--text-secondary)",
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-        </section>
+                {frequency === "weekly" && (
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {DAY_LABELS.map((label, index) => {
+                      const active = daysOfWeek.includes(index);
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => toggleDayOfWeek(index)}
+                          className="rounded-[8px] py-2 text-[11px] font-semibold transition-colors"
+                          style={{
+                            backgroundColor: active
+                              ? "var(--accent-primary)"
+                              : "var(--bg-hover)",
+                            color: active ? "#ffffff" : "var(--text-secondary)",
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {frequency !== "none" && (
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="shrink-0 text-[12px]"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Endet am
+                    </span>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(event) => setEndDate(event.target.value)}
+                      className="event-form-input flex-1 rounded-[8px] text-[13px]"
+                      style={{
+                        ...inputBaseStyle,
+                        color: "var(--text-secondary)",
+                        padding: "10px 12px",
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Footer */}
       <div
-        className="space-y-3 px-5 py-5"
+        aria-hidden="true"
         style={{
-          borderTop: "1px solid rgba(232, 223, 213, 0.85)",
-          background: "linear-gradient(180deg, rgba(255,254,251,0) 0%, rgba(250,246,240,0.6) 100%)",
+          height: 1,
+          background: "var(--border-subtle)",
+          margin: "0 28px",
+        }}
+      />
+
+      <footer
+        style={{
+          padding: "18px 28px 22px 28px",
         }}
       >
         {isEditing && onDelete ? (
-          <button
-            type="button"
-            onClick={handleDelete}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-[9px] px-4 py-2.5 text-[11px] font-semibold transition-colors"
-            style={{
-              backgroundColor: confirmDelete
-                ? "var(--accent-danger-light)"
-                : "rgba(249, 244, 239, 0.9)",
-              color: confirmDelete ? "var(--accent-danger)" : "var(--text-muted)",
-              border: `1px solid ${confirmDelete ? "rgba(224, 111, 111, 0.3)" : "rgba(228, 220, 211, 0.9)"}`,
-            }}
-          >
-            <Trash2 size={11} />
-            {confirmDelete ? "Bestätigen?" : "Löschen"}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] py-2.5 text-[12px] font-semibold transition-colors"
+              style={{
+                backgroundColor: confirmDelete
+                  ? "var(--accent-danger-light)"
+                  : "transparent",
+                color: confirmDelete
+                  ? "var(--accent-danger)"
+                  : "var(--text-muted)",
+                border: `1px solid ${
+                  confirmDelete
+                    ? "rgba(224, 111, 111, 0.3)"
+                    : "var(--border-subtle)"
+                }`,
+              }}
+            >
+              <Trash2 size={12} />
+              {confirmDelete ? "Wirklich löschen?" : "Eintrag löschen"}
+            </button>
+            <div
+              aria-hidden="true"
+              style={{
+                height: 1,
+                background: "var(--border-subtle)",
+                margin: "16px 0",
+              }}
+            />
+          </>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-[9px] px-4 py-3 text-[12px] font-semibold transition-colors"
+            className="rounded-[10px] py-3 text-[13px] font-semibold transition-colors"
             style={{
-              backgroundColor: "rgba(242, 237, 230, 0.92)",
+              backgroundColor: "var(--bg-hover)",
               color: "var(--text-secondary)",
-              border: "1px solid rgba(225, 218, 210, 0.88)",
             }}
           >
             Abbrechen
@@ -744,16 +740,16 @@ export default function EventForm({
             type="button"
             onClick={handleSubmit}
             disabled={!title.trim()}
-            className="rounded-[9px] px-4 py-3 text-[12px] font-semibold text-white transition-opacity disabled:opacity-40"
+            className="rounded-[10px] py-3 text-[13px] font-semibold text-white transition-opacity disabled:opacity-40"
             style={{
-              background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
-              boxShadow: `0 8px 20px ${color}30`,
+              background: color,
+              boxShadow: `0 8px 18px ${color}33`,
             }}
           >
             {isEditing ? "Speichern" : "Erstellen"}
           </button>
         </div>
-      </div>
+      </footer>
     </motion.div>
   );
 }

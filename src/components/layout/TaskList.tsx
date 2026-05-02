@@ -59,60 +59,56 @@ function formatFinishTime(now: Date, totalMinutes: number) {
     : format(finish, "EEE HH:mm", { locale: de });
 }
 
-function getTaskProgressUnits(task: Task): { totalUnits: number; completedUnits: number } {
-  const subtasks = task.subtasks || [];
+function getTaskCompletionRatio(task: Task): number {
+  if (task.status === "COMPLETED") return 1;
 
-  if (subtasks.length === 0) {
-    return {
-      totalUnits: 1,
-      completedUnits: task.status === "COMPLETED" ? 1 : 0,
-    };
+  // Use time-tracking ratio when both planned and actual minutes are present.
+  // Capped at 1 so an over-tracked task can't push the day over 100%.
+  if (
+    typeof task.plannedTime === "number" &&
+    task.plannedTime > 0 &&
+    typeof task.actualTime === "number" &&
+    task.actualTime > 0
+  ) {
+    return Math.min(task.actualTime / task.plannedTime, 1);
   }
 
-  return subtasks.reduce(
-    (acc, subtask) => {
-      const subtaskUnits = getTaskProgressUnits(subtask);
-      return {
-        totalUnits: acc.totalUnits + subtaskUnits.totalUnits,
-        completedUnits: acc.completedUnits + subtaskUnits.completedUnits,
-      };
-    },
-    {
-      totalUnits: 1,
-      completedUnits: task.status === "COMPLETED" ? 1 : 0,
-    }
-  );
+  // Fall back to subtask completion.
+  const subtasks = task.subtasks || [];
+  if (subtasks.length === 0) return 0;
+
+  const sum = subtasks.reduce((acc, sub) => acc + getTaskCompletionRatio(sub), 0);
+  return sum / subtasks.length;
 }
 
-function getTaskWeight(task: Task, totalUnits: number) {
+function getTaskWeight(task: Task) {
   if (typeof task.plannedTime === "number" && task.plannedTime > 0) {
     return task.plannedTime;
   }
+  return DEFAULT_PROGRESS_WEIGHT_MINUTES;
+}
 
-  return DEFAULT_PROGRESS_WEIGHT_MINUTES * Math.max(totalUnits, 1);
+function getTaskRemainingMinutes(task: Task): number {
+  if (task.status === "COMPLETED") return 0;
+  if (typeof task.plannedTime !== "number" || task.plannedTime <= 0) return 0;
+  const done = task.actualTime ?? 0;
+  return Math.max(task.plannedTime - done, 0);
 }
 
 function getDayProgress(dayTasks: Task[]) {
   if (dayTasks.length === 0) return 0;
 
-  const { completedWeight, totalWeight } = dayTasks.reduce(
-    (acc, task) => {
-      const { totalUnits, completedUnits } = getTaskProgressUnits(task);
-      const weight = getTaskWeight(task, totalUnits);
-      const progressRatio = totalUnits > 0 ? completedUnits / totalUnits : 0;
-
-      return {
-        completedWeight: acc.completedWeight + weight * progressRatio,
-        totalWeight: acc.totalWeight + weight,
-      };
-    },
-    { completedWeight: 0, totalWeight: 0 }
-  );
+  let weightedDone = 0;
+  let totalWeight = 0;
+  for (const task of dayTasks) {
+    const weight = getTaskWeight(task);
+    weightedDone += weight * getTaskCompletionRatio(task);
+    totalWeight += weight;
+  }
 
   if (totalWeight === 0) return 0;
 
-  const progress = Math.round((completedWeight / totalWeight) * 100);
-
+  const progress = Math.round((weightedDone / totalWeight) * 100);
   return Math.min(Math.max(progress, 0), 100);
 }
 
@@ -278,8 +274,7 @@ export default function TaskList() {
             const dayDate = toLocalDateString(day);
             const dayTasks = tasksByDay.get(dayDate) || [];
             const dayRemainingTotal = dayTasks.reduce(
-              (sum, task) =>
-                task.status === "COMPLETED" ? sum : sum + (task.plannedTime || 0),
+              (sum, task) => sum + getTaskRemainingMinutes(task),
               0
             );
             const dayProgress = getDayProgress(dayTasks);

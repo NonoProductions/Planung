@@ -6,9 +6,11 @@ import TaskList from "@/components/layout/TaskList";
 import CalendarView from "@/components/layout/CalendarView";
 import DndWrapper from "@/components/dnd/DndWrapper";
 import { useUIStore } from "@/stores/uiStore";
+import { useCalDavAutoSync } from "@/hooks/useCalDavAutoSync";
 
 export default function HomeApp() {
   const calendarVisible = useUIStore((s) => s.calendarVisible);
+  useCalDavAutoSync();
 
   return (
     <DndWrapper>

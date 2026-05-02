@@ -161,227 +161,249 @@ export default function TaskScheduleForm({
     }
   };
 
+  const inputBaseStyle: React.CSSProperties = {
+    backgroundColor: "var(--bg-input)",
+    border: "1px solid var(--border-color)",
+    color: "var(--text-primary)",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    color: "var(--text-muted)",
+    letterSpacing: "0.14em",
+  };
+
   return (
     <div
       ref={formRef}
       data-calendar-form
-      className="absolute z-50 flex flex-col overflow-hidden rounded-[12px] border shadow-xl"
+      className="absolute z-50 flex flex-col overflow-hidden"
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
       style={{
-        width: 336,
-        maxWidth: "calc(100% - 20px)",
+        width: 380,
+        maxWidth: "calc(100vw - 32px)",
         maxHeight: "min(560px, calc(100dvh - 40px))",
-        background:
-          "linear-gradient(180deg, rgba(255,253,250,0.99) 0%, rgba(247,242,235,0.98) 100%)",
-        borderColor: "rgba(226, 218, 208, 0.98)",
-        boxShadow: "0 24px 52px rgba(82, 67, 48, 0.16)",
+        borderRadius: 18,
+        border: "1px solid var(--border-color)",
+        background: "var(--bg-card)",
+        boxShadow:
+          "0 1px 2px rgba(76, 70, 63, 0.04), 0 24px 56px rgba(76, 70, 63, 0.18)",
         top: position?.top ?? 0,
         left: position?.left ?? 0,
       }}
     >
-      <div
-        className="flex items-start justify-between gap-3 border-b px-5 py-5"
-        style={{ borderColor: "rgba(229, 222, 214, 0.98)" }}
+      <header
+        className="flex items-start justify-between gap-4"
+        style={{ padding: "24px 28px 20px 28px" }}
       >
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p
-            className="text-[10px] font-semibold uppercase tracking-[0.18em]"
-            style={{ color: "var(--text-muted)" }}
+            className="text-[10px] font-semibold uppercase"
+            style={labelStyle}
           >
             Task planen
           </p>
           <h3
-            className="mt-2 break-words text-[20px] font-semibold leading-[1.08] tracking-[-0.04em]"
-            style={{ color: "var(--text-primary)" }}
+            className="mt-3 break-words text-[22px] font-semibold leading-[1.2]"
+            style={{
+              color: "var(--text-primary)",
+              letterSpacing: "-0.02em",
+            }}
           >
             {task.title}
           </h3>
-          <p className="mt-2 text-[12px] leading-[1.45]" style={{ color: "var(--text-muted)" }}>
-            Lege Tag, Start und Dauer direkt im Kalender fest.
-          </p>
-        </div>
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border transition-colors"
-          style={{
-            color: "var(--text-muted)",
-            borderColor: "rgba(226, 218, 208, 0.92)",
-            backgroundColor: "rgba(255,255,255,0.88)",
-          }}
-        >
-          <X size={14} />
-        </button>
-      </div>
-
-      <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-5">
-        <div
-          className="rounded-[10px] border px-5 py-5"
-          style={{
-            borderColor: "rgba(229, 222, 214, 0.98)",
-            background:
-              "linear-gradient(180deg, rgba(240, 235, 255, 0.58), rgba(255, 255, 255, 0.96))",
-          }}
-        >
-          <p
-            className="break-words text-[15px] font-semibold leading-[1.35]"
-            style={{ color: "var(--text-primary)" }}
-          >
-            {task.title}
-          </p>
-
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
             <span
-              className="inline-flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-[10px] font-semibold"
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium"
               style={{
-                backgroundColor: "rgba(255,255,255,0.9)",
+                backgroundColor: "var(--bg-hover)",
                 color: "var(--text-secondary)",
               }}
             >
-              <Clock3 size={11} />
+              <Clock3 size={12} />
               {durationLabel}
             </span>
             {task.channel && (
               <span
-                className="inline-flex items-center rounded-[8px] px-3 py-2 text-[10px] font-semibold"
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium"
                 style={{
                   backgroundColor: `${task.channel.color}18`,
                   color: task.channel.color,
                 }}
               >
-                #{task.channel.name}
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: task.channel.color }}
+                />
+                {task.channel.name}
               </span>
             )}
           </div>
         </div>
 
-        <section
-          className="space-y-3 rounded-[10px] border px-5 py-5"
-          style={{
-            backgroundColor: "rgba(255,255,255,0.9)",
-            borderColor: "rgba(229, 222, 214, 0.98)",
-          }}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Schließen"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--bg-hover)]"
+          style={{ color: "var(--text-muted)" }}
         >
-          <label className="block">
-            <span
-              className="mb-1.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-              style={{ color: "var(--text-muted)" }}
+          <X size={16} />
+        </button>
+      </header>
+
+      <div
+        aria-hidden="true"
+        style={{
+          height: 1,
+          background: "var(--border-subtle)",
+          margin: "0 28px",
+        }}
+      />
+
+      <div
+        className="min-h-0 overflow-y-auto"
+        style={{ padding: "22px 28px 24px 28px" }}
+      >
+        <div className="space-y-6">
+          <div>
+            <label
+              className="flex items-center gap-1.5 text-[10px] font-semibold uppercase"
+              style={labelStyle}
             >
               <CalendarDays size={11} />
               Tag
-            </span>
+            </label>
             <input
               ref={dateRef}
               type="date"
               value={scheduleDate}
               onChange={(event) => setScheduleDate(event.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full rounded-[8px] border px-4 py-3.5 text-[13px] outline-none"
+              className="event-form-input mt-2.5 w-full rounded-[10px] text-[13px]"
               style={{
-                backgroundColor: "rgba(250, 246, 241, 0.92)",
-                borderColor: "rgba(226, 218, 208, 0.92)",
+                ...inputBaseStyle,
                 color: "var(--text-secondary)",
+                padding: "12px 14px",
               }}
             />
-          </label>
-
-          <div className="grid grid-cols-2 gap-3">
-            <label
-              className="rounded-[8px] border px-4 py-3.5"
-              style={{
-                backgroundColor: "rgba(250, 246, 241, 0.92)",
-                borderColor: "rgba(226, 218, 208, 0.92)",
-              }}
-            >
-              <span
-                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Start
-              </span>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(event) => handleStartTimeChange(event.target.value)}
-                onKeyDown={handleKeyDown}
-                className="mt-1.5 w-full bg-transparent text-[15px] font-semibold outline-none"
-                style={{ color: "var(--text-primary)" }}
-              />
-            </label>
-
-            <label
-              className="rounded-[8px] border px-4 py-3.5"
-              style={{
-                backgroundColor: "rgba(250, 246, 241, 0.92)",
-                borderColor: "rgba(226, 218, 208, 0.92)",
-              }}
-            >
-              <span
-                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Ende
-              </span>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(event) => handleEndTimeChange(event.target.value)}
-                onKeyDown={handleKeyDown}
-                className="mt-1.5 w-full bg-transparent text-[15px] font-semibold outline-none"
-                style={{ color: "var(--text-primary)" }}
-              />
-            </label>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_112px] sm:items-end">
-            <label className="block">
-              <span
-                className="mb-1.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <TimerReset size={11} />
-                Geplante Dauer (Min.)
-              </span>
-              <input
-                type="number"
-                min={15}
-                step={15}
-                value={plannedTime}
-                onChange={(event) => handlePlannedTimeChange(event.target.value)}
-                onKeyDown={handleKeyDown}
-                className="w-full rounded-[8px] border px-4 py-3.5 text-[13px] outline-none"
-                style={{
-                  backgroundColor: "rgba(250, 246, 241, 0.92)",
-                  borderColor: "rgba(226, 218, 208, 0.92)",
-                  color: "var(--text-secondary)",
-                }}
-              />
-            </label>
-
-            <div
-              className="rounded-[8px] border px-4 py-3.5"
-              style={{
-                backgroundColor: "rgba(255,255,255,0.9)",
-                borderColor: "rgba(229, 222, 214, 0.98)",
-              }}
+          <div>
+            <label
+              className="block text-[10px] font-semibold uppercase"
+              style={labelStyle}
             >
-              <p
-                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "var(--text-muted)" }}
+              Zeit
+            </label>
+            <div className="mt-2.5 grid grid-cols-2 gap-3">
+              <div
+                className="rounded-[10px]"
+                style={{
+                  ...inputBaseStyle,
+                  padding: "10px 12px",
+                }}
               >
-                Dauer
-              </p>
-              <p className="mt-1 text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                {durationLabel}
-              </p>
+                <p
+                  className="text-[9px] font-semibold uppercase"
+                  style={{
+                    color: "var(--text-muted)",
+                    letterSpacing: "0.12em",
+                  }}
+                >
+                  Start
+                </p>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(event) => handleStartTimeChange(event.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="mt-1 w-full bg-transparent text-[15px] font-medium outline-none"
+                  style={{ color: "var(--text-primary)" }}
+                />
+              </div>
+              <div
+                className="rounded-[10px]"
+                style={{
+                  ...inputBaseStyle,
+                  padding: "10px 12px",
+                }}
+              >
+                <p
+                  className="text-[9px] font-semibold uppercase"
+                  style={{
+                    color: "var(--text-muted)",
+                    letterSpacing: "0.12em",
+                  }}
+                >
+                  Ende
+                </p>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(event) => handleEndTimeChange(event.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="mt-1 w-full bg-transparent text-[15px] font-medium outline-none"
+                  style={{ color: "var(--text-primary)" }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label
+              className="flex items-center gap-1.5 text-[10px] font-semibold uppercase"
+              style={labelStyle}
+            >
+              <TimerReset size={11} />
+              Geplante Dauer
+            </label>
+            <div className="mt-2.5 grid grid-cols-[1fr_auto] gap-3">
+              <div
+                className="flex items-center gap-2 rounded-[10px]"
+                style={{
+                  ...inputBaseStyle,
+                  padding: "10px 14px",
+                }}
+              >
+                <input
+                  type="number"
+                  min={15}
+                  step={15}
+                  value={plannedTime}
+                  onChange={(event) =>
+                    handlePlannedTimeChange(event.target.value)
+                  }
+                  onKeyDown={handleKeyDown}
+                  className="w-full bg-transparent text-[14px] font-medium outline-none"
+                  style={{ color: "var(--text-primary)" }}
+                />
+                <span
+                  className="text-[12px]"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Min.
+                </span>
+              </div>
+              <div
+                className="flex items-center justify-center rounded-[10px] px-4"
+                style={{
+                  backgroundColor: "var(--accent-primary-light)",
+                  color: "var(--accent-primary)",
+                  minWidth: 110,
+                }}
+              >
+                <span className="text-[13px] font-semibold">
+                  {durationLabel}
+                </span>
+              </div>
             </div>
           </div>
 
           {showHint && (
             <p
-              className="rounded-[8px] px-3.5 py-3 text-[11px] font-medium leading-[1.45]"
+              className="rounded-[10px] px-4 py-3 text-[12px] font-medium leading-[1.5]"
               style={{
                 backgroundColor: "var(--accent-warning-light)",
                 color: "#ad7419",
@@ -390,36 +412,52 @@ export default function TaskScheduleForm({
               Das Ende muss nach dem Start liegen.
             </p>
           )}
-        </section>
+        </div>
       </div>
 
       <div
-        className="space-y-3 border-t px-5 py-5"
-        style={{ borderColor: "rgba(229, 222, 214, 0.98)" }}
-      >
+        aria-hidden="true"
+        style={{
+          height: 1,
+          background: "var(--border-subtle)",
+          margin: "0 28px",
+        }}
+      />
+
+      <footer style={{ padding: "18px 28px 22px 28px" }}>
         {isScheduled ? (
-          <button
-            type="button"
-            onClick={onUnschedule}
-            className="w-full rounded-[8px] px-4 py-3 text-[11px] font-semibold transition-colors"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.92)",
-              color: "var(--accent-danger)",
-              border: "1px solid rgba(232, 215, 215, 0.96)",
-            }}
-          >
-            Aus Kalender entfernen
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={onUnschedule}
+              className="w-full rounded-[10px] py-2.5 text-[12px] font-semibold transition-colors"
+              style={{
+                backgroundColor: "transparent",
+                color: "var(--accent-danger)",
+                border: "1px solid var(--border-subtle)",
+              }}
+            >
+              Aus Kalender entfernen
+            </button>
+            <div
+              aria-hidden="true"
+              style={{
+                height: 1,
+                background: "var(--border-subtle)",
+                margin: "16px 0",
+              }}
+            />
+          </>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-[8px] px-4 py-3 text-[11px] font-semibold transition-colors"
+            className="rounded-[10px] py-3 text-[13px] font-semibold transition-colors"
             style={{
-              backgroundColor: "rgba(244, 239, 232, 0.92)",
-              color: "var(--text-muted)",
+              backgroundColor: "var(--bg-hover)",
+              color: "var(--text-secondary)",
             }}
           >
             Abbrechen
@@ -427,17 +465,16 @@ export default function TaskScheduleForm({
           <button
             type="button"
             onClick={handleSubmit}
-            className="rounded-[8px] px-4 py-3 text-[11px] font-semibold text-white"
+            className="rounded-[10px] py-3 text-[13px] font-semibold text-white"
             style={{
-              background:
-                "linear-gradient(135deg, var(--accent-primary) 0%, rgba(112, 92, 232, 0.92) 100%)",
-              boxShadow: "0 10px 20px rgba(141, 124, 246, 0.22)",
+              background: "var(--accent-primary)",
+              boxShadow: "0 8px 18px rgba(141, 124, 246, 0.28)",
             }}
           >
             Planen
           </button>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }

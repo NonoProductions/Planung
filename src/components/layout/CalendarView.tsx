@@ -20,9 +20,9 @@ export const HOUR_HEIGHT = 72;
 
 const GRID_GUTTER = 62;
 const FORM_MARGIN = 16;
-const EVENT_FORM_WIDTH = 316;
-const EVENT_FORM_HEIGHT = 680;
-const TASK_FORM_WIDTH = 336;
+const EVENT_FORM_WIDTH = 380;
+const EVENT_FORM_HEIGHT = 640;
+const TASK_FORM_WIDTH = 380;
 const TASK_FORM_HEIGHT = 560;
 const HOURS = Array.from(
   { length: END_HOUR - START_HOUR },

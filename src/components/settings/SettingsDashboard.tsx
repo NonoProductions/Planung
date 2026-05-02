@@ -23,6 +23,7 @@ import { buildPlannerExportCsv } from "@/lib/planner-export";
 import { useObjectiveStore } from "@/stores/objectiveStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTaskStore } from "@/stores/taskStore";
+import FocusPomoSync from "@/components/settings/FocusPomoSync";
 import type {
   CelebrationType,
   PlannerExportData,
@@ -878,6 +879,16 @@ export default function SettingsDashboard() {
               </SectionCard>
             </AnimatedPanel>
           </div>
+
+            <AnimatedPanel index={9} className="settings-panel-span">
+              <SectionCard
+                icon={<CalendarDays size={17} strokeWidth={1.8} />}
+                eyebrow="Integrations"
+                title="FocusPomo - Apple Kalender"
+              >
+                <FocusPomoSync />
+              </SectionCard>
+            </AnimatedPanel>
           </div>
         </div>
       </div>
