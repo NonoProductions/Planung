@@ -284,14 +284,44 @@ export async function runSync(userId: string): Promise<SyncResult> {
 async function recomputeActualTimeForUser(userId: string): Promise<void> {
   const { data, error } = await supabase
     .from("CalDavProcessedEvent")
-    .select("matchedTaskId, durationMinutes")
+    .select("matchedTaskId, durationMinutes, eventStart, eventSummary")
     .eq("userId", userId)
     .not("matchedTaskId", "is", null);
 
   if (error) return;
 
+  type ProcessedRow = {
+    matchedTaskId: string | null;
+    durationMinutes: number;
+    eventStart: string | null;
+    eventSummary: string | null;
+  };
+
+  // Same-session dedup. FocusPomo emits two VEVENTs per pomodoro (a "planned"
+  // 25-min event at start and an "actual" event at stop, different UIDs but
+  // same start + summary). fetchEvents collapses them within a single sync,
+  // but if the user synced between start and stop, the old "planned" row is
+  // already in CalDavProcessedEvent and a naive sum double-counts the session.
+  // Round the start to the minute so the planned/actual pair collapses even
+  // when their timestamps differ by a few seconds, and keep the longest
+  // duration per (matchedTaskId, minute, summary).
+  const bestByKey = new Map<string, ProcessedRow>();
+  for (const row of (data ?? []) as ProcessedRow[]) {
+    if (!row.matchedTaskId) continue;
+    const startMs = row.eventStart ? Date.parse(row.eventStart) : NaN;
+    const minuteBucket = Number.isFinite(startMs)
+      ? Math.floor(startMs / 60_000)
+      : (row.eventStart ?? "");
+    const summaryKey = (row.eventSummary ?? "").trim().toLowerCase();
+    const key = `${row.matchedTaskId}|${minuteBucket}|${summaryKey}`;
+    const existing = bestByKey.get(key);
+    if (!existing || (row.durationMinutes ?? 0) > (existing.durationMinutes ?? 0)) {
+      bestByKey.set(key, row);
+    }
+  }
+
   const sumByTask = new Map<string, number>();
-  for (const row of (data ?? []) as { matchedTaskId: string | null; durationMinutes: number }[]) {
+  for (const row of bestByKey.values()) {
     if (!row.matchedTaskId) continue;
     sumByTask.set(
       row.matchedTaskId,
