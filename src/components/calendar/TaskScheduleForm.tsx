@@ -3,16 +3,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Clock3, TimerReset, X } from "lucide-react";
 import { toLocalDateTimeString } from "@/lib/date";
+import {
+  POMODORO_LONG_BREAK_MINUTES,
+  POMODORO_SHORT_BREAK_MINUTES,
+  POMODORO_WORK_MINUTES,
+  POMODOROS_PER_GROUP,
+  buildPomodoroPlan,
+} from "@/lib/pomodoro";
 import type { Task } from "@/types";
 
 interface TaskScheduleFormProps {
   task: Task;
   selectedDate: string;
+  hasExistingPomodoroBreaks?: boolean;
   onSave: (data: {
     scheduledDate: string;
     scheduledStart: string;
     scheduledEnd: string;
     plannedTime: number;
+    pomodoroSplit: boolean;
   }) => void;
   onUnschedule: () => void;
   onClose: () => void;
@@ -53,6 +62,7 @@ function getDurationMinutes(startTime: string, endTime: string) {
 export default function TaskScheduleForm({
   task,
   selectedDate,
+  hasExistingPomodoroBreaks = false,
   onSave,
   onUnschedule,
   onClose,
@@ -63,20 +73,24 @@ export default function TaskScheduleForm({
 
   const initialDate = task.scheduledDate || selectedDate;
   const initialStartTime = toTimeInputValue(task.scheduledStart) || "09:00";
+  // When the task already has Pomodoro breaks, scheduledEnd includes break time.
+  // Use task.plannedTime (pure work minutes) to avoid inflating the duration on each save.
   const initialDuration =
-    task.scheduledStart && task.scheduledEnd
-      ? getDurationMinutes(
-          toTimeInputValue(task.scheduledStart),
-          toTimeInputValue(task.scheduledEnd)
-        )
-      : task.plannedTime || 60;
-  const initialEndTime =
-    toTimeInputValue(task.scheduledEnd) || addMinutes(initialStartTime, initialDuration);
+    hasExistingPomodoroBreaks && task.plannedTime
+      ? task.plannedTime
+      : task.scheduledStart && task.scheduledEnd
+        ? getDurationMinutes(
+            toTimeInputValue(task.scheduledStart),
+            toTimeInputValue(task.scheduledEnd)
+          )
+        : task.plannedTime || 60;
+  const initialEndTime = addMinutes(initialStartTime, initialDuration);
 
   const [scheduleDate, setScheduleDate] = useState(initialDate);
   const [startTime, setStartTime] = useState(initialStartTime);
   const [endTime, setEndTime] = useState(initialEndTime);
   const [plannedTime, setPlannedTime] = useState(initialDuration);
+  const [pomodoroSplit, setPomodoroSplit] = useState(hasExistingPomodoroBreaks);
   const [showHint, setShowHint] = useState(false);
 
   const isScheduled = Boolean(task.scheduledStart && task.scheduledEnd);
@@ -128,6 +142,18 @@ export default function TaskScheduleForm({
     setEndTime(addMinutes(startTime, nextMinutes));
   };
 
+  const pomodoroPreview = useMemo(() => {
+    if (!pomodoroSplit) return null;
+    const plan = buildPomodoroPlan(plannedTime);
+    const workUnits = plan.blocks.filter((block) => block.type === "work").length;
+    const breaks = plan.breaks.length;
+    const longBreaks = plan.breaks.filter(
+      (block) => block.durationMinutes === POMODORO_LONG_BREAK_MINUTES
+    ).length;
+    const shortBreaks = breaks - longBreaks;
+    return { workUnits, breaks, shortBreaks, longBreaks, totalSpan: plan.totalSpanMinutes };
+  }, [pomodoroSplit, plannedTime]);
+
   const handleSubmit = () => {
     const nextDuration = getDurationMinutes(startTime, endTime);
 
@@ -138,15 +164,27 @@ export default function TaskScheduleForm({
 
     setShowHint(false);
 
+    // When pomodoro split is on, the calendar span is work + breaks; the parent
+    // expands the end accordingly. Here we still send the plain start/end based
+    // on plannedTime (work minutes only) and let the parent compute the span.
+    const finalStart = toLocalDateTimeString(
+      new Date(`${scheduleDate}T${startTime}:00`)
+    );
+    const finalEnd = pomodoroSplit
+      ? toLocalDateTimeString(
+          new Date(
+            new Date(`${scheduleDate}T${startTime}:00`).getTime() +
+              buildPomodoroPlan(nextDuration).totalSpanMinutes * 60_000
+          )
+        )
+      : toLocalDateTimeString(new Date(`${scheduleDate}T${endTime}:00`));
+
     onSave({
       scheduledDate: scheduleDate,
-      scheduledStart: toLocalDateTimeString(
-        new Date(`${scheduleDate}T${startTime}:00`)
-      ),
-      scheduledEnd: toLocalDateTimeString(
-        new Date(`${scheduleDate}T${endTime}:00`)
-      ),
+      scheduledStart: finalStart,
+      scheduledEnd: finalEnd,
       plannedTime: nextDuration,
+      pomodoroSplit,
     });
   };
 
@@ -180,10 +218,10 @@ export default function TaskScheduleForm({
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
       style={{
-        width: 380,
+        width: 340,
         maxWidth: "calc(100vw - 32px)",
-        maxHeight: "min(560px, calc(100dvh - 40px))",
-        borderRadius: 18,
+        maxHeight: "calc(100dvh - 24px)",
+        borderRadius: 16,
         border: "1px solid var(--border-color)",
         background: "var(--bg-card)",
         boxShadow:
@@ -193,40 +231,40 @@ export default function TaskScheduleForm({
       }}
     >
       <header
-        className="flex items-start justify-between gap-4"
-        style={{ padding: "24px 28px 20px 28px" }}
+        className="flex items-start justify-between gap-3"
+        style={{ padding: "14px 18px 12px 18px" }}
       >
         <div className="min-w-0 flex-1">
           <p
-            className="text-[10px] font-semibold uppercase"
+            className="text-[9px] font-semibold uppercase"
             style={labelStyle}
           >
             Task planen
           </p>
           <h3
-            className="mt-3 break-words text-[22px] font-semibold leading-[1.2]"
+            className="mt-1.5 break-words text-[16px] font-semibold leading-[1.2]"
             style={{
               color: "var(--text-primary)",
-              letterSpacing: "-0.02em",
+              letterSpacing: "-0.01em",
             }}
           >
             {task.title}
           </h3>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             <span
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium"
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
               style={{
                 backgroundColor: "var(--bg-hover)",
                 color: "var(--text-secondary)",
               }}
             >
-              <Clock3 size={12} />
+              <Clock3 size={10} />
               {durationLabel}
             </span>
             {task.channel && (
               <span
-                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium"
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
                 style={{
                   backgroundColor: `${task.channel.color}18`,
                   color: task.channel.color,
@@ -246,10 +284,10 @@ export default function TaskScheduleForm({
           type="button"
           onClick={onClose}
           aria-label="Schließen"
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--bg-hover)]"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--bg-hover)]"
           style={{ color: "var(--text-muted)" }}
         >
-          <X size={16} />
+          <X size={14} />
         </button>
       </header>
 
@@ -258,21 +296,21 @@ export default function TaskScheduleForm({
         style={{
           height: 1,
           background: "var(--border-subtle)",
-          margin: "0 28px",
+          margin: "0 18px",
         }}
       />
 
       <div
         className="min-h-0 overflow-y-auto"
-        style={{ padding: "22px 28px 24px 28px" }}
+        style={{ padding: "12px 18px 14px 18px" }}
       >
-        <div className="space-y-6">
+        <div className="space-y-3">
           <div>
             <label
-              className="flex items-center gap-1.5 text-[10px] font-semibold uppercase"
+              className="flex items-center gap-1 text-[9px] font-semibold uppercase"
               style={labelStyle}
             >
-              <CalendarDays size={11} />
+              <CalendarDays size={10} />
               Tag
             </label>
             <input
@@ -281,35 +319,35 @@ export default function TaskScheduleForm({
               value={scheduleDate}
               onChange={(event) => setScheduleDate(event.target.value)}
               onKeyDown={handleKeyDown}
-              className="event-form-input mt-2.5 w-full rounded-[10px] text-[13px]"
+              className="event-form-input mt-1.5 w-full rounded-[8px] text-[12px]"
               style={{
                 ...inputBaseStyle,
                 color: "var(--text-secondary)",
-                padding: "12px 14px",
+                padding: "8px 10px",
               }}
             />
           </div>
 
           <div>
             <label
-              className="block text-[10px] font-semibold uppercase"
+              className="block text-[9px] font-semibold uppercase"
               style={labelStyle}
             >
               Zeit
             </label>
-            <div className="mt-2.5 grid grid-cols-2 gap-3">
+            <div className="mt-1.5 grid grid-cols-2 gap-2">
               <div
-                className="rounded-[10px]"
+                className="rounded-[8px]"
                 style={{
                   ...inputBaseStyle,
-                  padding: "10px 12px",
+                  padding: "6px 8px",
                 }}
               >
                 <p
-                  className="text-[9px] font-semibold uppercase"
+                  className="text-[8px] font-semibold uppercase"
                   style={{
                     color: "var(--text-muted)",
-                    letterSpacing: "0.12em",
+                    letterSpacing: "0.1em",
                   }}
                 >
                   Start
@@ -319,22 +357,22 @@ export default function TaskScheduleForm({
                   value={startTime}
                   onChange={(event) => handleStartTimeChange(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="mt-1 w-full bg-transparent text-[15px] font-medium outline-none"
+                  className="mt-0.5 w-full bg-transparent text-[13px] font-medium outline-none"
                   style={{ color: "var(--text-primary)" }}
                 />
               </div>
               <div
-                className="rounded-[10px]"
+                className="rounded-[8px]"
                 style={{
                   ...inputBaseStyle,
-                  padding: "10px 12px",
+                  padding: "6px 8px",
                 }}
               >
                 <p
-                  className="text-[9px] font-semibold uppercase"
+                  className="text-[8px] font-semibold uppercase"
                   style={{
                     color: "var(--text-muted)",
-                    letterSpacing: "0.12em",
+                    letterSpacing: "0.1em",
                   }}
                 >
                   Ende
@@ -344,7 +382,7 @@ export default function TaskScheduleForm({
                   value={endTime}
                   onChange={(event) => handleEndTimeChange(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="mt-1 w-full bg-transparent text-[15px] font-medium outline-none"
+                  className="mt-0.5 w-full bg-transparent text-[13px] font-medium outline-none"
                   style={{ color: "var(--text-primary)" }}
                 />
               </div>
@@ -353,18 +391,18 @@ export default function TaskScheduleForm({
 
           <div>
             <label
-              className="flex items-center gap-1.5 text-[10px] font-semibold uppercase"
+              className="flex items-center gap-1 text-[9px] font-semibold uppercase"
               style={labelStyle}
             >
-              <TimerReset size={11} />
+              <TimerReset size={10} />
               Geplante Dauer
             </label>
-            <div className="mt-2.5 grid grid-cols-[1fr_auto] gap-3">
+            <div className="mt-1.5 grid grid-cols-[1fr_auto] gap-2">
               <div
-                className="flex items-center gap-2 rounded-[10px]"
+                className="flex items-center gap-2 rounded-[8px]"
                 style={{
                   ...inputBaseStyle,
-                  padding: "10px 14px",
+                  padding: "7px 10px",
                 }}
               >
                 <input
@@ -376,34 +414,98 @@ export default function TaskScheduleForm({
                     handlePlannedTimeChange(event.target.value)
                   }
                   onKeyDown={handleKeyDown}
-                  className="w-full bg-transparent text-[14px] font-medium outline-none"
+                  className="w-full bg-transparent text-[12px] font-medium outline-none"
                   style={{ color: "var(--text-primary)" }}
                 />
                 <span
-                  className="text-[12px]"
+                  className="text-[11px]"
                   style={{ color: "var(--text-muted)" }}
                 >
                   Min.
                 </span>
               </div>
               <div
-                className="flex items-center justify-center rounded-[10px] px-4"
+                className="flex items-center justify-center rounded-[8px] px-3"
                 style={{
                   backgroundColor: "var(--accent-primary-light)",
                   color: "var(--accent-primary)",
-                  minWidth: 110,
+                  minWidth: 90,
                 }}
               >
-                <span className="text-[13px] font-semibold">
+                <span className="text-[12px] font-semibold">
                   {durationLabel}
                 </span>
               </div>
             </div>
           </div>
 
+          <div>
+            <button
+              type="button"
+              onClick={() => setPomodoroSplit((value) => !value)}
+              className="flex w-full items-center justify-between gap-2 rounded-[8px] text-left transition-colors"
+              style={{
+                ...inputBaseStyle,
+                padding: "7px 10px",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px]"
+                  style={{
+                    backgroundColor: pomodoroSplit
+                      ? "var(--accent-primary-light)"
+                      : "var(--bg-hover)",
+                  }}
+                >
+                  🍅
+                </span>
+                <span
+                  className="text-[12px] font-medium"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Pomodoro aufteilen
+                </span>
+              </div>
+              <span
+                className="rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase"
+                style={{
+                  backgroundColor: pomodoroSplit
+                    ? "var(--accent-primary-light)"
+                    : "var(--bg-hover)",
+                  color: pomodoroSplit
+                    ? "var(--accent-primary)"
+                    : "var(--text-muted)",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                {pomodoroSplit ? "An" : "Aus"}
+              </span>
+            </button>
+
+            {pomodoroPreview && (
+              <p
+                className="mt-1.5 text-[10px] leading-[1.4]"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {pomodoroPreview.workUnits}× {POMODORO_WORK_MINUTES} Min Arbeit
+                {pomodoroPreview.breaks > 0
+                  ? ` · ${pomodoroPreview.shortBreaks}× ${POMODORO_SHORT_BREAK_MINUTES} Min Pause · ${pomodoroPreview.longBreaks}× ${POMODORO_LONG_BREAK_MINUTES} Min Pause nach je ${POMODOROS_PER_GROUP} Einheiten`
+                  : ""}
+                {" · gesamt "}
+                {Math.floor(pomodoroPreview.totalSpan / 60) > 0
+                  ? `${Math.floor(pomodoroPreview.totalSpan / 60)} h `
+                  : ""}
+                {pomodoroPreview.totalSpan % 60 > 0
+                  ? `${pomodoroPreview.totalSpan % 60} min`
+                  : ""}
+              </p>
+            )}
+          </div>
+
           {showHint && (
             <p
-              className="rounded-[10px] px-4 py-3 text-[12px] font-medium leading-[1.5]"
+              className="rounded-[8px] px-3 py-2 text-[11px] font-medium leading-[1.4]"
               style={{
                 backgroundColor: "var(--accent-warning-light)",
                 color: "#ad7419",
@@ -420,17 +522,17 @@ export default function TaskScheduleForm({
         style={{
           height: 1,
           background: "var(--border-subtle)",
-          margin: "0 28px",
+          margin: "0 18px",
         }}
       />
 
-      <footer style={{ padding: "18px 28px 22px 28px" }}>
+      <footer style={{ padding: "10px 18px 12px 18px" }}>
         {isScheduled ? (
           <>
             <button
               type="button"
               onClick={onUnschedule}
-              className="w-full rounded-[10px] py-2.5 text-[12px] font-semibold transition-colors"
+              className="w-full rounded-[8px] py-1.5 text-[11px] font-semibold transition-colors"
               style={{
                 backgroundColor: "transparent",
                 color: "var(--accent-danger)",
@@ -444,17 +546,17 @@ export default function TaskScheduleForm({
               style={{
                 height: 1,
                 background: "var(--border-subtle)",
-                margin: "16px 0",
+                margin: "8px 0",
               }}
             />
           </>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-[10px] py-3 text-[13px] font-semibold transition-colors"
+            className="rounded-[8px] py-2 text-[12px] font-semibold transition-colors"
             style={{
               backgroundColor: "var(--bg-hover)",
               color: "var(--text-secondary)",
@@ -465,10 +567,10 @@ export default function TaskScheduleForm({
           <button
             type="button"
             onClick={handleSubmit}
-            className="rounded-[10px] py-3 text-[13px] font-semibold text-white"
+            className="rounded-[8px] py-2 text-[12px] font-semibold text-white"
             style={{
               background: "var(--accent-primary)",
-              boxShadow: "0 8px 18px rgba(141, 124, 246, 0.28)",
+              boxShadow: "0 6px 14px rgba(141, 124, 246, 0.28)",
             }}
           >
             Planen

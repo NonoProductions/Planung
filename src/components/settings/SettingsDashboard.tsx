@@ -8,6 +8,7 @@ import {
   Clock3,
   Download,
   Globe,
+  Hash,
   LoaderCircle,
   Mail,
   Monitor,
@@ -107,11 +108,18 @@ export default function SettingsDashboard() {
     addCalendarCategory,
     updateCalendarCategory,
     deleteCalendarCategory,
+    channels,
+    fetchChannels,
+    addChannel,
+    updateChannel,
+    deleteChannel,
     apiAvailable,
   } = useTaskStore();
 
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryColor, setNewCategoryColor] = useState("#8D7CF6");
+  const [newChannelName, setNewChannelName] = useState("");
+  const [newChannelColor, setNewChannelColor] = useState("#4F46E5");
   const [notice, setNotice] = useState<NoticeState | null>(null);
   const [exportingFormat, setExportingFormat] = useState<"json" | "csv" | null>(null);
   const [deleteArmed, setDeleteArmed] = useState(false);
@@ -119,7 +127,8 @@ export default function SettingsDashboard() {
 
   useEffect(() => {
     void fetchCalendarCategories();
-  }, [fetchCalendarCategories]);
+    void fetchChannels();
+  }, [fetchCalendarCategories, fetchChannels]);
 
   useEffect(() => {
     if (!deleteArmed) return;
@@ -279,6 +288,18 @@ export default function SettingsDashboard() {
 
     setNewCategoryName("");
     setNewCategoryColor("#8D7CF6");
+  }
+
+  async function handleAddChannel(event: React.FormEvent) {
+    event.preventDefault();
+
+    const name = newChannelName.trim();
+    if (!name) return;
+
+    await addChannel({ name, color: newChannelColor });
+
+    setNewChannelName("");
+    setNewChannelColor("#4F46E5");
   }
 
   return (
@@ -798,6 +819,117 @@ export default function SettingsDashboard() {
 
               <AnimatedPanel index={8}>
               <SectionCard
+                icon={<Hash size={17} strokeWidth={1.8} />}
+                eyebrow="Channels"
+                title="Channels und Auto-Zuordnung"
+              >
+                <div className="space-y-5">
+                  <p className="text-[12.5px] leading-6" style={{ color: "var(--text-muted)" }}>
+                    Channels werden automatisch erkannt: Hat eine neue Task den Channel-Namen
+                    im Titel (z.B. &quot;Mathe 2&quot; -&gt; Channel &quot;Mathe&quot;), wird
+                    er beim Anlegen direkt gesetzt.
+                  </p>
+
+                  <form onSubmit={handleAddChannel} className="space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_92px]">
+                      <TextField
+                        label="Neuer Channel"
+                        value={newChannelName}
+                        onChange={setNewChannelName}
+                        placeholder="Mathe, Arbeit, Studium..."
+                      />
+                      <label className="block space-y-2">
+                        <span
+                          className="text-[11px] font-semibold uppercase tracking-[0.2em]"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          Farbe
+                        </span>
+                        <input
+                          type="color"
+                          value={newChannelColor}
+                          onChange={(event) => setNewChannelColor(event.target.value)}
+                          className="h-[46px] w-full rounded-[16px] border bg-transparent p-1"
+                          style={{
+                            borderColor: "rgba(226, 218, 209, 0.95)",
+                            backgroundColor: "rgba(255, 252, 248, 0.94)",
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-semibold transition-transform duration-150 hover:-translate-y-[1px]"
+                      style={{
+                        backgroundColor: "var(--accent-primary)",
+                        color: "white",
+                      }}
+                    >
+                      <Hash size={13} />
+                      Channel anlegen
+                    </button>
+                  </form>
+
+                  <div className="space-y-3">
+                    {channels.map((channel) => (
+                      <div
+                        key={channel.id}
+                        className="flex items-center gap-3 rounded-[22px] border p-3"
+                        style={cardSubtleStyle}
+                      >
+                        <input
+                          type="color"
+                          value={channel.color}
+                          onChange={(event) =>
+                            void updateChannel(channel.id, {
+                              color: event.target.value,
+                            })
+                          }
+                          className="h-11 w-11 shrink-0 rounded-[14px] border bg-transparent p-1"
+                          style={{
+                            borderColor: "rgba(226, 218, 209, 0.95)",
+                          }}
+                          aria-label={`Farbe fuer ${channel.name}`}
+                        />
+                        <input
+                          value={channel.name}
+                          onChange={(event) =>
+                            void updateChannel(channel.id, {
+                              name: event.target.value,
+                            })
+                          }
+                          className="min-w-0 flex-1 bg-transparent text-[13px] font-medium outline-none"
+                          style={{ color: "var(--text-primary)" }}
+                          aria-label="Channelname"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void deleteChannel(channel.id)}
+                          className="flex h-10 w-10 items-center justify-center rounded-full transition-colors duration-150"
+                          style={{ color: "var(--text-muted)" }}
+                          aria-label={`${channel.name} loeschen`}
+                        >
+                          <Trash2 size={14} strokeWidth={1.8} />
+                        </button>
+                      </div>
+                    ))}
+                    {channels.length === 0 && (
+                      <p
+                        className="text-[12.5px] leading-6"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        Noch keine Channels. Lege deinen ersten an, um Tasks
+                        automatisch zu kategorisieren.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </SectionCard>
+            </AnimatedPanel>
+
+              <AnimatedPanel index={9}>
+              <SectionCard
                 icon={<Download size={17} strokeWidth={1.8} />}
                 eyebrow="Data"
                 title="Export und Schutzschalter"
@@ -880,7 +1012,7 @@ export default function SettingsDashboard() {
             </AnimatedPanel>
           </div>
 
-            <AnimatedPanel index={9} className="settings-panel-span">
+            <AnimatedPanel index={10} className="settings-panel-span">
               <SectionCard
                 icon={<CalendarDays size={17} strokeWidth={1.8} />}
                 eyebrow="Integrations"

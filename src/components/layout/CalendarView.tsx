@@ -12,6 +12,16 @@ import TimeBlock from "@/components/calendar/TimeBlock";
 import CurrentTimeLine from "@/components/calendar/CurrentTimeLine";
 import EventForm from "@/components/calendar/EventForm";
 import TaskScheduleForm from "@/components/calendar/TaskScheduleForm";
+import {
+  POMODORO_BREAK_COLOR,
+  POMODORO_BREAK_TITLE,
+  buildPomodoroBreakDescription,
+  buildPomodoroPlan,
+  buildWorkSegmentsFromBreaks,
+  getPomodoroBreakTaskId,
+  isPomodoroBreakEvent,
+} from "@/lib/pomodoro";
+
 import type { CalendarEvent, Task } from "@/types";
 
 export const START_HOUR = 6;
@@ -20,10 +30,10 @@ export const HOUR_HEIGHT = 72;
 
 const GRID_GUTTER = 62;
 const FORM_MARGIN = 16;
-const EVENT_FORM_WIDTH = 380;
-const EVENT_FORM_HEIGHT = 640;
-const TASK_FORM_WIDTH = 380;
-const TASK_FORM_HEIGHT = 560;
+const EVENT_FORM_WIDTH = 340;
+const EVENT_FORM_HEIGHT = 480;
+const TASK_FORM_WIDTH = 340;
+const TASK_FORM_HEIGHT = 360;
 const HOURS = Array.from(
   { length: END_HOUR - START_HOUR },
   (_, index) => START_HOUR + index
@@ -81,15 +91,22 @@ export default function CalendarView() {
     height = 320
   ) => {
     const grid = gridRef.current;
+    const scroll = scrollRef.current;
     if (!grid) {
       return { top, left };
     }
 
     const maxLeft = Math.max(FORM_MARGIN, grid.clientWidth - width - FORM_MARGIN);
-    const maxTop = Math.max(FORM_MARGIN, HOURS.length * HOUR_HEIGHT - height - FORM_MARGIN);
+
+    // Clamp vertically within the currently-visible viewport so the form is
+    // always fully visible without needing to scroll the calendar.
+    const viewportTop = scroll?.scrollTop ?? 0;
+    const viewportBottom = viewportTop + (scroll?.clientHeight ?? HOURS.length * HOUR_HEIGHT);
+    const minTop = viewportTop + FORM_MARGIN;
+    const maxTop = Math.max(minTop, viewportBottom - height - FORM_MARGIN);
 
     return {
-      top: Math.max(FORM_MARGIN, Math.min(top, maxTop)),
+      top: Math.max(minTop, Math.min(top, maxTop)),
       left: Math.max(FORM_MARGIN, Math.min(left, maxLeft)),
     };
   }, []);
@@ -191,12 +208,22 @@ export default function CalendarView() {
     });
   }, [calendarPlanningTaskId, clampFormPosition, selectedDateObj, setCalendarPlanningTaskId, tasks]);
 
-  const dayEvents = useMemo(
+  const allDayEvents = useMemo(
     () =>
       events.filter((event) =>
         isSameDay(parseISO(event.startTime), selectedDateObj)
       ),
     [events, selectedDateObj]
+  );
+
+  const dayEvents = useMemo(
+    () => allDayEvents.filter((event) => !isPomodoroBreakEvent(event)),
+    [allDayEvents]
+  );
+
+  const pomodoroBreakEvents = useMemo(
+    () => allDayEvents.filter((event) => isPomodoroBreakEvent(event)),
+    [allDayEvents]
   );
 
   const timeboxedTasks = useMemo(
@@ -209,6 +236,61 @@ export default function CalendarView() {
       ),
     [tasks, selectedDateObj]
   );
+
+  const calendarTaskBlocks = useMemo(() => {
+    const pomodoroBreaksByTaskId = new Map<string, CalendarEvent[]>();
+    for (const event of pomodoroBreakEvents) {
+      const taskId = getPomodoroBreakTaskId(event);
+      if (!taskId) continue;
+      const list = pomodoroBreaksByTaskId.get(taskId);
+      if (list) {
+        list.push(event);
+      } else {
+        pomodoroBreaksByTaskId.set(taskId, [event]);
+      }
+    }
+
+    return timeboxedTasks.flatMap((task) => {
+      const breaksForTask = pomodoroBreaksByTaskId.get(task.id) ?? [];
+      if (breaksForTask.length === 0) {
+        return [
+          {
+            blockId: task.id,
+            task,
+            startTime: task.scheduledStart!,
+            endTime: task.scheduledEnd!,
+          },
+        ];
+      }
+
+      const segments = buildWorkSegmentsFromBreaks(
+        task.scheduledStart!,
+        task.scheduledEnd!,
+        breaksForTask.map((event) => ({
+          startTime: event.startTime,
+          endTime: event.endTime,
+        }))
+      );
+
+      if (segments.length === 0) {
+        return [
+          {
+            blockId: task.id,
+            task,
+            startTime: task.scheduledStart!,
+            endTime: task.scheduledEnd!,
+          },
+        ];
+      }
+
+      return segments.map((segment, index) => ({
+        blockId: `${task.id}-focus-${index + 1}`,
+        task,
+        startTime: segment.startTime,
+        endTime: segment.endTime,
+      }));
+    });
+  }, [timeboxedTasks, pomodoroBreakEvents]);
 
   const handleGridClick = useCallback(
     (event: React.MouseEvent) => {
@@ -342,16 +424,32 @@ export default function CalendarView() {
     });
   }, [clampFormPosition]);
 
+  const cleanupPomodoroBreaks = useCallback(
+    async (taskId: string) => {
+      const stale = events.filter(
+        (event) => getPomodoroBreakTaskId(event) === taskId
+      );
+      await Promise.all(stale.map((event) => deleteEvent(event.id)));
+    },
+    [events, deleteEvent]
+  );
+
   const handleSaveTaskSchedule = useCallback(
     async (data: {
       scheduledDate: string;
       scheduledStart: string;
       scheduledEnd: string;
       plannedTime: number;
+      pomodoroSplit: boolean;
     }) => {
       if (formState?.kind !== "task" || !formState.task) return;
 
-      await updateTask(formState.task.id, {
+      const taskId = formState.task.id;
+
+      // Always wipe previous pomodoro breaks for this task before re-applying.
+      await cleanupPomodoroBreaks(taskId);
+
+      await updateTask(taskId, {
         scheduledDate: data.scheduledDate,
         scheduledStart: data.scheduledStart,
         scheduledEnd: data.scheduledEnd,
@@ -361,21 +459,47 @@ export default function CalendarView() {
         backlogFolder: undefined,
       });
 
+      if (data.pomodoroSplit) {
+        const plan = buildPomodoroPlan(data.plannedTime);
+        const startMs = new Date(data.scheduledStart).getTime();
+        const description = buildPomodoroBreakDescription(taskId);
+        const channelColor = formState.task.channel?.color;
+
+        await Promise.all(
+          plan.breaks.map((block) => {
+            const breakStart = new Date(startMs + block.offsetMinutes * 60_000);
+            const breakEnd = new Date(
+              startMs + (block.offsetMinutes + block.durationMinutes) * 60_000
+            );
+            return addEvent({
+              title: POMODORO_BREAK_TITLE,
+              description,
+              startTime: breakStart.toISOString(),
+              endTime: breakEnd.toISOString(),
+              color: channelColor ?? POMODORO_BREAK_COLOR,
+            });
+          })
+        );
+      }
+
       setFormState(null);
     },
-    [formState, updateTask]
+    [formState, updateTask, addEvent, cleanupPomodoroBreaks]
   );
 
   const handleUnscheduleTask = useCallback(async () => {
     if (formState?.kind !== "task" || !formState.task) return;
 
-    await updateTask(formState.task.id, {
+    const taskId = formState.task.id;
+    await cleanupPomodoroBreaks(taskId);
+
+    await updateTask(taskId, {
       scheduledStart: undefined,
       scheduledEnd: undefined,
     });
 
     setFormState(null);
-  }, [formState, updateTask]);
+  }, [formState, updateTask, cleanupPomodoroBreaks]);
 
   return (
     <aside ref={panelRef} className="calendar-panel">
@@ -473,18 +597,37 @@ export default function CalendarView() {
               </div>
             ))}
 
-            {timeboxedTasks.map((task) => (
-              <div key={task.id} data-timeblock>
+            {calendarTaskBlocks.map((entry) => (
+              <div key={entry.blockId} data-timeblock>
                 <TimeBlock
-                  id={task.id}
-                  title={task.title}
-                  startTime={task.scheduledStart!}
-                  endTime={task.scheduledEnd!}
-                  color={task.channel?.color}
+                  id={entry.blockId}
+                  title={entry.task.title}
+                  startTime={entry.startTime}
+                  endTime={entry.endTime}
+                  color={entry.task.channel?.color}
                   isEvent={false}
                   startHour={START_HOUR}
                   hourHeight={HOUR_HEIGHT}
-                  onClick={(mouseEvent) => handleTaskClick(task, mouseEvent)}
+                  onClick={(mouseEvent) => handleTaskClick(entry.task, mouseEvent)}
+                />
+              </div>
+            ))}
+
+            {/* Pomodoro break events render last so they layer on top of the
+                task block they belong to. */}
+            {pomodoroBreakEvents.map((event) => (
+              <div key={event.id} data-timeblock>
+                <TimeBlock
+                  id={event.id}
+                  title={event.title}
+                  startTime={event.startTime}
+                  endTime={event.endTime}
+                  color={POMODORO_BREAK_COLOR}
+                  isEvent={true}
+                  isPomodoroBreak={true}
+                  startHour={START_HOUR}
+                  hourHeight={HOUR_HEIGHT}
+                  onClick={(mouseEvent) => handleEventClick(event, mouseEvent)}
                 />
               </div>
             ))}
@@ -523,6 +666,9 @@ export default function CalendarView() {
                 key={visibleFormState.task.id}
                 task={visibleFormState.task}
                 selectedDate={selectedDate}
+                hasExistingPomodoroBreaks={events.some(
+                  (event) => getPomodoroBreakTaskId(event) === visibleFormState.task!.id
+                )}
                 onSave={handleSaveTaskSchedule}
                 onUnschedule={handleUnscheduleTask}
                 onClose={() => setFormState(null)}

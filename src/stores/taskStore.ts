@@ -103,6 +103,14 @@ function toPersistedEventId(eventId: string) {
   return eventId.includes("_") ? eventId.split("_")[0] : eventId;
 }
 
+function createLocalId(prefix: string) {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 // Fallback calendar categories used when API is unavailable
 const FALLBACK_CALENDAR_CATEGORIES: CalendarCategory[] = [
   { id: "cal1", name: "Persönlich", color: "#4F46E5" },
@@ -167,6 +175,33 @@ function triggerDayCompletionCelebration(date: string, tasks: Task[]) {
   });
 }
 
+/**
+ * Detect a channel from a task title by matching a channel name as a
+ * whole-word, case-insensitive prefix or substring. Longest matching name
+ * wins, so "Mathe LK" beats "Mathe" when both exist.
+ */
+function detectChannelIdFromTitle(
+  title: string,
+  channels: Channel[]
+): string | undefined {
+  const normalized = title.trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  let match: Channel | undefined;
+  for (const channel of channels) {
+    const name = channel.name.trim().toLowerCase();
+    if (!name) continue;
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(^|\\W)${escaped}(\\W|$)`);
+    if (re.test(normalized)) {
+      if (!match || channel.name.length > match.name.length) {
+        match = channel;
+      }
+    }
+  }
+  return match?.id;
+}
+
 interface TaskState {
   tasks: Task[];
   backlogTasks: Task[];
@@ -184,6 +219,11 @@ interface TaskState {
   fetchEvents: (date?: string) => Promise<void>;
   fetchEventsForWeek: (weekStart: string) => Promise<void>;
   fetchCalendarCategories: () => Promise<void>;
+
+  // Channel CRUD
+  addChannel: (data: { name: string; color: string }) => Promise<Channel | null>;
+  updateChannel: (id: string, data: { name?: string; color?: string }) => Promise<void>;
+  deleteChannel: (id: string) => Promise<void>;
 
   // Calendar category CRUD
   addCalendarCategory: (data: { name: string; color: string }) => Promise<void>;
@@ -269,6 +309,78 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       set({ channels: data, apiAvailable: true });
     } catch {
       set({ channels: FALLBACK_CHANNELS, apiAvailable: false });
+    }
+  },
+
+  addChannel: async (data) => {
+    const state = get();
+    if (state.apiAvailable) {
+      try {
+        const res = await fetch("/api/channels", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        assertApiResponse(res);
+        const created = (await res.json()) as Channel;
+        set((s) => ({ channels: [...s.channels, created] }));
+        return created;
+      } catch {
+        // fall through to local fallback
+      }
+    }
+    const local: Channel = { id: createLocalId("local-ch"), ...data };
+    set((s) => ({ channels: [...s.channels, local] }));
+    return local;
+  },
+
+  updateChannel: async (id, updates) => {
+    set((s) => ({
+      channels: s.channels.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+      tasks: s.tasks.map((t) =>
+        t.channelId === id && t.channel
+          ? { ...t, channel: { ...t.channel, ...updates } }
+          : t
+      ),
+      backlogTasks: s.backlogTasks.map((t) =>
+        t.channelId === id && t.channel
+          ? { ...t, channel: { ...t.channel, ...updates } }
+          : t
+      ),
+    }));
+    const state = get();
+    if (state.apiAvailable) {
+      try {
+        const res = await fetch(`/api/channels/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
+        assertApiResponse(res);
+      } catch {
+        // optimistic already applied
+      }
+    }
+  },
+
+  deleteChannel: async (id) => {
+    set((s) => ({
+      channels: s.channels.filter((c) => c.id !== id),
+      tasks: s.tasks.map((t) =>
+        t.channelId === id ? { ...t, channelId: undefined, channel: undefined } : t
+      ),
+      backlogTasks: s.backlogTasks.map((t) =>
+        t.channelId === id ? { ...t, channelId: undefined, channel: undefined } : t
+      ),
+    }));
+    const state = get();
+    if (state.apiAvailable) {
+      try {
+        const res = await fetch(`/api/channels/${id}`, { method: "DELETE" });
+        assertApiResponse(res);
+      } catch {
+        // already removed locally
+      }
     }
   },
 
@@ -362,7 +474,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       } catch { /* fall through */ }
     }
     // Local fallback
-    const local: CalendarCategory = { id: `local-cal-${Date.now()}`, ...data };
+    const local: CalendarCategory = { id: createLocalId("local-cal"), ...data };
     set((s) => ({ calendarCategories: [...s.calendarCategories, local] }));
   },
 
@@ -398,11 +510,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   addTask: async (taskData) => {
+    const channels = get().channels;
+    const resolvedChannelId =
+      taskData.channelId ?? detectChannelIdFromTitle(taskData.title, channels);
+
     try {
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(taskData),
+        body: JSON.stringify({ ...taskData, channelId: resolvedChannelId }),
       });
       assertApiResponse(res);
       const data = await res.json();
@@ -720,6 +836,21 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   addEvent: async (eventData) => {
     const state = get();
+    const tempId = createLocalId("local-event");
+
+    // Optimistic add so the calendar splits task blocks immediately.
+    const tempEvent: CalendarEvent = {
+      id: tempId,
+      title: eventData.title,
+      description: eventData.description,
+      startTime: eventData.startTime,
+      endTime: eventData.endTime,
+      color: eventData.color,
+      isRecurring: eventData.isRecurring ?? false,
+      recurringRule: eventData.recurringRule ?? null,
+      calendarCategoryId: eventData.calendarCategoryId,
+    };
+    set((s) => ({ events: [...s.events, tempEvent] }));
 
     if (state.apiAvailable) {
       try {
@@ -731,26 +862,23 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         assertApiResponse(res);
         const data = await res.json();
         const newEvent = mapApiEvent(data as Record<string, unknown>);
-        set((s) => ({ events: [...s.events, newEvent] }));
+        // Replace temp event with the persisted one, but keep our known-correct
+        // UTC ISO timestamps — Supabase may return timestamps without timezone
+        // info which JavaScript would misparse as local time.
+        set((s) => ({
+          events: s.events.map((e) =>
+            e.id === tempId
+              ? { ...newEvent, startTime: tempEvent.startTime, endTime: tempEvent.endTime }
+              : e
+          ),
+        }));
         return;
       } catch {
-        // Fall through to local-only
+        // API failed — temp event stays as local-only.
+        return;
       }
     }
-
-    // Local-only fallback
-    const newEvent: CalendarEvent = {
-      id: `local-${Date.now()}`,
-      title: eventData.title,
-      description: eventData.description,
-      startTime: eventData.startTime,
-      endTime: eventData.endTime,
-      color: eventData.color,
-      isRecurring: eventData.isRecurring ?? false,
-      recurringRule: eventData.recurringRule ?? null,
-      calendarCategoryId: eventData.calendarCategoryId,
-    };
-    set((s) => ({ events: [...s.events, newEvent] }));
+    // Local-only mode — temp event already in state, nothing more to do.
   },
 
   updateEvent: async (eventId, updates) => {

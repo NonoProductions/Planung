@@ -11,6 +11,7 @@ interface TimeBlockProps {
   endTime: string;
   color?: string;
   isEvent: boolean;
+  isPomodoroBreak?: boolean;
   startHour: number;
   hourHeight: number;
   onClick?: (e: React.MouseEvent) => void;
@@ -27,25 +28,32 @@ export default function TimeBlock({
   endTime,
   color = "#4f46e5",
   isEvent,
+  isPomodoroBreak = false,
   startHour,
   hourHeight,
   onClick,
 }: TimeBlockProps) {
-  const { top, height } = useMemo(() => {
+  const { top, height, rawHeight } = useMemo(() => {
     const start = parseISO(startTime);
     const end = parseISO(endTime);
     const startMinutes =
       (start.getHours() - startHour) * 60 + start.getMinutes();
     const endMinutes = (end.getHours() - startHour) * 60 + end.getMinutes();
     const duration = endMinutes - startMinutes;
+    const computedHeight = Math.max((duration / 60) * hourHeight, 0);
+    // Keep short pomodoro breaks visually tiny so they do not spill into the
+    // following work block and appear as gray overlays.
+    const minHeight = isPomodoroBreak ? 4 : isEvent ? 16 : 28;
 
     return {
       top: (startMinutes / 60) * hourHeight,
-      height: Math.max((duration / 60) * hourHeight, 28),
+      rawHeight: computedHeight,
+      height: Math.max(computedHeight, minHeight),
     };
-  }, [startTime, endTime, startHour, hourHeight]);
+  }, [startTime, endTime, startHour, hourHeight, isEvent, isPomodoroBreak]);
 
   const timeLabel = `${formatCompactTimeLabel(startTime)} - ${formatCompactTimeLabel(endTime)}`;
+  const isTiny = height <= 22;
   const isCompact = height <= 42;
 
   return (
@@ -54,13 +62,14 @@ export default function TimeBlock({
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
       onClick={onClick}
-      className="group absolute left-0 right-0 z-10 cursor-pointer overflow-hidden rounded-[8px] border border-white/30 transition-all duration-200"
+      className="group absolute left-0 right-0 z-10 box-border cursor-pointer overflow-hidden border border-white/30 transition-all duration-200"
       style={{
         top,
         height,
+        borderRadius: isPomodoroBreak ? 7 : 8,
         backgroundColor: color,
         boxShadow: "0 1px 0 rgba(77, 66, 54, 0.05), 0 8px 14px rgba(77, 66, 54, 0.07)",
-        opacity: isEvent ? 1 : 0.94,
+        opacity: isPomodoroBreak ? 0.95 : isEvent ? 1 : 0.94,
       }}
       whileHover={{
         boxShadow: "0 12px 20px rgba(77, 66, 54, 0.1)",
@@ -69,16 +78,32 @@ export default function TimeBlock({
       <div
         className={isCompact ? "calendar-block calendar-block--compact" : "calendar-block"}
         style={{
+          padding: isPomodoroBreak ? "4px 10px" : undefined,
           background: "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 100%)",
         }}
       >
-        <p
-          className="calendar-block__title"
-          style={{ color: "#ffffff", WebkitLineClamp: isCompact ? 1 : 2 }}
-        >
-          {title}
-        </p>
-        {height > 40 && (
+        {!isPomodoroBreak && (
+          <p
+            className="calendar-block__title"
+            style={{ color: "#ffffff", WebkitLineClamp: isCompact ? 1 : 2 }}
+          >
+            {title}
+          </p>
+        )}
+        {isPomodoroBreak && !isTiny && (
+          <p
+            className="calendar-block__title"
+            style={{
+              color: "#ffffff",
+              WebkitLineClamp: 1,
+              fontSize: "11px",
+              lineHeight: 1.1,
+            }}
+          >
+            {title}
+          </p>
+        )}
+        {height > 40 && !isPomodoroBreak && (
           <p
             className="calendar-block__time"
             style={{
@@ -90,7 +115,7 @@ export default function TimeBlock({
         )}
       </div>
 
-      {!isEvent && (
+      {!isEvent && !isPomodoroBreak && rawHeight > 22 && (
         <div className="absolute bottom-0 left-0 right-0 flex h-2.5 cursor-s-resize items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
           <div
             className="h-[2px] w-8 rounded-full"
