@@ -16,7 +16,7 @@
 const CONFIG = {
   // Im LAN: http://<deine-LAN-IP>:3000/api/widget/tasks  (PC + iPhone im gleichen WLAN)
   // Deployed: https://deine-domain/api/widget/tasks
-  API_URL: "http://192.168.178.192:3000/api/widget/tasks",
+  API_URL: "https://planung-ivory.vercel.app/api/widget/tasks",
   // muss exakt mit env WIDGET_TOKEN im Backend übereinstimmen
   TOKEN:   "d859457329ae53f95fdc83fbe0f07e5e810522f089a683150d84234c434c5f98",
   LOCALE:  "de-DE",
@@ -44,21 +44,38 @@ const C = {
 // Datenquelle
 // -------------------------------------------------------------
 async function fetchTasks() {
-  if (!CONFIG.API_URL) return sampleTasks();
+  if (!CONFIG.API_URL) return { tasks: sampleTasks(), source: "sample" };
 
   const today = new Date().toISOString().slice(0, 10);
-  const url = `${CONFIG.API_URL}?date=${today}`;
+  const params = new URLSearchParams({ date: today });
+  if (CONFIG.TOKEN) params.set("token", CONFIG.TOKEN);
+  const url = `${CONFIG.API_URL}?${params.toString()}`;
+
   const req = new Request(url);
-  req.headers = { "Accept": "application/json" };
-  if (CONFIG.TOKEN) req.headers["Authorization"] = `Bearer ${CONFIG.TOKEN}`;
+  req.method = "GET";
+  req.timeoutInterval = 12;
 
   try {
-    const data = await req.loadJSON();
-    if (!Array.isArray(data)) return sampleTasks();
-    return data;
+    const body = await req.loadString();
+    const status = req.response?.statusCode ?? 0;
+    if (status !== 200) {
+      return {
+        tasks: sampleTasks(),
+        source: "error",
+        error: `HTTP ${status}: ${body.slice(0, 120)}`,
+      };
+    }
+    let data;
+    try { data = JSON.parse(body); }
+    catch (e) {
+      return { tasks: sampleTasks(), source: "error", error: "JSON parse: " + e };
+    }
+    if (!Array.isArray(data)) {
+      return { tasks: sampleTasks(), source: "error", error: "Antwort ist kein Array" };
+    }
+    return { tasks: data, source: "live" };
   } catch (e) {
-    console.warn("Fetch fehlgeschlagen, nutze Beispiel-Tasks: " + e);
-    return sampleTasks();
+    return { tasks: sampleTasks(), source: "error", error: String(e) };
   }
 }
 
@@ -100,7 +117,7 @@ function safeColor(hex, fallback) {
 // Widget bauen
 // -------------------------------------------------------------
 async function buildWidget() {
-  const tasks = await fetchTasks();
+  const { tasks, source, error } = await fetchTasks();
   const open = tasks.filter(t => t.status !== "COMPLETED" && t.status !== "ARCHIVED");
   const shown = open.slice(0, CONFIG.MAX_TASKS);
   const remaining = Math.max(0, open.length - shown.length);
@@ -180,10 +197,27 @@ async function buildWidget() {
   card.addSpacer();
 
   // Footer --------------------------------------------------
+  const footer = card.addStack();
+  footer.layoutHorizontally();
+  footer.centerAlignContent();
+
+  if (source === "error") {
+    const errIcon = footer.addText("⚠︎ ");
+    errIcon.font = Font.mediumRoundedSystemFont(10);
+    errIcon.textColor = C.danger;
+    const errText = footer.addText((error || "Fetch fehlgeschlagen").slice(0, 80));
+    errText.font = Font.systemFont(9);
+    errText.textColor = C.danger;
+    errText.lineLimit = 2;
+  } else if (source === "sample") {
+    const t = footer.addText("Beispiel-Daten – API_URL setzen");
+    t.font = Font.systemFont(9);
+    t.textColor = C.textMuted;
+  }
+
+  footer.addSpacer();
+
   if (remaining > 0) {
-    const footer = card.addStack();
-    footer.layoutHorizontally();
-    footer.addSpacer();
     const more = footer.addText(`+${remaining} weitere`);
     more.font = Font.mediumRoundedSystemFont(10);
     more.textColor = C.textMuted;
