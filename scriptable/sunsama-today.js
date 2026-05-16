@@ -47,9 +47,9 @@ async function fetchTasks() {
   if (!CONFIG.API_URL) return { tasks: sampleTasks(), source: "sample" };
 
   const today = new Date().toISOString().slice(0, 10);
-  const params = new URLSearchParams({ date: today });
-  if (CONFIG.TOKEN) params.set("token", CONFIG.TOKEN);
-  const url = `${CONFIG.API_URL}?${params.toString()}`;
+  const parts = [`date=${encodeURIComponent(today)}`];
+  if (CONFIG.TOKEN) parts.push(`token=${encodeURIComponent(CONFIG.TOKEN)}`);
+  const url = `${CONFIG.API_URL}?${parts.join("&")}`;
 
   const req = new Request(url);
   req.method = "GET";
