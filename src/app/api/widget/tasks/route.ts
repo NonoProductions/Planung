@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
   try {
     const { data, error } = await supabase
       .from("Task")
-      .select("id, title, status, plannedTime, scheduledDate, scheduledStart, scheduledEnd, position, channel:Channel(id, name, color)")
+      .select("id, title, status, plannedTime, actualTime, scheduledDate, scheduledStart, scheduledEnd, position, channel:Channel(id, name, color)")
       .eq("userId", userId)
       .is("parentId", null)
       .gte("scheduledDate", start.toISOString())
