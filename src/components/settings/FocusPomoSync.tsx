@@ -71,10 +71,57 @@ interface SyncResultPayload {
   errors: string[];
 }
 
+interface ActivityEvent {
+  uid: string;
+  summary: string;
+  start: string | null;
+  durationMinutes: number;
+  taskId: string | null;
+  taskTitle: string;
+  appliedAt: string | null;
+}
+
+interface ActivityPayload {
+  events: ActivityEvent[];
+  newestEventStart: string | null;
+}
+
 const cardSubtleStyle = {
-  borderColor: "#e4ddd6",
-  backgroundColor: "#fffdfa",
+  borderColor: "#e7e0d7",
+  backgroundColor: "#faf6f0",
 } as const;
+
+function localDayKey(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+
+function formatDayLabel(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const today = localDayKey(new Date().toISOString());
+  const yesterday = localDayKey(new Date(Date.now() - 86_400_000).toISOString());
+  const key = localDayKey(iso);
+  if (key === today) return "Heute";
+  if (key === yesterday) return "Gestern";
+  return new Intl.DateTimeFormat("de-DE", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+  }).format(d);
+}
+
+function formatEventTime(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" }).format(d);
+}
 
 function formatLastSync(iso: string | null) {
   if (!iso) return "Noch nie";
@@ -113,6 +160,7 @@ export default function FocusPomoSync() {
   const [info, setInfo] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<SyncResultPayload | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [activity, setActivity] = useState<ActivityPayload | null>(null);
 
   const isConnected = state?.configured === true;
   const hasCalendarSelected = isConnected && Boolean(state?.calendarUrl);
@@ -130,8 +178,34 @@ export default function FocusPomoSync() {
     return { label: "Bereit", color: "var(--accent-success)" };
   }, [state]);
 
+  const activityView = useMemo(() => {
+    const events = activity?.events ?? [];
+    const todayKey = localDayKey(new Date().toISOString());
+
+    const todayEvents = events.filter((e) => localDayKey(e.start) === todayKey);
+    const todayMinutes = todayEvents.reduce((sum, e) => sum + e.durationMinutes, 0);
+
+    const groups = new Map<string, ActivityEvent[]>();
+    for (const e of events) {
+      const key = localDayKey(e.start);
+      if (!key) continue;
+      const list = groups.get(key) ?? [];
+      list.push(e);
+      groups.set(key, list);
+    }
+    const recentDays = [...groups.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .slice(0, 7);
+
+    const newestKey = localDayKey(activity?.newestEventStart ?? null);
+    const isStale = Boolean(activity?.newestEventStart) && newestKey !== todayKey;
+
+    return { todayEvents, todayMinutes, recentDays, isStale };
+  }, [activity]);
+
   useEffect(() => {
     void loadState();
+    void loadActivity();
   }, []);
 
   // Auto-trigger discovery when connected but no calendar selected yet,
@@ -162,6 +236,17 @@ export default function FocusPomoSync() {
       setError(err instanceof Error ? err.message : "Status konnte nicht geladen werden.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadActivity() {
+    try {
+      const res = await fetch("/api/integrations/caldav/activity", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as ActivityPayload;
+      setActivity(data);
+    } catch {
+      // Non-critical: the activity panel just stays empty.
     }
   }
 
@@ -251,6 +336,7 @@ export default function FocusPomoSync() {
         `Sync abgeschlossen — ${result.imported} importiert, ${result.skippedDuplicate} bereits bekannt, ${result.skippedNoMatch} ohne passende Task.`
       );
       await loadState();
+      void loadActivity();
       void fetchTasks();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sync fehlgeschlagen.");
@@ -334,7 +420,7 @@ export default function FocusPomoSync() {
   return (
     <div className="space-y-5">
       <div
-        className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border p-4"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border p-4"
         style={cardSubtleStyle}
       >
         <div className="space-y-1">
@@ -359,7 +445,7 @@ export default function FocusPomoSync() {
 
       {error && (
         <div
-          className="flex items-start gap-2 rounded-[16px] border p-3 text-[12.5px] leading-6"
+          className="flex items-start gap-2 rounded-[10px] border p-3 text-[12.5px] leading-6"
           style={{
             borderColor: "rgba(224, 111, 111, 0.28)",
             backgroundColor: "rgba(255, 240, 240, 0.98)",
@@ -373,7 +459,7 @@ export default function FocusPomoSync() {
 
       {info && !error && (
         <div
-          className="flex items-start gap-2 rounded-[16px] border p-3 text-[12.5px] leading-6"
+          className="flex items-start gap-2 rounded-[10px] border p-3 text-[12.5px] leading-6"
           style={{
             borderColor: "rgba(106, 180, 130, 0.32)",
             backgroundColor: "rgba(239, 248, 242, 0.96)",
@@ -388,7 +474,7 @@ export default function FocusPomoSync() {
       {!isConnected && (
         <form
           onSubmit={handleConnect}
-          className="space-y-4 rounded-[18px] border p-5"
+          className="space-y-4 rounded-[12px] border p-5"
           style={cardSubtleStyle}
         >
           <div className="space-y-1">
@@ -466,7 +552,7 @@ export default function FocusPomoSync() {
       )}
 
       {isConnected && (
-        <div className="rounded-[18px] border p-5 space-y-4" style={cardSubtleStyle}>
+        <div className="rounded-[12px] border p-5 space-y-4" style={cardSubtleStyle}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p
@@ -593,8 +679,113 @@ export default function FocusPomoSync() {
         </div>
       )}
 
+      {isConnected && hasCalendarSelected && (
+        <div className="rounded-[12px] border p-5 space-y-4" style={cardSubtleStyle}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>
+              Heute geladen
+            </p>
+            {activityView.todayEvents.length > 0 && (
+              <span
+                className="workspace-badge"
+                style={{ color: "var(--accent-success)", borderColor: "var(--accent-success)" }}
+              >
+                {activityView.todayEvents.length} Events · {formatMinutes(activityView.todayMinutes)}
+              </span>
+            )}
+          </div>
+
+          {activityView.todayEvents.length > 0 ? (
+            <div className="space-y-1.5">
+              {activityView.todayEvents.map((ev) => (
+                <div
+                  key={ev.uid}
+                  className="flex items-center justify-between gap-3 text-[12.5px]"
+                >
+                  <span style={{ color: "var(--text-primary)" }}>
+                    {formatEventTime(ev.start)} · {ev.summary}
+                  </span>
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    {formatMinutes(ev.durationMinutes)} → {ev.taskTitle || "—"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              className="flex items-start gap-2 rounded-[10px] border p-3 text-[12.5px] leading-6"
+              style={{
+                borderColor: "rgba(244, 173, 70, 0.3)",
+                backgroundColor: "rgba(255, 245, 230, 0.98)",
+                color: "#9f6f24",
+              }}
+            >
+              <TriangleAlert size={15} className="mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <p>Heute wurden noch keine neuen Kalender-Events verbucht.</p>
+                {activity?.newestEventStart && (
+                  <p>
+                    Neuestes Event im Kalender:{" "}
+                    <strong>{formatLastSync(activity.newestEventStart)}</strong>.
+                    {activityView.isStale && (
+                      <>
+                        {" "}
+                        Prüfe, ob FocusPomo auf dem iPhone heute Blöcke in den
+                        verbundenen Kalender geschrieben hat (iPhone online &amp; iCloud-Sync
+                        aktiv?).
+                      </>
+                    )}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activityView.recentDays.length > 0 && (
+            <details className="text-[12.5px]">
+              <summary
+                className="cursor-pointer font-semibold"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Letzte Tage anzeigen
+              </summary>
+              <div className="mt-3 space-y-3">
+                {activityView.recentDays.map(([day, evs]) => {
+                  const minutes = evs.reduce((s, e) => s + e.durationMinutes, 0);
+                  return (
+                    <div key={day} className="space-y-1.5">
+                      <div
+                        className="flex items-center justify-between text-[11.5px] font-semibold uppercase tracking-[0.08em]"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        <span>{formatDayLabel(evs[0].start)}</span>
+                        <span>{formatMinutes(minutes)}</span>
+                      </div>
+                      {evs.map((ev) => (
+                        <div
+                          key={ev.uid}
+                          className="flex items-center justify-between gap-3"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          <span>
+                            {formatEventTime(ev.start)} · {ev.summary}
+                          </span>
+                          <span style={{ color: "var(--text-muted)" }}>
+                            {formatMinutes(ev.durationMinutes)} → {ev.taskTitle || "—"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+
       {discoveredCalendars && discoveredCalendars.length > 0 && (
-        <div className="rounded-[18px] border p-5 space-y-3" style={cardSubtleStyle}>
+        <div className="rounded-[12px] border p-5 space-y-3" style={cardSubtleStyle}>
           <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>
             Wähle den FocusPomo-Kalender
           </p>
@@ -609,7 +800,7 @@ export default function FocusPomoSync() {
                 key={cal.url}
                 type="button"
                 onClick={() => void handleSelectCalendar(cal)}
-                className="flex items-center justify-between gap-3 rounded-[14px] border p-3 text-left transition-transform duration-150 hover:-translate-y-[1px]"
+                className="flex items-center justify-between gap-3 rounded-[10px] border p-3 text-left transition-transform duration-150 hover:-translate-y-[1px]"
                 style={{
                   borderColor: "rgba(226, 218, 209, 0.95)",
                   backgroundColor:
@@ -641,7 +832,7 @@ export default function FocusPomoSync() {
 
       {discoveredCalendars && discoveredCalendars.length === 0 && (
         <div
-          className="rounded-[16px] border p-3 text-[12.5px] leading-6 space-y-2"
+          className="rounded-[10px] border p-3 text-[12.5px] leading-6 space-y-2"
           style={{
             borderColor: "rgba(244, 173, 70, 0.3)",
             backgroundColor: "rgba(255, 245, 230, 0.98)",
@@ -673,7 +864,7 @@ export default function FocusPomoSync() {
 
       {debugInfo && (
         <details
-          className="rounded-[18px] border p-4 text-[12px]"
+          className="rounded-[12px] border p-4 text-[12px]"
           style={cardSubtleStyle}
           open
         >
@@ -725,7 +916,7 @@ export default function FocusPomoSync() {
       )}
 
       {lastResult && lastResult.appliedEvents.length > 0 && (
-        <div className="rounded-[18px] border p-5 space-y-3" style={cardSubtleStyle}>
+        <div className="rounded-[12px] border p-5 space-y-3" style={cardSubtleStyle}>
           <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>
             Verbucht beim letzten Sync
           </p>
@@ -746,7 +937,7 @@ export default function FocusPomoSync() {
       )}
 
       {lastResult && lastResult.unmatchedEvents.length > 0 && (
-        <div className="rounded-[18px] border p-5 space-y-3" style={cardSubtleStyle}>
+        <div className="rounded-[12px] border p-5 space-y-3" style={cardSubtleStyle}>
           <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>
             Ohne passende Task übersprungen
           </p>
@@ -785,7 +976,7 @@ function ToggleRow({
 }) {
   return (
     <div
-      className="flex items-start justify-between gap-4 rounded-[14px] border p-3"
+      className="flex items-start justify-between gap-4 rounded-[10px] border p-3"
       style={{ borderColor: "rgba(226, 218, 209, 0.95)" }}
     >
       <div className="space-y-1">

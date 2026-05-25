@@ -1,11 +1,12 @@
 import { endOfDay, startOfWeek } from "date-fns";
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 import {
   createDbUnavailableResponse,
   isDatabaseUnavailableError,
 } from "@/lib/api-db-error";
+import { notifyPushcut } from "@/lib/pushcut";
 
 function isMissingTimeEntryTableError(error: unknown) {
   if (!error || typeof error !== "object") return false;
@@ -166,6 +167,8 @@ export async function POST(request: NextRequest) {
         throw error;
       }
 
+      after(() => notifyPushcut({ text: "Timer gestartet" }));
+
       return Response.json(data, { status: 201 });
     } catch (error) {
       if (isMissingTimeEntryTableError(error) || isDatabaseUnavailableError(error)) {
@@ -264,6 +267,8 @@ export async function POST(request: NextRequest) {
     if (error) {
       throw error;
     }
+
+    after(() => notifyPushcut({ text: `+ ${Math.round(durationMinutes)}m getrackt` }));
 
     return Response.json(data, { status: 201 });
   } catch (error) {

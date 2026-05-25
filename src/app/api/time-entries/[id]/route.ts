@@ -1,6 +1,8 @@
+import { after } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 import { isDatabaseUnavailableError } from "@/lib/api-db-error";
+import { notifyPushcut } from "@/lib/pushcut";
 
 function isMissingTimeEntryTableError(error: unknown) {
   if (!error || typeof error !== "object") return false;
@@ -99,6 +101,8 @@ export async function PATCH(
     if (taskUpdateError) {
       throw taskUpdateError;
     }
+
+    after(() => notifyPushcut({ text: `Timer gestoppt (+${Math.round(durationMinutes)}m)` }));
 
     return Response.json(data);
   } catch (error) {

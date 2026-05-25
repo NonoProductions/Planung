@@ -1,10 +1,11 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 import {
   createDbUnavailableResponse,
   isDatabaseUnavailableError,
 } from "@/lib/api-db-error";
+import { notifyPushcut } from "@/lib/pushcut";
 
 // GET /api/tasks?date=2026-03-24 OR ?weekStart=2026-03-23 OR ?backlog=true
 export async function GET(request: NextRequest) {
@@ -89,6 +90,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) throw error;
+
+  after(() => notifyPushcut({ text: `+ ${data.title}` }));
 
   return Response.json({ ...data, subtasks: [] }, { status: 201 });
 }

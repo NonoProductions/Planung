@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -140,6 +140,11 @@ const customCollisionDetection: CollisionDetection = (args) => {
 
 export default function DndWrapper({ children }: DndWrapperProps) {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  // Real pointer position, captured live during the drag. We can't rely on
+  // activatorEvent + delta at drop time because dnd-kit folds auto-scroll
+  // offsets into delta, which shifts the reconstructed drop point whenever the
+  // task list or calendar scrolls mid-drag.
+  const pointerRef = useRef<ClientCoordinates | null>(null);
   const tasks = useTaskStore((state) => state.tasks);
   const backlogTasks = useTaskStore((state) => state.backlogTasks);
   const allTasks = useMemo(
@@ -159,7 +164,28 @@ export default function DndWrapper({ children }: DndWrapperProps) {
     ? allTasks.find((task) => task.id === activeId) || null
     : null;
 
+  // While a drag is active, track the true pointer position on the window so the
+  // drop point stays accurate even if a scrollable container moves underneath.
+  useEffect(() => {
+    if (!activeId) return;
+
+    const trackPointer = (event: Event) => {
+      const coords = getClientCoordinates(event);
+      if (coords) pointerRef.current = coords;
+    };
+
+    window.addEventListener("pointermove", trackPointer, { passive: true });
+    window.addEventListener("touchmove", trackPointer, { passive: true });
+
+    return () => {
+      window.removeEventListener("pointermove", trackPointer);
+      window.removeEventListener("touchmove", trackPointer);
+    };
+  }, [activeId]);
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
+    // Seed the pointer position so a drop with no intervening move still works.
+    pointerRef.current = getClientCoordinates(event.activatorEvent);
     setActiveId(event.active.id);
     // Auto-open calendar sidebar so the drop zone is available
     if (!useUIStore.getState().calendarVisible) {
@@ -172,15 +198,24 @@ export default function DndWrapper({ children }: DndWrapperProps) {
       const { active, over } = event;
       setActiveId(null);
 
+      // Prefer the real pointer position captured during the drag. Fall back to
+      // reconstructing it from activatorEvent + delta only if no move was seen.
       const startPoint = getClientCoordinates(event.activatorEvent);
-      const dropX = startPoint ? startPoint.clientX + event.delta.x : 0;
-      const dropY = startPoint ? startPoint.clientY + event.delta.y : 0;
+      const dropPoint =
+        pointerRef.current ??
+        (startPoint
+          ? {
+              clientX: startPoint.clientX + event.delta.x,
+              clientY: startPoint.clientY + event.delta.y,
+            }
+          : null);
+      pointerRef.current = null;
 
       // 1) Calendar drop — always use DOM-based detection for reliability.
       //    dnd-kit droppable measurement can be stale when the calendar opens
       //    mid-drag, so we query the actual DOM element directly.
-      if (startPoint && isPointerInCalendarGrid(dropX, dropY)) {
-        scheduleTaskOnCalendar(active.id as string, allTasks, dropY);
+      if (dropPoint && isPointerInCalendarGrid(dropPoint.clientX, dropPoint.clientY)) {
+        scheduleTaskOnCalendar(active.id as string, allTasks, dropPoint.clientY);
         return;
       }
 

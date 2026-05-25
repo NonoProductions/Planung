@@ -1,7 +1,8 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
 import { toLocalDateTimeString } from "@/lib/date";
+import { notifyPushcut } from "@/lib/pushcut";
 
 function normalizeLocalDateTimeInput(value: string) {
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
@@ -77,6 +78,13 @@ export async function PATCH(
 
   if (error) throw error;
 
+  const completed = body.status === "COMPLETED";
+  after(() =>
+    notifyPushcut({
+      text: completed ? `✓ ${task.title}` : task.title,
+    })
+  );
+
   return Response.json(task);
 }
 
@@ -103,6 +111,8 @@ export async function DELETE(
 
   const { error } = await supabase.from("Task").delete().eq("id", id).eq("userId", userId);
   if (error) throw error;
+
+  after(() => notifyPushcut({ text: "Task gelöscht" }));
 
   return Response.json({ success: true });
 }

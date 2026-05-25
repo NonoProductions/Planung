@@ -172,7 +172,11 @@ export default function CalendarView() {
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+      const target = e.target as HTMLElement | null;
+      // Pressing a task card begins a drag — don't re-center the calendar to
+      // "now", or the drop target scrolls out from under the pointer mid-drag.
+      if (target?.closest(".planning-card")) return;
+      if (panelRef.current && !panelRef.current.contains(target as Node)) {
         scrollToCurrentTime();
       }
     };

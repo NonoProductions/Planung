@@ -1,10 +1,10 @@
 "use client";
 
-import type { FormEvent } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
-import { Clock3, LayoutGrid, PauseCircle, PlayCircle, TimerReset } from "lucide-react";
+import { Clock3, PauseCircle, PlayCircle } from "lucide-react";
 import {
   createTimeEntry,
   formatCompactDuration,
@@ -21,6 +21,175 @@ interface TimeTrackingPanelProps {
   tasks: AnalyticsTaskOption[];
   entries: TimeEntry[];
 }
+
+const COLOR_PRIMARY = "var(--text-primary)";
+const COLOR_SECONDARY = "var(--text-secondary)";
+const COLOR_MUTED = "var(--text-muted)";
+const COLOR_ACCENT = "var(--accent-primary)";
+
+const block: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 14,
+  padding: "20px 22px 22px",
+  border: "1px solid #e4ddd6",
+  borderRadius: 8,
+  background: "#ffffff",
+  boxShadow: "0 1px 0 rgba(89, 72, 48, 0.04)",
+};
+
+const blockHeader: CSSProperties = {
+  display: "flex",
+  alignItems: "baseline",
+  justifyContent: "space-between",
+  gap: 14,
+};
+
+const blockTitle: CSSProperties = {
+  color: COLOR_PRIMARY,
+  fontSize: 17,
+  fontWeight: 700,
+  letterSpacing: "-0.03em",
+};
+
+const blockHint: CSSProperties = {
+  color: COLOR_MUTED,
+  fontSize: 12,
+  fontWeight: 500,
+  letterSpacing: "-0.015em",
+};
+
+const grid2: CSSProperties = {
+  display: "grid",
+  gap: 16,
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+};
+
+const panelStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 10,
+  padding: "16px 18px",
+  border: "1px solid #efe8e0",
+  borderRadius: 8,
+  background: "#fdfbf7",
+};
+
+const panelLabel: CSSProperties = {
+  color: COLOR_MUTED,
+  fontSize: 12,
+  fontWeight: 600,
+  letterSpacing: "-0.02em",
+};
+
+const fieldStyle: CSSProperties = {
+  width: "100%",
+  minHeight: 36,
+  padding: "6px 10px",
+  border: "1px solid #e4ddd6",
+  borderRadius: 8,
+  background: "#ffffff",
+  color: COLOR_PRIMARY,
+  fontSize: 13,
+  outline: "none",
+};
+
+const minutesFieldStyle: CSSProperties = {
+  ...fieldStyle,
+  width: 96,
+  flexShrink: 0,
+};
+
+const clockStyle: CSSProperties = {
+  marginTop: 4,
+  color: COLOR_PRIMARY,
+  fontSize: 34,
+  fontWeight: 700,
+  letterSpacing: "-0.06em",
+  fontVariantNumeric: "tabular-nums",
+};
+
+const captionStyle: CSSProperties = {
+  color: COLOR_SECONDARY,
+  fontSize: 12,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const buttonBase: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 7,
+  marginTop: 6,
+  minHeight: 36,
+  padding: "0 14px",
+  border: "1px solid #ddd6ce",
+  borderRadius: 8,
+  background: "#ffffff",
+  color: COLOR_PRIMARY,
+  fontSize: 13,
+  fontWeight: 700,
+  letterSpacing: "-0.02em",
+  cursor: "pointer",
+};
+
+const buttonStart: CSSProperties = {
+  ...buttonBase,
+  border: "1px solid transparent",
+  background: COLOR_ACCENT,
+  color: "#ffffff",
+};
+
+const buttonStop: CSSProperties = {
+  ...buttonBase,
+  border: "1px solid transparent",
+  background: "#d8a566",
+  color: "#ffffff",
+};
+
+const messageStyle: CSSProperties = {
+  color: COLOR_ACCENT,
+  fontSize: 12,
+  fontWeight: 600,
+};
+
+const entryRow: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+  padding: "10px 0",
+  borderTop: "1px solid #f5f0e9",
+};
+
+const entryTitle: CSSProperties = {
+  color: COLOR_PRIMARY,
+  fontSize: 13,
+  fontWeight: 600,
+  letterSpacing: "-0.02em",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const entryMeta: CSSProperties = {
+  marginTop: 2,
+  color: COLOR_MUTED,
+  fontSize: 11,
+};
+
+const entryValue: CSSProperties = {
+  flexShrink: 0,
+  padding: "3px 9px",
+  borderRadius: 999,
+  background: "rgba(244, 239, 232, 0.85)",
+  color: COLOR_SECONDARY,
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "-0.015em",
+};
 
 function getEntryMinutes(entry: TimeEntry) {
   if (typeof entry.duration === "number" && Number.isFinite(entry.duration)) {
@@ -91,7 +260,7 @@ export default function TimeTrackingPanel({
     const result = await stopTimer();
     if (!result) return;
 
-    setMessage(result.persisted ? "Timer gespeichert" : "Timer lokal uebernommen");
+    setMessage(result.persisted ? "Timer gespeichert" : "Timer lokal übernommen");
   }
 
   async function handleManualEntry(event: FormEvent<HTMLFormElement>) {
@@ -114,7 +283,7 @@ export default function TimeTrackingPanel({
         endTime,
         duration,
       });
-      setMessage(result.persisted ? "Zeitblock gespeichert" : "Zeitblock lokal uebernommen");
+      setMessage(result.persisted ? "Zeitblock gespeichert" : "Zeitblock lokal übernommen");
       setManualStartedAt(toDateTimeLocalValue(new Date()));
     } catch {
       setMessage("Zeitblock konnte nicht erstellt werden");
@@ -129,235 +298,147 @@ export default function TimeTrackingPanel({
     .sort((first, second) => new Date(second.startTime).getTime() - new Date(first.startTime).getTime())
     .slice(0, 5);
   const totalTrackedMinutes = entries.reduce((sum, entry) => sum + getEntryMinutes(entry), 0);
-  const averageSessionMinutes =
-    entries.length > 0 ? totalTrackedMinutes / entries.length : 0;
-  const activeTaskCount = new Set(entries.map((entry) => entry.taskId)).size;
 
   return (
-    <section className="workspace-surface workspace-section analytics-time-panel flex flex-col gap-5">
-      <div className="workspace-section__header">
-        <div className="workspace-section__intro">
-          <p className="workspace-section__eyebrow">Zeiterfassung</p>
-          <h2 className="workspace-section__title">Timer oder manueller Log</h2>
-          <p className="workspace-section__copy">
-            Direkt aus der Analytics-Ansicht starten, stoppen oder spaeter sauber
-            nachtragen.
-          </p>
-        </div>
-
-        <span className="workspace-badge">
-          <Clock3 size={13} />
-          {entries.length} Eintraege
+    <section style={block}>
+      <header style={blockHeader}>
+        <h2 style={blockTitle}>Zeiterfassung</h2>
+        <span style={blockHint}>
+          {entries.length} Einträge · {formatCompactMinutes(totalTrackedMinutes)} gesamt
         </span>
-      </div>
+      </header>
 
-      <div className="analytics-time-grid">
-        <div className="analytics-time-stat">
-          <p className="analytics-time-stat__eyebrow">Getrackt</p>
-          <p className="analytics-time-stat__value">{formatCompactMinutes(totalTrackedMinutes)}</p>
-          <p className="analytics-time-stat__detail">im gewaehlten Zeitraum</p>
-        </div>
+      <div style={grid2}>
+        <div style={panelStyle}>
+          <p style={panelLabel}>Aktiver Timer</p>
 
-        <div className="analytics-time-stat">
-          <p className="analytics-time-stat__eyebrow">Tasks beruehrt</p>
-          <p className="analytics-time-stat__value">{activeTaskCount}</p>
-          <p className="analytics-time-stat__detail">mit mindestens einer Session</p>
-        </div>
+          <select
+            value={selectedTaskId}
+            onChange={(event) => setSelectedTaskIdState(event.target.value)}
+            disabled={Boolean(runningTimer)}
+            style={fieldStyle}
+          >
+            {tasks.length === 0 && <option value="">Keine Aufgaben</option>}
+            {tasks.map((task) => (
+              <option key={task.id} value={task.id}>
+                {task.title}
+              </option>
+            ))}
+          </select>
 
-        <div className="analytics-time-stat">
-          <p className="analytics-time-stat__eyebrow">Session-Schnitt</p>
-          <p className="analytics-time-stat__value">
-            {averageSessionMinutes > 0 ? formatCompactMinutes(averageSessionMinutes) : "0s"}
+          <p style={clockStyle}>
+            {runningTimer
+              ? formatElapsed(runningTimer.startedAt, now, runningTaskBaseSeconds)
+              : formatSeconds(selectedTaskBaseSeconds)}
           </p>
-          <p className="analytics-time-stat__detail">durchschnittlich pro Eintrag</p>
-        </div>
-      </div>
+          <p style={captionStyle}>
+            {runningTask?.title ?? selectedTask?.title ?? "Keine Aufgabe ausgewählt"}
+          </p>
 
-      <div className="workspace-surface workspace-surface--warning workspace-section analytics-timer-card">
-        <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-          Aktiver Timer
-        </p>
-
-        <div className="mt-6 flex flex-col gap-6">
-          <label className="flex flex-col gap-2">
-            <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>
-              Aufgabe
-            </span>
-            <select
-              value={selectedTaskId}
-              onChange={(event) => setSelectedTaskIdState(event.target.value)}
-              disabled={Boolean(runningTimer)}
-              className="workspace-input"
+          {runningTimer ? (
+            <button
+              type="button"
+              onClick={handleStopTimer}
+              disabled={submitting}
+              style={{ ...buttonStop, opacity: submitting ? 0.55 : 1, cursor: submitting ? "not-allowed" : "pointer" }}
             >
-              {tasks.map((task) => (
-                <option key={task.id} value={task.id}>
-                  {task.title}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0 space-y-3">
-              <p
-                className="text-[38px] font-semibold leading-[0.95] tracking-[-0.065em]"
-                style={{ color: "var(--text-primary)" }}
-              >
-                {runningTimer
-                  ? formatElapsed(runningTimer.startedAt, now, runningTaskBaseSeconds)
-                  : formatSeconds(selectedTaskBaseSeconds)}
-              </p>
-              <p className="truncate text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                {runningTask?.title ?? selectedTask?.title ?? "Keine Aufgabe ausgewaehlt"}
-              </p>
-            </div>
-
-            {runningTimer ? (
-              <button
-                type="button"
-                onClick={handleStopTimer}
-                disabled={submitting}
-                className="workspace-button workspace-button--warning min-w-[180px]"
-              >
-                <PauseCircle size={16} />
-                Timer stoppen
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleStartTimer}
-                disabled={!selectedTaskId || submitting}
-                className="workspace-button workspace-button--primary min-w-[180px]"
-              >
-                <PlayCircle size={16} />
-                Timer starten
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <form
-        onSubmit={handleManualEntry}
-        className="workspace-surface workspace-section workspace-surface--soft analytics-manual-card"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-              Manuell erfassen
-            </p>
-            <p className="mt-1 text-[12px]" style={{ color: "var(--text-muted)" }}>
-              Ideal fuer nachgetragenes Tracking oder Meetings.
-            </p>
-          </div>
-
-          <span className="workspace-badge workspace-badge--accent">
-            <TimerReset size={12} />
-            Schnelllog
-          </span>
-        </div>
-
-        <div className="analytics-manual-grid mt-6">
-          <label className="flex flex-col gap-2">
-            <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>
-              Aufgabe
-            </span>
-            <select
-              value={manualTaskId}
-              onChange={(event) => setManualTaskIdState(event.target.value)}
-              className="workspace-input"
+              <PauseCircle size={15} />
+              Timer stoppen
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleStartTimer}
+              disabled={!selectedTaskId || submitting}
+              style={{
+                ...buttonStart,
+                opacity: !selectedTaskId || submitting ? 0.55 : 1,
+                cursor: !selectedTaskId || submitting ? "not-allowed" : "pointer",
+              }}
             >
-              {tasks.map((task) => (
-                <option key={task.id} value={task.id}>
-                  {task.title}
-                </option>
-              ))}
-            </select>
-          </label>
+              <PlayCircle size={15} />
+              Timer starten
+            </button>
+          )}
+        </div>
 
-          <label className="flex flex-col gap-2">
-            <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>
-              Dauer in Minuten
-            </span>
+        <form onSubmit={handleManualEntry} style={panelStyle}>
+          <p style={panelLabel}>Manuell nachtragen</p>
+
+          <select
+            value={manualTaskId}
+            onChange={(event) => setManualTaskIdState(event.target.value)}
+            style={fieldStyle}
+          >
+            {tasks.length === 0 && <option value="">Keine Aufgaben</option>}
+            {tasks.map((task) => (
+              <option key={task.id} value={task.id}>
+                {task.title}
+              </option>
+            ))}
+          </select>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="datetime-local"
+              value={manualStartedAt}
+              onChange={(event) => setManualStartedAt(event.target.value)}
+              style={fieldStyle}
+            />
             <input
               type="number"
               min={5}
               step={5}
               value={manualMinutes}
               onChange={(event) => setManualMinutes(event.target.value)}
-              className="workspace-input"
+              style={minutesFieldStyle}
+              aria-label="Dauer in Minuten"
             />
-          </label>
-        </div>
+          </div>
 
-        <label className="mt-5 flex flex-col gap-2">
-          <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>
-            Startzeit
-          </span>
-          <input
-            type="datetime-local"
-            value={manualStartedAt}
-            onChange={(event) => setManualStartedAt(event.target.value)}
-            className="workspace-input"
-          />
-        </label>
+          <button
+            type="submit"
+            disabled={submitting || !manualTaskId}
+            style={{
+              ...buttonBase,
+              opacity: submitting || !manualTaskId ? 0.55 : 1,
+              cursor: submitting || !manualTaskId ? "not-allowed" : "pointer",
+            }}
+          >
+            <Clock3 size={14} />
+            Eintrag speichern
+          </button>
 
-        <button
-          type="submit"
-          disabled={submitting || !manualTaskId}
-          className="workspace-button workspace-button--success mt-6 self-start"
-        >
-          <Clock3 size={15} />
-          Eintrag speichern
-        </button>
-      </form>
+          {message && <p style={messageStyle}>{message}</p>}
+        </form>
+      </div>
 
-      <div className="workspace-surface workspace-section analytics-entry-panel">
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-            Letzte Sessions
-          </p>
-          {message && (
-            <span className="text-[11px] font-medium" style={{ color: "var(--accent-primary)" }}>
-              {message}
-            </span>
-          )}
-        </div>
-
-        <div className="analytics-entry-list mt-6 flex flex-col gap-4">
-          {recentEntries.length > 0 ? (
-            recentEntries.map((entry) => {
+      {recentEntries.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4, borderTop: "1px solid #f1ebe4" }}>
+          <p style={panelLabel}>Letzte Sessions</p>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" }}>
+            {recentEntries.map((entry, index) => {
               const task = tasks.find((item) => item.id === entry.taskId);
               return (
-                <div key={entry.id} className="workspace-list-item analytics-entry-item">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p
-                        className="truncate text-[13px] font-medium"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        {task?.title ?? "Unbekannte Aufgabe"}
-                      </p>
-                      <p className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                        {format(parseISO(entry.startTime), "EEE, d. MMM - HH:mm", { locale: de })}
-                      </p>
-                    </div>
-
-                    <span className="workspace-badge">
-                      <LayoutGrid size={12} />
-                      {formatCompactDuration(entry.duration ?? 0)}
-                    </span>
+                <li
+                  key={entry.id}
+                  style={{ ...entryRow, borderTop: index === 0 ? "0" : "1px solid #f5f0e9" }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <p style={entryTitle}>{task?.title ?? "Unbekannte Aufgabe"}</p>
+                    <p style={entryMeta}>
+                      {format(parseISO(entry.startTime), "EEE, d. MMM · HH:mm", { locale: de })}
+                    </p>
                   </div>
-                </div>
+                  <span style={entryValue}>
+                    {formatCompactDuration(entry.duration ?? 0)}
+                  </span>
+                </li>
               );
-            })
-          ) : (
-            <div className="workspace-empty h-full">
-              Noch keine Time Entries fuer diese Woche vorhanden.
-            </div>
-          )}
+            })}
+          </ul>
         </div>
-      </div>
+      )}
     </section>
   );
 }

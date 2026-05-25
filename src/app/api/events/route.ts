@@ -111,6 +111,21 @@ function expandRecurring(
   return results;
 }
 
+// CalendarEvent times live in a `timestamp without time zone` column but are
+// always written as UTC wall-clock (via `new Date(x).toISOString()` on insert
+// and update). PostgREST returns those values without a timezone designator,
+// so they must be read back as UTC. Using a plain `new Date(value)` would
+// interpret them in the server's local zone, applying the offset a second time
+// and drifting every event by the server's UTC offset on each reload.
+function parseStoredEventTime(value: string): Date {
+  // Already carries an explicit zone (Z or ±HH:MM)? Trust it as-is.
+  if (/(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(value)) {
+    return new Date(value);
+  }
+  const isoLike = value.includes("T") ? value : value.replace(" ", "T");
+  return new Date(`${isoLike}Z`);
+}
+
 function serializeEvent(e: EventRow) {
   return {
     id: e.id,
@@ -180,8 +195,8 @@ export async function GET(request: NextRequest) {
       id: e.id as string,
       title: e.title as string,
       description: e.description as string | null,
-      startTime: new Date(e.startTime as string),
-      endTime: new Date(e.endTime as string),
+      startTime: parseStoredEventTime(e.startTime as string),
+      endTime: parseStoredEventTime(e.endTime as string),
       color: e.color as string | null,
       isRecurring: e.isRecurring as boolean,
       recurringRule: e.recurringRule,

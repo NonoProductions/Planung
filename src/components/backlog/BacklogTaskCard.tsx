@@ -8,7 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { CalendarPlus, Check, GripVertical, Pencil, Trash2 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { addDays, format } from "date-fns";
@@ -117,12 +117,14 @@ export default function BacklogTaskCard({ task }: BacklogTaskCardProps) {
     window.setTimeout(() => setConfirmDelete(false), 3000);
   };
 
+  const hasMeta = Boolean(task.channel) || Boolean(formatPlannedTime(task.plannedTime));
+
   return (
     <motion.div
       ref={setNodeRef}
       layout
       onClick={() => selectTask(task.id)}
-      className="group relative flex items-center gap-4 overflow-hidden rounded-[8px] border px-4 py-3.5 transition-all duration-200"
+      className="group relative flex items-center gap-3 rounded-[8px] border px-3.5 py-2.5 transition-all duration-200"
       aria-selected={isSelected}
       style={{
         ...sortableStyle,
@@ -131,32 +133,33 @@ export default function BacklogTaskCard({ task }: BacklogTaskCardProps) {
           ? "rgba(141, 124, 246, 0.74)"
           : isCompleted
             ? "var(--border-subtle)"
-            : "var(--border-color)",
+            : "#e4ddd6",
         boxShadow: isSelected
           ? "0 0 0 1px rgba(141, 124, 246, 0.18), 0 14px 30px rgba(141, 124, 246, 0.1)"
-          : "var(--shadow-xs)",
-        opacity: isDragging ? 0.4 : isCompleted ? 0.7 : 1,
+          : "0 1px 0 rgba(89, 72, 48, 0.04)",
+        opacity: isDragging ? 0.4 : isCompleted ? 0.65 : 1,
       }}
       whileHover={{
         boxShadow: isSelected
           ? "0 0 0 1px rgba(141, 124, 246, 0.18), 0 18px 34px rgba(141, 124, 246, 0.12)"
-          : "var(--shadow-sm)",
+          : "0 6px 14px rgba(89, 72, 48, 0.05)",
       }}
       transition={{ duration: 0.2 }}
     >
       <button
         type="button"
-        className="cursor-grab text-[11px] font-semibold uppercase tracking-[0.06em] opacity-60 transition-all duration-150 md:opacity-0 md:group-hover:opacity-60 touch-none"
+        className="-ml-1 flex h-5 w-4 shrink-0 cursor-grab items-center justify-center opacity-60 transition-opacity duration-150 md:opacity-0 md:group-hover:opacity-50 touch-none"
         style={{ color: "var(--text-muted)" }}
+        aria-label="Ziehen"
         {...attributes}
         {...listeners}
       >
-        Ziehen
+        <GripVertical size={14} strokeWidth={1.8} />
       </button>
 
       <button
         onClick={() => toggleTaskStatus(task.id)}
-        className="relative flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-[1.5px] transition-all duration-200"
+        className="relative flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-full border-[1.5px] transition-all duration-200"
         style={{
           borderColor: isCompleted ? "var(--accent-success)" : channelColor,
           backgroundColor: isCompleted ? "var(--accent-success)" : "transparent",
@@ -184,17 +187,17 @@ export default function BacklogTaskCard({ task }: BacklogTaskCardProps) {
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 450, damping: 22 }}
           >
-            <Check size={11} strokeWidth={3} className="text-white" />
+            <Check size={10} strokeWidth={3} className="text-white" />
           </motion.div>
         )}
       </button>
 
       <div
-        className="flex flex-1 cursor-pointer flex-col gap-1 overflow-hidden"
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 overflow-hidden"
         onDoubleClick={() => startEditingTask(task.id)}
       >
         <span
-          className="text-[14px] font-medium leading-snug transition-all duration-300"
+          className="min-w-0 flex-1 truncate text-[14px] font-medium leading-snug transition-all duration-300"
           style={{
             color: isCompleted ? "var(--text-muted)" : "var(--text-primary)",
             textDecoration: isCompleted ? "line-through" : "none",
@@ -202,55 +205,49 @@ export default function BacklogTaskCard({ task }: BacklogTaskCardProps) {
               ? "var(--text-muted)"
               : "transparent",
             textDecorationThickness: "1.5px",
+            letterSpacing: "-0.02em",
           }}
         >
           {task.title}
         </span>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {task.channel && (
-            <span
-              className="rounded-full px-2.5 py-1 text-[10px] font-semibold leading-tight tracking-tight"
-              style={{
-                backgroundColor: `${task.channel.color}10`,
-                color: task.channel.color,
-                border: `1px solid ${task.channel.color}18`,
-              }}
-            >
-              #{task.channel.name}
-            </span>
-          )}
-          {formatPlannedTime(task.plannedTime) && (
-            <span
-              className="rounded-full px-2.5 py-1 text-[10px] font-semibold"
-              style={{
-                backgroundColor: "rgba(76, 70, 63, 0.08)",
-                color: "var(--text-secondary)",
-              }}
-            >
-              {formatPlannedTime(task.plannedTime)}
-            </span>
-          )}
-          {isCompleted && (
-            <span
-              className="rounded-full px-2.5 py-1 text-[10px] font-semibold"
-              style={{
-                backgroundColor: "var(--accent-success-light)",
-                color: "var(--accent-success)",
-              }}
-            >
-              Erledigt
-            </span>
-          )}
-        </div>
+        {hasMeta && (
+          <div className="flex shrink-0 items-center gap-1.5">
+            {task.channel && (
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-semibold leading-tight tracking-tight"
+                style={{
+                  backgroundColor: `${task.channel.color}14`,
+                  color: task.channel.color,
+                }}
+              >
+                #{task.channel.name}
+              </span>
+            )}
+            {formatPlannedTime(task.plannedTime) && (
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                style={{
+                  backgroundColor: "rgba(244, 239, 232, 0.85)",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                {formatPlannedTime(task.plannedTime)}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="flex items-center gap-1 opacity-100 transition-all duration-150 md:opacity-0 md:group-hover:opacity-100">
+      <div className="flex shrink-0 items-center gap-0.5">
         <div className="relative">
           <button
             type="button"
-            onClick={() => setShowSchedule((current) => !current)}
-            className="rounded-md px-2 py-1 text-[11px] font-semibold transition-all duration-150"
+            onClick={(event) => {
+              event.stopPropagation();
+              setShowSchedule((current) => !current);
+            }}
+            className="flex h-7 w-7 items-center justify-center rounded-md opacity-70 transition-all duration-150 hover:opacity-100"
             style={{ color: "var(--text-muted)" }}
             onMouseEnter={(event) => {
               event.currentTarget.style.color = "var(--accent-primary)";
@@ -261,8 +258,9 @@ export default function BacklogTaskCard({ task }: BacklogTaskCardProps) {
               event.currentTarget.style.backgroundColor = "transparent";
             }}
             aria-label="Einplanen"
+            title="Einplanen"
           >
-            Planen
+            <CalendarPlus size={14} strokeWidth={1.9} />
           </button>
 
           {showSchedule && (
@@ -271,18 +269,19 @@ export default function BacklogTaskCard({ task }: BacklogTaskCardProps) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 4, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border"
+              className="absolute right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border"
               style={{
                 backgroundColor: "var(--bg-elevated)",
                 borderColor: "var(--border-color)",
                 boxShadow: "var(--shadow-lg)",
-                minWidth: 160,
+                minWidth: 180,
               }}
             >
               {quickScheduleDays.map((day) => (
                 <button
                   key={day.label}
-                  onClick={() => {
+                  onClick={(event) => {
+                    event.stopPropagation();
                     void scheduleBacklogTask(task.id, toLocalDateString(day.date));
                     setShowSchedule(false);
                   }}
@@ -312,8 +311,11 @@ export default function BacklogTaskCard({ task }: BacklogTaskCardProps) {
 
         <button
           type="button"
-          onClick={() => startEditingTask(task.id)}
-          className="rounded-md px-2 py-1 text-[11px] font-semibold transition-all duration-150"
+          onClick={(event) => {
+            event.stopPropagation();
+            startEditingTask(task.id);
+          }}
+          className="flex h-7 w-7 items-center justify-center rounded-md opacity-70 transition-all duration-150 hover:opacity-100"
           style={{ color: "var(--text-muted)" }}
           onMouseEnter={(event) => {
             event.currentTarget.style.color = "var(--accent-primary)";
@@ -324,13 +326,17 @@ export default function BacklogTaskCard({ task }: BacklogTaskCardProps) {
             event.currentTarget.style.backgroundColor = "transparent";
           }}
           aria-label="Bearbeiten"
+          title="Bearbeiten"
         >
-          Bearbeiten
+          <Pencil size={13} strokeWidth={1.9} />
         </button>
         <button
           type="button"
-          onClick={handleDelete}
-          className="rounded-md px-2 py-1 text-[11px] font-semibold transition-all duration-150"
+          onClick={(event) => {
+            event.stopPropagation();
+            handleDelete();
+          }}
+          className="flex h-7 w-7 items-center justify-center rounded-md opacity-70 transition-all duration-150 hover:opacity-100"
           style={{
             color: confirmDelete ? "var(--accent-danger)" : "var(--text-muted)",
             backgroundColor: confirmDelete
@@ -353,7 +359,7 @@ export default function BacklogTaskCard({ task }: BacklogTaskCardProps) {
           }
           title={confirmDelete ? "Nochmal klicken zum Bestaetigen" : "Loeschen"}
         >
-          {confirmDelete ? "Loeschen?" : "Loeschen"}
+          <Trash2 size={13} strokeWidth={1.9} />
         </button>
       </div>
 

@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
 } from "react";
@@ -14,6 +15,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { ChevronDown, NotebookPen, Search, X } from "lucide-react";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
 import BacklogTaskCard from "@/components/backlog/BacklogTaskCard";
@@ -23,26 +25,305 @@ type BucketKey = "this_week" | "next_weeks" | "someday";
 type SectionConfig = {
   key: BucketKey;
   label: string;
-  description: string;
 };
 
 const BUCKETS: SectionConfig[] = [
-  {
-    key: "this_week",
-    label: "Diese Woche",
-    description: "Fokus fuer die naechsten Tage.",
-  },
-  {
-    key: "next_weeks",
-    label: "Naechste Wochen",
-    description: "Wichtige Themen ohne Tagesdruck.",
-  },
-  {
-    key: "someday",
-    label: "Irgendwann",
-    description: "Ideen, Parkthemen und spaetere Optionen.",
-  },
+  { key: "this_week", label: "Diese Woche" },
+  { key: "next_weeks", label: "Nächste Wochen" },
+  { key: "someday", label: "Irgendwann" },
 ];
+
+const COLOR_PRIMARY = "var(--text-primary)";
+const COLOR_SECONDARY = "var(--text-secondary)";
+const COLOR_MUTED = "var(--text-muted)";
+const COLOR_ACCENT = "var(--accent-primary)";
+
+const innerStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: 980,
+  margin: "0 auto",
+  padding: "28px 28px 40px",
+  display: "flex",
+  flexDirection: "column",
+  gap: 22,
+};
+
+const headerStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "flex-end",
+  justifyContent: "space-between",
+  gap: 24,
+  paddingBottom: 4,
+  borderBottom: "1px solid #efe8e0",
+};
+
+const titleStyle: CSSProperties = {
+  color: COLOR_PRIMARY,
+  fontSize: 36,
+  fontWeight: 800,
+  lineHeight: 0.96,
+  letterSpacing: "-0.065em",
+};
+
+const pillsRow: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8,
+  paddingBottom: 10,
+};
+
+const pillStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  minHeight: 24,
+  padding: "0 10px",
+  borderRadius: 999,
+  background: "rgba(244, 239, 232, 0.85)",
+  color: COLOR_SECONDARY,
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "-0.02em",
+};
+
+const sectionStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 12,
+  paddingTop: 22,
+  borderTop: "1px solid #efe8e0",
+};
+
+const sectionHeaderStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 16,
+  width: "100%",
+  padding: 0,
+  border: 0,
+  background: "transparent",
+  textAlign: "left",
+  cursor: "pointer",
+};
+
+const sectionTitleRow: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  minWidth: 0,
+};
+
+const sectionTitle: CSSProperties = {
+  color: COLOR_PRIMARY,
+  fontSize: 26,
+  fontWeight: 700,
+  lineHeight: 1,
+  letterSpacing: "-0.05em",
+};
+
+const sectionCount: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  minHeight: 22,
+  padding: "0 8px",
+  borderRadius: 999,
+  background: "rgba(244, 239, 232, 0.85)",
+  color: COLOR_MUTED,
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "-0.015em",
+};
+
+const sectionToggle: CSSProperties = {
+  flexShrink: 0,
+  color: COLOR_MUTED,
+  display: "inline-flex",
+  alignItems: "center",
+  transition: "transform 160ms ease",
+};
+
+const taskStack: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 10,
+  paddingTop: 4,
+};
+
+const emptyCopy: CSSProperties = {
+  padding: "6px 0 0",
+  color: COLOR_MUTED,
+  fontSize: 13,
+  lineHeight: 1.6,
+};
+
+const addButtonStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  width: "fit-content",
+  minHeight: 38,
+  marginTop: 4,
+  padding: "0 14px",
+  border: "1px solid #e4ddd6",
+  borderRadius: 8,
+  background: "#ffffff",
+  color: COLOR_SECONDARY,
+  fontSize: 13,
+  fontWeight: 600,
+  letterSpacing: "-0.02em",
+  cursor: "pointer",
+  boxShadow: "0 1px 0 rgba(89, 72, 48, 0.04)",
+};
+
+const inlineFormStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 12,
+  padding: 14,
+  border: "1px solid #e4ddd6",
+  borderRadius: 8,
+  background: "#ffffff",
+  boxShadow: "0 1px 0 rgba(89, 72, 48, 0.04)",
+};
+
+const inlineInputStyle: CSSProperties = {
+  width: "100%",
+  padding: "8px 0",
+  border: 0,
+  borderBottom: "1px solid var(--border-subtle)",
+  background: "transparent",
+  color: COLOR_PRIMARY,
+  fontSize: 14,
+  fontWeight: 500,
+  outline: "none",
+};
+
+const inlineFieldStyle: CSSProperties = {
+  minHeight: 32,
+  padding: "4px 10px",
+  border: "1px solid #e4ddd6",
+  borderRadius: 8,
+  background: "#fbfaf8",
+  color: COLOR_SECONDARY,
+  fontSize: 12,
+  fontWeight: 600,
+  outline: "none",
+};
+
+const inlineRow: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: 8,
+};
+
+const subtleButton: CSSProperties = {
+  padding: "6px 12px",
+  border: 0,
+  borderRadius: 8,
+  background: "transparent",
+  color: COLOR_MUTED,
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+const primaryButton: CSSProperties = {
+  padding: "7px 14px",
+  border: 0,
+  borderRadius: 8,
+  background: COLOR_ACCENT,
+  color: "#ffffff",
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: "-0.015em",
+  cursor: "pointer",
+};
+
+const toolbarInputWrap: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  minHeight: 36,
+  padding: "0 12px",
+  border: "1px solid #e4ddd6",
+  borderRadius: 8,
+  background: "#ffffff",
+  color: COLOR_SECONDARY,
+  flex: 1,
+  minWidth: 0,
+  maxWidth: 320,
+};
+
+const toolbarInput: CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  border: 0,
+  background: "transparent",
+  color: COLOR_PRIMARY,
+  fontSize: 13,
+  outline: "none",
+};
+
+const toolbarSelect: CSSProperties = {
+  minHeight: 36,
+  padding: "0 10px",
+  border: "1px solid #e4ddd6",
+  borderRadius: 8,
+  background: "#ffffff",
+  color: COLOR_SECONDARY,
+  fontSize: 13,
+  fontWeight: 600,
+  outline: "none",
+};
+
+const brainDumpPanel: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 12,
+  padding: "18px 20px",
+  border: "1px solid #e4ddd6",
+  borderRadius: 8,
+  background: "#ffffff",
+  boxShadow: "0 1px 0 rgba(89, 72, 48, 0.04)",
+};
+
+const brainDumpTextarea: CSSProperties = {
+  width: "100%",
+  minHeight: 140,
+  resize: "vertical",
+  padding: "12px 14px",
+  border: "1px solid #e4ddd6",
+  borderRadius: 8,
+  background: "#fdfbf7",
+  color: COLOR_PRIMARY,
+  fontSize: 13,
+  fontWeight: 500,
+  lineHeight: 1.6,
+  outline: "none",
+};
+
+const folderShellStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 16,
+  paddingTop: 24,
+  borderTop: "1px solid #efe8e0",
+};
+
+const folderShellHeader: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 16,
+};
+
+const folderShellTitle: CSSProperties = {
+  color: COLOR_PRIMARY,
+  fontSize: 22,
+  fontWeight: 700,
+  letterSpacing: "-0.04em",
+};
 
 function formatTaskCount(count: number) {
   return `${count} ${count === 1 ? "Aufgabe" : "Aufgaben"}`;
@@ -50,41 +331,30 @@ function formatTaskCount(count: number) {
 
 function Section({
   title,
-  description,
   count,
   collapsed,
   onToggle,
   children,
 }: {
   title: string;
-  description: string;
   count: number;
   collapsed: boolean;
   onToggle: () => void;
   children: ReactNode;
 }) {
   return (
-    <section className="backlog-section">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="backlog-section__header"
-      >
-        <div className="min-w-0 flex-1">
-          <div className="backlog-section__title-row">
-            <h3 className="backlog-section__title">{title}</h3>
-            <span className="backlog-section__count">
-              {formatTaskCount(count)}
-            </span>
-          </div>
-          <p className="backlog-section__description">{description}</p>
+    <section style={sectionStyle}>
+      <button type="button" onClick={onToggle} style={sectionHeaderStyle}>
+        <div style={sectionTitleRow}>
+          <h3 style={sectionTitle}>{title}</h3>
+          <span style={sectionCount}>{formatTaskCount(count)}</span>
         </div>
         <motion.span
-          animate={{ opacity: collapsed ? 0.72 : 1 }}
+          animate={{ rotate: collapsed ? -90 : 0 }}
           transition={{ duration: 0.16 }}
-          className="backlog-section__toggle"
+          style={sectionToggle}
         >
-          {collapsed ? "Anzeigen" : "Einklappen"}
+          <ChevronDown size={16} strokeWidth={2} />
         </motion.span>
       </button>
 
@@ -95,9 +365,9 @@ function Section({
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden"
+            style={{ overflow: "hidden" }}
           >
-            <div className="backlog-section__content">{children}</div>
+            <div style={taskStack}>{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -336,7 +606,7 @@ export default function BacklogList() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 4 }}
       transition={{ duration: 0.16 }}
-      className="backlog-inline-form"
+      style={inlineFormStyle}
     >
       <input
         ref={addInputRef}
@@ -344,24 +614,15 @@ export default function BacklogList() {
         value={newTitle}
         onChange={(event) => setNewTitle(event.target.value)}
         onKeyDown={(event) => handleAddKeyDown(event, bucketOrFolder, isFolder)}
-        placeholder="Neue Aufgabe..."
-        className="w-full border-b bg-transparent pb-3 text-[14px] font-medium outline-none"
-        style={{
-          color: "var(--text-primary)",
-          borderColor: "var(--border-subtle)",
-        }}
+        placeholder="Neue Aufgabe…"
+        style={inlineInputStyle}
       />
 
-      <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center">
+      <div style={inlineRow}>
         <select
           value={newChannelId}
           onChange={(event) => setNewChannelId(event.target.value)}
-          className="rounded-lg border px-3 py-2 text-[11px] font-semibold outline-none"
-          style={{
-            backgroundColor: "var(--bg-input)",
-            borderColor: "var(--border-color)",
-            color: "var(--text-secondary)",
-          }}
+          style={inlineFieldStyle}
         >
           <option value="">Kein Kanal</option>
           {channels.map((channel) => (
@@ -378,21 +639,11 @@ export default function BacklogList() {
           onChange={(event) => setNewPlannedTime(event.target.value)}
           onKeyDown={(event) => handleAddKeyDown(event, bucketOrFolder, isFolder)}
           placeholder="Min."
-          className="rounded-lg border px-3 py-2 text-[11px] font-semibold outline-none md:w-[88px]"
-          style={{
-            backgroundColor: "var(--bg-input)",
-            borderColor: "var(--border-color)",
-            color: "var(--text-secondary)",
-          }}
+          style={{ ...inlineFieldStyle, width: 80 }}
         />
 
-        <div className="flex gap-2 md:ml-auto">
-          <button
-            type="button"
-            onClick={resetInlineForm}
-            className="rounded-lg px-3 py-2 text-[11px] font-semibold"
-            style={{ color: "var(--text-muted)" }}
-          >
+        <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+          <button type="button" onClick={resetInlineForm} style={subtleButton}>
             Abbrechen
           </button>
           <button
@@ -401,10 +652,13 @@ export default function BacklogList() {
               isFolder ? handleAddInFolder(bucketOrFolder) : handleAddTask(bucketOrFolder)
             }
             disabled={!newTitle.trim()}
-            className="rounded-lg px-3 py-2 text-[11px] font-bold text-white disabled:opacity-30"
-            style={{ backgroundColor: "var(--accent-primary)" }}
+            style={{
+              ...primaryButton,
+              opacity: newTitle.trim() ? 1 : 0.35,
+              cursor: newTitle.trim() ? "pointer" : "not-allowed",
+            }}
           >
-            Hinzufuegen
+            Hinzufügen
           </button>
         </div>
       </div>
@@ -416,80 +670,85 @@ export default function BacklogList() {
 
   return (
     <section className="planning-board">
-      <div className="backlog-page-scroll">
-        <div className="backlog-page">
-          <header className="backlog-header">
-            <div className="backlog-header__top">
-              <div className="max-w-[680px]">
-                <div>
-                  <h1 className="backlog-header__title">Backlog</h1>
-                  <p className="backlog-header__description">
-                    Sammle Aufgaben fuer spaeter und sortiere sie mit mehr Luft
-                    und einer ruhigeren Struktur, passend zur Home-Seite.
-                  </p>
-                  <div className="backlog-header__stats">
-                    <span className="backlog-stat">{formatTaskCount(totalCount)}</span>
-                    <span className="backlog-stat">{visibleCount} sichtbar</span>
-                    <span className="backlog-stat">{completedCount} erledigt</span>
-                  </div>
-                </div>
-              </div>
+      <div className="planning-toolbar">
+        <div className="planning-toolbar__group planning-toolbar__group--nav">
+          <button
+            type="button"
+            onClick={() => setBrainDumpActive((current) => !current)}
+            className="planning-toolbar__button"
+            style={
+              brainDumpActive
+                ? {
+                    borderColor: COLOR_ACCENT,
+                    color: COLOR_ACCENT,
+                    background: "rgba(240, 235, 255, 0.55)",
+                  }
+                : undefined
+            }
+          >
+            <NotebookPen size={15} strokeWidth={1.9} />
+            Brain Dump
+          </button>
+        </div>
 
+        <div
+          className="planning-toolbar__group"
+          style={{ flex: 1, justifyContent: "flex-end", flexWrap: "wrap" }}
+        >
+          <label style={toolbarInputWrap}>
+            <Search size={14} strokeWidth={2} color="var(--text-muted)" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Backlog durchsuchen…"
+              style={toolbarInput}
+            />
+            {searchQuery && (
               <button
                 type="button"
-                onClick={() => setBrainDumpActive((current) => !current)}
-                className="backlog-braindump-toggle"
+                onClick={() => setSearchQuery("")}
                 style={{
-                  borderColor: brainDumpActive
-                    ? "var(--accent-primary)"
-                    : "var(--border-color)",
-                  color: brainDumpActive
-                    ? "var(--accent-primary)"
-                    : "var(--text-secondary)",
-                  backgroundColor: brainDumpActive
-                    ? "rgba(240, 235, 255, 0.75)"
-                    : "rgba(255, 255, 255, 0.86)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  border: 0,
+                  background: "transparent",
+                  color: COLOR_MUTED,
+                  cursor: "pointer",
+                  padding: 0,
                 }}
+                aria-label="Suche zurücksetzen"
               >
-                Brain Dump
+                <X size={14} strokeWidth={2} />
               </button>
+            )}
+          </label>
+
+          <select
+            value={filterChannel}
+            onChange={(event) => setFilterChannel(event.target.value)}
+            style={toolbarSelect}
+          >
+            <option value="">Alle Kanäle</option>
+            {channels.map((channel) => (
+              <option key={channel.id} value={channel.id}>
+                #{channel.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="backlog-page-scroll">
+        <div style={innerStyle}>
+          <header style={headerStyle}>
+            <div>
+              <h1 style={titleStyle}>Backlog</h1>
             </div>
-
-            <div className="backlog-controls">
-              <div className="backlog-control backlog-control--search">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Backlog durchsuchen..."
-                  className="flex-1 bg-transparent text-[14px] font-medium outline-none placeholder:text-[var(--text-muted)]"
-                  style={{ color: "var(--text-primary)" }}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="text-[12px] font-semibold"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    Reset
-                  </button>
-                )}
-              </div>
-
-              <select
-                value={filterChannel}
-                onChange={(event) => setFilterChannel(event.target.value)}
-                className="backlog-control backlog-control--select text-[13px] font-semibold outline-none"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                <option value="">Alle Kanaele</option>
-                {channels.map((channel) => (
-                  <option key={channel.id} value={channel.id}>
-                    #{channel.name}
-                  </option>
-                ))}
-              </select>
+            <div style={pillsRow}>
+              <span style={pillStyle}>{formatTaskCount(totalCount)}</span>
+              <span style={pillStyle}>{visibleCount} sichtbar</span>
+              <span style={pillStyle}>{completedCount} erledigt</span>
             </div>
           </header>
 
@@ -500,15 +759,25 @@ export default function BacklogList() {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                className="overflow-hidden"
+                style={{ overflow: "hidden" }}
               >
-                <div className="backlog-braindump-panel">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                <div style={brainDumpPanel}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                  >
                     <p
-                      className="text-[13px] font-semibold"
-                      style={{ color: "var(--text-secondary)" }}
+                      style={{
+                        color: COLOR_SECONDARY,
+                        fontSize: 13,
+                        fontWeight: 600,
+                      }}
                     >
-                      Brain Dump - eine Aufgabe pro Zeile
+                      Eine Aufgabe pro Zeile
                     </p>
 
                     <select
@@ -516,8 +785,7 @@ export default function BacklogList() {
                       onChange={(event) =>
                         setBrainDumpBucket(event.target.value as BucketKey)
                       }
-                      className="backlog-braindump-select text-[12px] font-semibold outline-none md:ml-auto"
-                      style={{ color: "var(--text-secondary)" }}
+                      style={{ ...inlineFieldStyle, marginLeft: "auto" }}
                     >
                       {BUCKETS.map((bucket) => (
                         <option key={bucket.key} value={bucket.key}>
@@ -531,30 +799,38 @@ export default function BacklogList() {
                     ref={brainDumpRef}
                     value={brainDumpText}
                     onChange={(event) => setBrainDumpText(event.target.value)}
-                    placeholder={"E-Mails beantworten\nPraesentation vorbereiten\nGitHub Issues aufraeumen\n..."}
+                    placeholder={"E-Mails beantworten\nPräsentation vorbereiten\nGitHub Issues aufräumen\n…"}
                     rows={6}
-                    className="backlog-braindump-textarea"
-                    style={{ color: "var(--text-primary)" }}
+                    style={brainDumpTextarea}
                   />
 
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
                     <span
-                      className="text-[11px] font-semibold"
-                      style={{ color: "var(--text-muted)" }}
+                      style={{
+                        color: COLOR_MUTED,
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
                     >
                       {brainDumpText.split("\n").filter((line) => line.trim()).length}{" "}
-                      Eintraege
+                      Einträge
                     </span>
 
-                    <div className="flex gap-2">
+                    <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
                       <button
                         type="button"
                         onClick={() => {
                           setBrainDumpActive(false);
                           setBrainDumpText("");
                         }}
-                        className="rounded-lg px-3 py-2 text-[12px] font-semibold"
-                        style={{ color: "var(--text-secondary)" }}
+                        style={subtleButton}
                       >
                         Abbrechen
                       </button>
@@ -566,10 +842,13 @@ export default function BacklogList() {
                             .split("\n")
                             .some((line) => line.trim().length > 0)
                         }
-                        className="rounded-lg px-3 py-2 text-[12px] font-bold text-white disabled:opacity-30"
-                        style={{ backgroundColor: "var(--accent-primary)" }}
+                        style={{
+                          ...primaryButton,
+                          opacity: brainDumpText.trim() ? 1 : 0.35,
+                          cursor: brainDumpText.trim() ? "pointer" : "not-allowed",
+                        }}
                       >
-                        Alle hinzufuegen
+                        Alle hinzufügen
                       </button>
                     </div>
                   </div>
@@ -578,13 +857,22 @@ export default function BacklogList() {
             )}
           </AnimatePresence>
 
-          <div className="backlog-content">
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {backlogLoading && backlogTasks.length === 0 && (
-              <div className="flex items-center justify-center py-24">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "96px 0",
+                }}
+              >
                 <motion.div
-                  className="h-5 w-5 rounded-full border-2 border-t-transparent"
                   style={{
-                    borderColor: "var(--accent-primary)",
+                    height: 20,
+                    width: 20,
+                    borderRadius: 999,
+                    border: `2px solid ${COLOR_ACCENT}`,
                     borderTopColor: "transparent",
                   }}
                   animate={{ rotate: 360 }}
@@ -598,34 +886,56 @@ export default function BacklogList() {
             )}
 
             {showGlobalEmpty && (
-              <div className="backlog-empty-state py-[72px] text-center">
+              <div
+                style={{
+                  padding: "72px 0",
+                  textAlign: "center",
+                }}
+              >
                 <p
-                  className="text-[18px] font-semibold"
-                  style={{ color: "var(--text-primary)" }}
+                  style={{
+                    color: COLOR_PRIMARY,
+                    fontSize: 18,
+                    fontWeight: 700,
+                    letterSpacing: "-0.025em",
+                  }}
                 >
                   Dein Backlog ist leer
                 </p>
                 <p
-                  className="mt-2 text-[14px]"
-                  style={{ color: "var(--text-secondary)" }}
+                  style={{
+                    marginTop: 6,
+                    color: COLOR_SECONDARY,
+                    fontSize: 13,
+                  }}
                 >
-                  Nutze Brain Dump oder fuege direkt im passenden Bereich eine
-                  Aufgabe hinzu.
+                  Nutze Brain Dump oder füge im passenden Bereich eine Aufgabe hinzu.
                 </p>
               </div>
             )}
 
             {showNoResults && (
-              <div className="backlog-empty-state py-[56px] text-center">
+              <div
+                style={{
+                  padding: "56px 0",
+                  textAlign: "center",
+                }}
+              >
                 <p
-                  className="text-[15px] font-semibold"
-                  style={{ color: "var(--text-primary)" }}
+                  style={{
+                    color: COLOR_PRIMARY,
+                    fontSize: 15,
+                    fontWeight: 700,
+                  }}
                 >
-                  Keine Treffer fuer die aktuelle Ansicht
+                  Keine Treffer
                 </p>
                 <p
-                  className="mt-2 text-[13px]"
-                  style={{ color: "var(--text-secondary)" }}
+                  style={{
+                    marginTop: 6,
+                    color: COLOR_SECONDARY,
+                    fontSize: 13,
+                  }}
                 >
                   Passe Suche oder Kanalfilter an.
                 </p>
@@ -633,7 +943,7 @@ export default function BacklogList() {
             )}
 
             {!showGlobalEmpty && !showNoResults && (
-              <div className="space-y-6">
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {BUCKETS.map((bucket) => {
                   const tasks = tasksByBucket[bucket.key] || [];
 
@@ -641,7 +951,6 @@ export default function BacklogList() {
                     <Section
                       key={bucket.key}
                       title={bucket.label}
-                      description={bucket.description}
                       count={tasks.length}
                       collapsed={collapsedBuckets.has(bucket.key)}
                       onToggle={() => toggleBucket(bucket.key)}
@@ -670,9 +979,7 @@ export default function BacklogList() {
                       </SortableContext>
 
                       {tasks.length === 0 && !searchQuery && (
-                        <p className="backlog-empty-copy">
-                          Noch keine Aufgaben in diesem Bereich.
-                        </p>
+                        <p style={emptyCopy}>Noch keine Aufgaben.</p>
                       )}
 
                       <AnimatePresence mode="wait">
@@ -689,9 +996,10 @@ export default function BacklogList() {
                               requestBacklogQuickAdd(bucket.key);
                               setNewTitle("");
                             }}
-                            className="backlog-add-button"
+                            style={addButtonStyle}
                           >
-                            Aufgabe hinzufuegen
+                            <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+                            Aufgabe hinzufügen
                           </motion.button>
                         )}
                       </AnimatePresence>
@@ -699,21 +1007,15 @@ export default function BacklogList() {
                   );
                 })}
 
-                <section className="backlog-folder-shell">
-                  <div className="backlog-folder-shell__header">
-                    <div>
-                      <h3 className="backlog-folder-shell__title">Ordner</h3>
-                      <p className="backlog-folder-shell__description">
-                        Themen oder Projekte getrennt sammeln.
-                      </p>
-                    </div>
-
-                    <span className="backlog-section__count">
+                <section style={folderShellStyle}>
+                  <div style={folderShellHeader}>
+                    <h3 style={folderShellTitle}>Ordner</h3>
+                    <span style={sectionCount}>
                       {visibleFolders.length} sichtbar
                     </span>
                   </div>
 
-                  <div className="mt-6 space-y-6">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {visibleFolders.length > 0 ? (
                       visibleFolders.map((folder) => {
                         const folderTasks = tasksByFolder[folder] || [];
@@ -722,7 +1024,6 @@ export default function BacklogList() {
                           <Section
                             key={folder}
                             title={folder}
-                            description="Gemeinsamer Kontext fuer zusammengehoerige Aufgaben."
                             count={folderTasks.length}
                             collapsed={collapsedFolders.has(folder)}
                             onToggle={() => toggleFolder(folder)}
@@ -751,9 +1052,7 @@ export default function BacklogList() {
                             </SortableContext>
 
                             {folderTasks.length === 0 && (
-                              <p className="backlog-empty-copy">
-                                Noch keine Aufgaben in diesem Ordner.
-                              </p>
+                              <p style={emptyCopy}>Noch keine Aufgaben.</p>
                             )}
 
                             <AnimatePresence mode="wait">
@@ -770,9 +1069,10 @@ export default function BacklogList() {
                                     requestBacklogQuickAdd(`folder:${folder}`);
                                     setNewTitle("");
                                   }}
-                                  className="backlog-add-button"
+                                  style={addButtonStyle}
                                 >
-                                  Aufgabe hinzufuegen
+                                  <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+                                  Aufgabe hinzufügen
                                 </motion.button>
                               )}
                             </AnimatePresence>
@@ -780,9 +1080,7 @@ export default function BacklogList() {
                         );
                       })
                     ) : (
-                      <p className="backlog-empty-copy">
-                        Noch keine Ordner angelegt.
-                      </p>
+                      <p style={emptyCopy}>Noch keine Ordner angelegt.</p>
                     )}
 
                     <AnimatePresence mode="wait">
@@ -792,9 +1090,9 @@ export default function BacklogList() {
                           initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 4 }}
-                          className="backlog-inline-form"
+                          style={inlineFormStyle}
                         >
-                          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                          <div style={inlineRow}>
                             <input
                               ref={folderInputRef}
                               type="text"
@@ -807,23 +1105,18 @@ export default function BacklogList() {
                                   setNewFolderName("");
                                 }
                               }}
-                              placeholder="Ordnername..."
-                              className="flex-1 border-b bg-transparent pb-2 text-[13px] font-medium outline-none"
-                              style={{
-                                color: "var(--text-primary)",
-                                borderColor: "var(--border-color)",
-                              }}
+                              placeholder="Ordnername…"
+                              style={{ ...inlineInputStyle, flex: 1, minWidth: 200 }}
                             />
 
-                            <div className="flex gap-2 md:ml-auto">
+                            <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
                               <button
                                 type="button"
                                 onClick={() => {
                                   setShowNewFolder(false);
                                   setNewFolderName("");
                                 }}
-                                className="rounded-lg px-3 py-2 text-[12px] font-semibold"
-                                style={{ color: "var(--text-secondary)" }}
+                                style={subtleButton}
                               >
                                 Abbrechen
                               </button>
@@ -831,8 +1124,11 @@ export default function BacklogList() {
                                 type="button"
                                 onClick={handleCreateFolder}
                                 disabled={!newFolderName.trim()}
-                                className="rounded-lg px-3 py-2 text-[12px] font-bold text-white disabled:opacity-30"
-                                style={{ backgroundColor: "var(--accent-primary)" }}
+                                style={{
+                                  ...primaryButton,
+                                  opacity: newFolderName.trim() ? 1 : 0.35,
+                                  cursor: newFolderName.trim() ? "pointer" : "not-allowed",
+                                }}
                               >
                                 Erstellen
                               </button>
@@ -847,8 +1143,9 @@ export default function BacklogList() {
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
                           onClick={() => setShowNewFolder(true)}
-                          className="backlog-add-button"
+                          style={addButtonStyle}
                         >
+                          <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
                           Neuer Ordner
                         </motion.button>
                       )}
