@@ -23,7 +23,7 @@ import type { CalendarEvent } from "@/types";
 import { toLocalDateString } from "@/lib/date";
 
 export const START_HOUR = 6;
-export const END_HOUR = 22;
+export const END_HOUR = 23;
 export const HOUR_HEIGHT = 64; // slightly smaller in week view
 
 const HOURS = Array.from(

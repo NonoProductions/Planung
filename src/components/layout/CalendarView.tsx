@@ -25,7 +25,7 @@ import {
 import type { CalendarEvent, Task } from "@/types";
 
 export const START_HOUR = 6;
-export const END_HOUR = 22;
+export const END_HOUR = 23;
 export const HOUR_HEIGHT = 72;
 
 const GRID_GUTTER = 62;
@@ -98,15 +98,18 @@ export default function CalendarView() {
 
     const maxLeft = Math.max(FORM_MARGIN, grid.clientWidth - width - FORM_MARGIN);
 
-    // Clamp vertically within the currently-visible viewport so the form is
-    // always fully visible without needing to scroll the calendar.
+    // Clamp vertically so the form stays within the grid and within the visible viewport.
     const viewportTop = scroll?.scrollTop ?? 0;
     const viewportBottom = viewportTop + (scroll?.clientHeight ?? HOURS.length * HOUR_HEIGHT);
+    const gridMaxTop = grid.clientHeight - height - FORM_MARGIN;
     const minTop = viewportTop + FORM_MARGIN;
-    const maxTop = Math.max(minTop, viewportBottom - height - FORM_MARGIN);
+    const maxTop = Math.min(
+      gridMaxTop,
+      Math.max(minTop, viewportBottom - height - FORM_MARGIN)
+    );
 
     return {
-      top: Math.max(minTop, Math.min(top, maxTop)),
+      top: Math.min(Math.max(minTop, Math.min(top, maxTop)), gridMaxTop),
       left: Math.max(FORM_MARGIN, Math.min(left, maxLeft)),
     };
   }, []);

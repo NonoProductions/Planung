@@ -70,11 +70,16 @@ interface TaskRow {
   title: string;
   status: string;
   scheduledDate: string | null;
+  scheduledStart: string | null;
+  scheduledEnd: string | null;
   actualTime: number | null;
   completedAt: string | null;
 }
 
-function pickBestMatch(event: IcsEvent, candidates: TaskRow[]): TaskRow | null {
+function pickBestMatch(
+  event: { start: Date; end: Date },
+  candidates: TaskRow[]
+): TaskRow | null {
   if (candidates.length === 0) return null;
 
   // Prefer (in this order):
@@ -82,14 +87,37 @@ function pickBestMatch(event: IcsEvent, candidates: TaskRow[]): TaskRow | null {
   //      otherwise pomodoros from past days get hoovered up onto today's
   //      open task because old tasks are usually already COMPLETED.
   //   2. Open / in-progress over completed.
-  //   3. Closest scheduledDate to event date.
-  //   4. Longest title (more specific match).
+  //   3. Time-of-day proximity to the task's planned block. This is what
+  //      separates two same-day tasks with the same title (e.g. "Physik"
+  //      in the morning and again in the afternoon): the pomodoro is
+  //      credited to the block whose time window it actually falls in, and
+  //      — when it lands in the gap between blocks — to the nearest one.
+  //   4. Closest scheduledDate to event date.
+  //   5. Longest title (more specific match).
   const eventDay = event.start.toISOString().slice(0, 10);
+
+  const timeBonus = (task: TaskRow): number => {
+    if (!task.scheduledStart) return 0;
+    const winStart = Date.parse(task.scheduledStart);
+    if (!Number.isFinite(winStart)) return 0;
+    const winEnd = task.scheduledEnd ? Date.parse(task.scheduledEnd) : winStart;
+    const evStart = event.start.getTime();
+    const evEnd = event.end ? event.end.getTime() : evStart;
+    // Overlap (in minutes) between the pomodoro [evStart,evEnd] and the
+    // planned block [winStart,winEnd]. Positive = they overlap.
+    const overlapMin =
+      (Math.min(evEnd, winEnd) - Math.max(evStart, winStart)) / 60_000;
+    if (overlapMin >= 0) return 400; // pomodoro falls inside the planned block
+    // Disjoint: bonus shrinks with the gap to the nearest edge, 0 past ~5h.
+    // Stays below the +1000 same-day weight so a same-day task always wins.
+    return Math.max(0, 300 + overlapMin);
+  };
 
   const score = (task: TaskRow): number => {
     let s = 0;
     if (task.scheduledDate && task.scheduledDate.startsWith(eventDay)) s += 1000;
     if (task.status !== "COMPLETED" && task.status !== "ARCHIVED") s += 100;
+    s += timeBonus(task);
     if (task.scheduledDate) {
       const diffDays = Math.abs(
         (new Date(task.scheduledDate).getTime() - event.start.getTime()) / (24 * 60 * 60 * 1000)
@@ -114,7 +142,7 @@ async function findMatchingTasks(userId: string, summary: string): Promise<TaskR
   // Tasks whose title contains the event summary.
   const { data: containsHit, error: e1 } = await supabase
     .from("Task")
-    .select("id, title, status, scheduledDate, actualTime, completedAt")
+    .select("id, title, status, scheduledDate, scheduledStart, scheduledEnd, actualTime, completedAt")
     .eq("userId", userId)
     .ilike("title", `%${escaped}%`);
 
@@ -128,7 +156,7 @@ async function findMatchingTasks(userId: string, summary: string): Promise<TaskR
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const { data: recent, error: e2 } = await supabase
     .from("Task")
-    .select("id, title, status, scheduledDate, actualTime, completedAt")
+    .select("id, title, status, scheduledDate, scheduledStart, scheduledEnd, actualTime, completedAt")
     .eq("userId", userId)
     .gte("scheduledDate", ninetyDaysAgo)
     .limit(500);
@@ -281,7 +309,65 @@ export async function runSync(userId: string): Promise<SyncResult> {
   return result;
 }
 
+// Re-run the matching for events that fall on the current day, using the
+// live task list and the current pickBestMatch logic, and update their stored
+// matchedTaskId. This keeps *today* correct when tasks are (re)scheduled or the
+// matching algorithm changes, without re-importing. Past days stay frozen with
+// the matching they had when they were synced.
+async function rematchTodaysEvents(userId: string): Promise<void> {
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
+  const { data, error } = await supabase
+    .from("CalDavProcessedEvent")
+    .select("eventUid, eventSummary, eventStart, eventEnd, matchedTaskId")
+    .eq("userId", userId)
+    .gte("eventStart", dayStart.toISOString())
+    .lt("eventStart", dayEnd.toISOString());
+
+  if (error || !data) return;
+
+  type Row = {
+    eventUid: string;
+    eventSummary: string | null;
+    eventStart: string | null;
+    eventEnd: string | null;
+    matchedTaskId: string | null;
+  };
+
+  for (const row of data as Row[]) {
+    if (!row.eventSummary || !row.eventStart) continue;
+
+    let matches: TaskRow[];
+    try {
+      matches = await findMatchingTasks(userId, row.eventSummary);
+    } catch {
+      continue;
+    }
+
+    const start = new Date(row.eventStart);
+    const end = row.eventEnd ? new Date(row.eventEnd) : start;
+    const best = pickBestMatch({ start, end }, matches);
+
+    // best === null leaves the existing match untouched (don't orphan an event
+    // whose task was deleted/renamed since the original sync).
+    if (best && best.id !== row.matchedTaskId) {
+      await supabase
+        .from("CalDavProcessedEvent")
+        .update({ matchedTaskId: best.id, matchedTaskTitle: best.title })
+        .eq("userId", userId)
+        .eq("eventUid", row.eventUid);
+    }
+  }
+}
+
 async function recomputeActualTimeForUser(userId: string): Promise<void> {
+  // Fix today's attributions before summing, so a sync (even a no-op one)
+  // always leaves the current day correct.
+  await rematchTodaysEvents(userId);
+
   const { data, error } = await supabase
     .from("CalDavProcessedEvent")
     .select("matchedTaskId, durationMinutes, eventStart, eventSummary")

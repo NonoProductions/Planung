@@ -82,7 +82,7 @@ function scheduleTaskOnCalendar(
   const hour = CALENDAR_START_HOUR + Math.floor(snapped / 60);
   const minute = snapped % 60;
 
-  if (hour < CALENDAR_START_HOUR || hour >= 22) return false;
+  if (hour < CALENDAR_START_HOUR) return false;
 
   const selectedDate = useUIStore.getState().selectedDate;
   const timeStr = `${hour.toString().padStart(2, "0")}:${minute

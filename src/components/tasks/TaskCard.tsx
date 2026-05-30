@@ -617,11 +617,14 @@ function EditableTaskCard({
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
+                            alignSelf: "center",
                             color: "var(--text-muted)",
                             cursor: "grab",
                             padding: "0 2px",
                             border: "none",
                             background: "none",
+                            height: 22,
+                            flexShrink: 0,
                           }}
                           aria-label="Drag subtask"
                           {...dragHandleProps}

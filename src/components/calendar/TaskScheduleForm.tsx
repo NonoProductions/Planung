@@ -84,7 +84,9 @@ export default function TaskScheduleForm({
             toTimeInputValue(task.scheduledEnd)
           )
         : task.plannedTime || 60;
-  const initialEndTime = addMinutes(initialStartTime, initialDuration);
+  const initialEndTime = hasExistingPomodoroBreaks
+    ? addMinutes(initialStartTime, buildPomodoroPlan(initialDuration).totalSpanMinutes)
+    : addMinutes(initialStartTime, initialDuration);
 
   const [scheduleDate, setScheduleDate] = useState(initialDate);
   const [startTime, setStartTime] = useState(initialStartTime);
@@ -92,6 +94,13 @@ export default function TaskScheduleForm({
   const [plannedTime, setPlannedTime] = useState(initialDuration);
   const [pomodoroSplit, setPomodoroSplit] = useState(hasExistingPomodoroBreaks);
   const [showHint, setShowHint] = useState(false);
+
+  const computeEndTime = (start: string, workMinutes: number, withPomodoro: boolean) => {
+    const totalMinutes = withPomodoro
+      ? buildPomodoroPlan(workMinutes).totalSpanMinutes
+      : workMinutes;
+    return addMinutes(start, totalMinutes);
+  };
 
   const isScheduled = Boolean(task.scheduledStart && task.scheduledEnd);
 
@@ -127,7 +136,7 @@ export default function TaskScheduleForm({
 
   const handleStartTimeChange = (value: string) => {
     setStartTime(value);
-    setEndTime(addMinutes(value, plannedTime));
+    setEndTime(computeEndTime(value, plannedTime, pomodoroSplit));
   };
 
   const handleEndTimeChange = (value: string) => {
@@ -139,7 +148,15 @@ export default function TaskScheduleForm({
   const handlePlannedTimeChange = (value: string) => {
     const nextMinutes = Math.max(15, parseInt(value, 10) || 15);
     setPlannedTime(nextMinutes);
-    setEndTime(addMinutes(startTime, nextMinutes));
+    setEndTime(computeEndTime(startTime, nextMinutes, pomodoroSplit));
+  };
+
+  const handleTogglePomodoroSplit = () => {
+    setPomodoroSplit((current) => {
+      const next = !current;
+      setEndTime(computeEndTime(startTime, plannedTime, next));
+      return next;
+    });
   };
 
   const pomodoroPreview = useMemo(() => {
@@ -155,8 +172,6 @@ export default function TaskScheduleForm({
   }, [pomodoroSplit, plannedTime]);
 
   const handleSubmit = () => {
-    const nextDuration = getDurationMinutes(startTime, endTime);
-
     if (timeToMinutes(endTime) <= timeToMinutes(startTime)) {
       setShowHint(true);
       return;
@@ -164,9 +179,10 @@ export default function TaskScheduleForm({
 
     setShowHint(false);
 
-    // When pomodoro split is on, the calendar span is work + breaks; the parent
-    // expands the end accordingly. Here we still send the plain start/end based
-    // on plannedTime (work minutes only) and let the parent compute the span.
+    const workMinutes = pomodoroSplit
+      ? plannedTime
+      : getDurationMinutes(startTime, endTime);
+
     const finalStart = toLocalDateTimeString(
       new Date(`${scheduleDate}T${startTime}:00`)
     );
@@ -174,7 +190,7 @@ export default function TaskScheduleForm({
       ? toLocalDateTimeString(
           new Date(
             new Date(`${scheduleDate}T${startTime}:00`).getTime() +
-              buildPomodoroPlan(nextDuration).totalSpanMinutes * 60_000
+              buildPomodoroPlan(workMinutes).totalSpanMinutes * 60_000
           )
         )
       : toLocalDateTimeString(new Date(`${scheduleDate}T${endTime}:00`));
@@ -183,7 +199,7 @@ export default function TaskScheduleForm({
       scheduledDate: scheduleDate,
       scheduledStart: finalStart,
       scheduledEnd: finalEnd,
-      plannedTime: nextDuration,
+      plannedTime: workMinutes,
       pomodoroSplit,
     });
   };
@@ -442,7 +458,7 @@ export default function TaskScheduleForm({
           <div>
             <button
               type="button"
-              onClick={() => setPomodoroSplit((value) => !value)}
+              onClick={handleTogglePomodoroSplit}
               className="flex w-full items-center justify-between gap-2 rounded-[8px] text-left transition-colors"
               style={{
                 ...inputBaseStyle,

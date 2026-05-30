@@ -3107,7 +3107,7 @@ textarea {
 
 .planning-card__subtask {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
 }
 
@@ -3118,7 +3118,6 @@ textarea {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  margin-top: 1px;
   border: 1px solid #d7d2cb;
   border-radius: 999px;
   background: transparent;
@@ -3281,7 +3280,7 @@ textarea {
 
 .calendar-toolbar {
   display: flex;
-  height: 56px;
+  height: 58px;
   align-items: center;
   justify-content: flex-end;
   padding: 0 16px 0 16px;
@@ -3451,12 +3450,13 @@ textarea {
   width: 62px;
   flex-shrink: 0;
   padding-right: 12px;
-  padding-top: 1px;
   text-align: right;
   color: #b0a89f;
   font-size: 11px;
   font-weight: 600;
+  line-height: 1;
   letter-spacing: -0.01em;
+  transform: translateY(2px);
 }
 
 .calendar-hour-line {
