@@ -29,6 +29,7 @@ type QuickAddRequest =
 
 interface UIState {
   sidebarExpanded: boolean;
+  sidebarCollapsed: boolean;
   darkMode: boolean;
   calendarVisible: boolean;
   selectedDate: string;
@@ -53,6 +54,7 @@ interface UIState {
   dailyShutdownNotes: Record<string, string>;
   toggleSidebar: () => void;
   setSidebarExpanded: (expanded: boolean) => void;
+  toggleSidebarCollapsed: () => void;
   toggleDarkMode: () => void;
   toggleCalendar: () => void;
   setCalendarVisible: (visible: boolean) => void;
@@ -151,6 +153,7 @@ export const useUIStore = create<UIState>()(
   persist(
     (set, get) => ({
       sidebarExpanded: false,
+      sidebarCollapsed: false,
       darkMode: false,
       calendarVisible: true,
       selectedDate: toLocalDateString(new Date()),
@@ -179,6 +182,9 @@ export const useUIStore = create<UIState>()(
 
       setSidebarExpanded: (expanded: boolean) =>
         set({ sidebarExpanded: expanded }),
+
+      toggleSidebarCollapsed: () =>
+        set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
       toggleDarkMode: () =>
         set((state) => {
@@ -349,6 +355,7 @@ export const useUIStore = create<UIState>()(
       name: "sunsama-ui-preferences",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
+        sidebarCollapsed: state.sidebarCollapsed,
         darkMode: state.darkMode,
         quietMode: state.quietMode,
         quietModeDate: state.quietModeDate,

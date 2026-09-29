@@ -4,17 +4,13 @@ import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { addDays, format, parseISO, subDays } from "date-fns";
 import { de } from "date-fns/locale";
 import {
-  ArrowRightLeft,
   CalendarDays,
   CalendarCheck2,
-  CheckCheck,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
-  Clock3,
   Copy,
   Plus,
-  Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DonutTimer from "@/components/ui/DonutTimer";
@@ -375,35 +371,9 @@ export default function DailyPlanningPage() {
   }
 
   return (
-    <div className="workspace-page planning-workspace-page">
-      <div className="workspace-page__header">
-        <div className="workspace-page__intro">
-          <p className="workspace-page__eyebrow">Daily Planning</p>
-          <h1 className="workspace-page__title workspace-page__title--wide">
-            Planung fuer {activeDateLabel}
-          </h1>
-          <p className="workspace-page__copy">
-            Die Morgenplanung ist jetzt eine eigene Seite. Du kannst Uebernahmen
-            aus dem Vortag sammeln, Backlog-Aufgaben einziehen, Schaetzungen in
-            5-Minuten-Schritten setzen und erst dann zur Tagesansicht zurueckkehren.
-          </p>
-
-          <div className="workspace-page__meta">
-            <StatusPill
-              label={
-                planningDone ? "Bereits abgeschlossen" : "Noch nicht abgeschlossen"
-              }
-              tone={planningDone ? "success" : "accent"}
-            />
-            <StatusPill label={`${openDayTasks.length} offene Tasks`} tone="neutral" />
-            <StatusPill
-              label={`${formatMinutes(plannedMinutes)} geplant`}
-              tone={workloadTone}
-            />
-          </div>
-        </div>
-
-        <div className="workspace-page__actions planning-toolbar__group planning-toolbar__group--nav">
+    <div className="workspace-page">
+      <div className="planning-toolbar">
+        <div className="planning-toolbar__group planning-toolbar__group--nav">
           <button
             type="button"
             onClick={() => setSelectedDate(previousDate)}
@@ -412,7 +382,6 @@ export default function DailyPlanningPage() {
           >
             <ChevronLeft size={15} strokeWidth={2} />
           </button>
-
           <button
             type="button"
             onClick={() => setSelectedDate(toLocalDateString(new Date()))}
@@ -421,7 +390,6 @@ export default function DailyPlanningPage() {
             <CalendarDays size={15} strokeWidth={1.9} />
             Today
           </button>
-
           <button
             type="button"
             onClick={() => setSelectedDate(nextDate)}
@@ -430,561 +398,409 @@ export default function DailyPlanningPage() {
           >
             <ChevronRight size={15} strokeWidth={2} />
           </button>
+          <span className="settings-toolbar__title ml-2 hidden sm:inline">
+            Planung fuer {activeDateLabel}
+          </span>
+        </div>
 
+        <div className="planning-toolbar__group">
+          <button type="button" onClick={handleSkipPlanning} className="planning-toolbar__button">
+            Ueberspringen
+          </button>
           <button
             type="button"
-            onClick={handleSkipPlanning}
-            className="planning-toolbar__button"
+            onClick={handleCompletePlanning}
+            className="workspace-button workspace-button--primary ritual-toolbar-primary"
           >
-            Ueberspringen
+            <CalendarCheck2 size={15} strokeWidth={2} />
+            Abschliessen
           </button>
         </div>
       </div>
 
       <div className="workspace-page__scroll">
-        <div className="workspace-page__content workspace-page__content--wide">
-          <div className="workspace-page__stack">
-            {notice && (
-              <div className="workspace-note planning-note px-4 py-3 text-[13px] leading-6">
-                {notice}
-              </div>
-            )}
+        <div className="analytics-page">
+          {notice && <p className="analytics-notice">{notice}</p>}
 
-            <div className="planning-stat-grid">
-              <StatCard
-                icon={<ArrowRightLeft size={17} strokeWidth={2} />}
-                label="Carryover"
-                value={String(yesterdayCarryover.length)}
-                detail={
-                  yesterdayCarryover.length > 0
-                    ? "Offene Punkte von gestern koennen gezielt uebernommen werden."
-                    : "Keine offenen Altlasten fuer den Start in den Tag."
-                }
-              />
-              <StatCard
-                icon={<Clock3 size={17} strokeWidth={2} />}
-                label="Geplante Zeit"
-                value={formatMinutes(plannedMinutes)}
-                detail={
-                  dailyLimit > 0
-                    ? `${formatMinutes(dailyLimit)} Tageslimit laut Settings.`
-                    : "Noch kein Tageslimit hinterlegt."
-                }
-              />
-              <StatCard
-                icon={<CheckCheck size={17} strokeWidth={2} />}
-                label="Bereits erledigt"
-                value={String(completedDayTasks.length)}
-                detail={
-                  completedDayTasks.length > 0
-                    ? "Abgeschlossene Tasks bleiben sichtbar und geben Kontext."
-                    : "Der Tag ist noch komplett offen."
-                }
-              />
-            </div>
+          <div className="analytics-stats">
+            <Stat
+              label="Status"
+              value={planningDone ? "Geplant" : "Offen"}
+              detail={planningDone ? "Ritual abgeschlossen" : "Ritual noch nicht abgeschlossen"}
+            />
+            <Stat
+              label="Carryover"
+              value={String(yesterdayCarryover.length)}
+              detail="Offene Aufgaben von gestern"
+            />
+            <Stat
+              label="Geplante Zeit"
+              value={formatMinutes(plannedMinutes)}
+              detail={
+                dailyLimit > 0
+                  ? `von ${formatMinutes(dailyLimit)} Tageslimit`
+                  : "Noch kein Tageslimit hinterlegt"
+              }
+              tone={workloadTone}
+            />
+            <Stat
+              label="Erledigt"
+              value={`${completedDayTasks.length}/${completedDayTasks.length + openDayTasks.length}`}
+              detail="Aufgaben an diesem Tag"
+            />
+          </div>
 
-            <div className="workspace-page__split--wide planning-ritual-layout">
-              <div className="planning-ritual-column">
-                <SurfaceCard
-                  eyebrow="Schritt 1"
-                  title="Unerledigte Aufgaben von gestern pruefen"
-                  action={
-                    yesterdayCarryover.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={toggleAllCarryover}
-                        className="workspace-button"
-                      >
-                        {activeCarryoverSelection.length === yesterdayCarryover.length
-                          ? "Alle abwaehlen"
-                          : "Alle markieren"}
-                      </button>
-                    ) : undefined
-                  }
-                >
-                  {yesterdayCarryover.length > 0 ? (
-                    <>
-                      <div className="planning-flow-list">
-                        {yesterdayCarryover.map((task) => {
-                          const selected = activeCarryoverSelection.includes(task.id);
+          <div className="analytics-columns">
+            <RitualSection
+              title="Gestern"
+              subtitle="Offene Aufgaben uebernehmen"
+              action={
+                yesterdayCarryover.length > 0 ? (
+                  <button type="button" onClick={toggleAllCarryover} className="planning-toolbar__button">
+                    {activeCarryoverSelection.length === yesterdayCarryover.length
+                      ? "Keine"
+                      : "Alle"}
+                  </button>
+                ) : undefined
+              }
+            >
+              {yesterdayCarryover.length > 0 ? (
+                <>
+                  <div className="ritual-list">
+                    {yesterdayCarryover.map((task) => {
+                      const selected = activeCarryoverSelection.includes(task.id);
 
-                          return (
-                            <label
-                              key={task.id}
-                              data-selected={selected ? "true" : "false"}
-                              className="planning-flow-item planning-flow-item--selectable"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selected}
-                                onChange={() => toggleCarryover(task.id)}
-                                className="mt-1 h-4 w-4 accent-[var(--accent-primary)]"
-                              />
-                              <TaskCopy
-                                title={task.title}
-                                meta={[
-                                  task.channel?.name ? `#${task.channel.name}` : null,
-                                  task.plannedTime
-                                    ? `${formatMinutes(task.plannedTime)} geplant`
-                                    : "ohne Schaetzung",
-                                ]}
-                              />
-                            </label>
-                          );
-                        })}
-                      </div>
-
-                      <div className="planning-action-row mt-6">
-                        <button
-                          type="button"
-                          onClick={() => void handleCarryoverApply()}
-                          className="workspace-button workspace-button--primary"
-                          disabled={activeCarryoverSelection.length === 0}
-                        >
-                          Auswahl uebernehmen
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedDate(previousDate)}
-                          className="workspace-button"
-                        >
-                          Gestern ansehen
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <EmptyState text="Gestern sind keine offenen Aufgaben uebrig geblieben. Du startest heute mit einem sauberen Blatt." />
-                  )}
-                </SurfaceCard>
-
-                <SurfaceCard
-                  eyebrow="Schritt 2"
-                  title="Backlog importieren oder neue Aufgaben anlegen"
-                >
-                  <div className="planning-quickadd-grid">
-                    <div className="planning-quickadd-panel">
-                      <div className="planning-copy-block">
-                        <p
-                          className="text-[12px] font-semibold uppercase tracking-[0.18em]"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          Quick Add
-                        </p>
-                        <p
-                          className="mt-2 text-[13px] leading-6"
-                          style={{ color: "var(--text-secondary)" }}
-                        >
-                          Direkt in den heutigen Plan schreiben, ohne den Kontext
-                          zu verlassen.
-                        </p>
-                      </div>
-
-                      <input
-                        type="text"
-                        value={newTaskTitle}
-                        onChange={(event) => setNewTaskTitle(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            void handleAddTask();
-                          }
-                        }}
-                        placeholder="Neue Aufgabe fuer heute"
-                        className="workspace-input"
-                      />
-
-                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
-                        <select
-                          value={newTaskChannelId}
-                          onChange={(event) => setNewTaskChannelId(event.target.value)}
-                          className="workspace-input"
-                        >
-                          <option value="">Kein Channel</option>
-                          {channels.map((channel) => (
-                            <option key={channel.id} value={channel.id}>
-                              #{channel.name}
-                            </option>
-                          ))}
-                        </select>
-
-                        <input
-                          type="number"
-                          min={5}
-                          step={5}
-                          value={newTaskPlannedTime}
-                          onChange={(event) => setNewTaskPlannedTime(event.target.value)}
-                          placeholder="Min"
-                          className="workspace-input"
-                        />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => void handleAddTask()}
-                        className="workspace-button workspace-button--primary"
-                      >
-                        <Plus size={15} strokeWidth={2} />
-                        Aufgabe in den Plan legen
-                      </button>
-                    </div>
-
-                    <div className="planning-backlog-panel">
-                      <div className="planning-search-row">
-                        <input
-                          type="text"
-                          value={backlogQuery}
-                          onChange={(event) => setBacklogQuery(event.target.value)}
-                          placeholder="Backlog durchsuchen"
-                          className="workspace-input min-w-0 flex-1"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => router.push("/backlog")}
-                          className="workspace-button"
-                        >
-                          Backlog oeffnen
-                        </button>
-                      </div>
-
-                      {filteredBacklogTasks.length > 0 ? (
-                        <div className="planning-flow-list">
-                          {filteredBacklogTasks.slice(0, 6).map((task) => (
-                            <div
-                              key={task.id}
-                              className="planning-flow-item planning-flow-item--backlog"
-                            >
-                              <div className="pt-1">
-                                <StatusPill
-                                  label={
-                                    task.backlogFolder ??
-                                    BACKLOG_BUCKET_LABELS[task.backlogBucket ?? "someday"] ??
-                                    "Backlog"
-                                  }
-                                  tone="neutral"
-                                />
-                              </div>
-                              <TaskCopy
-                                title={task.title}
-                                meta={[
-                                  task.channel?.name ? `#${task.channel.name}` : null,
-                                  task.plannedTime
-                                    ? `${formatMinutes(task.plannedTime)} geplant`
-                                    : "noch ohne Schaetzung",
-                                ]}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => void handleImportBacklog(task)}
-                                className="workspace-button ml-auto shrink-0"
-                              >
-                                Einziehen
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <EmptyState text="Kein passender Backlog-Eintrag gefunden. Du kannst direkt oben eine neue Aufgabe erfassen." />
-                      )}
-                    </div>
-                  </div>
-                </SurfaceCard>
-
-                <SurfaceCard
-                  eyebrow="Schritt 3"
-                  title="Zeit in 5-Minuten-Schritten schaetzen"
-                  action={
-                    unestimatedCount > 0 ? (
-                      <StatusPill
-                        label={`${unestimatedCount} ohne Schaetzung`}
-                        tone="warning"
-                      />
-                    ) : (
-                      <StatusPill label="Alles geschaetzt" tone="success" />
-                    )
-                  }
-                >
-                  {openDayTasks.length > 0 ? (
-                    <div className="planning-flow-list">
-                      {openDayTasks.map((task) => {
-                        const draftValue =
-                          activeEstimateDrafts[task.id] ?? String(task.plannedTime ?? 30);
-                        const parsedDraft = Number(draftValue);
-                        const donutMinutes =
-                          Number.isFinite(parsedDraft) && parsedDraft > 0
-                            ? parsedDraft
-                            : Math.max(task.plannedTime ?? 30, 5);
-
-                        return (
-                          <div
-                            key={task.id}
-                            className="planning-flow-item planning-flow-item--estimate"
-                          >
-                            <div className="planning-estimate-row">
-                              <div className="flex items-start gap-4 md:min-w-0 md:flex-1">
-                                <DonutTimer
-                                  planned={donutMinutes}
-                                  actual={donutMinutes}
-                                  size={44}
-                                />
-                                <TaskCopy
-                                  title={task.title}
-                                  meta={[
-                                    task.channel?.name ? `#${task.channel.name}` : null,
-                                    task.status === "IN_PROGRESS" ? "in Bearbeitung" : null,
-                                  ]}
-                                />
-                              </div>
-
-                              <div className="planning-estimate-controls">
-                                <div className="planning-inline-input">
-                                  <input
-                                    type="number"
-                                    min={5}
-                                    step={5}
-                                    value={draftValue}
-                                    onChange={(event) =>
-                                      setEstimateDraftState((current) =>
-                                        updateSeededRecord(
-                                          current.seed,
-                                          estimateSeed,
-                                          current.values,
-                                          defaultEstimateDrafts,
-                                          (values) => ({
-                                            ...values,
-                                            [task.id]: event.target.value,
-                                          })
-                                        )
-                                      )
-                                    }
-                                    onBlur={() => void commitEstimate(task.id)}
-                                    onKeyDown={(event) => handleEstimateKeyDown(event, task.id)}
-                                    className="workspace-input"
-                                  />
-                                  <span
-                                    className="text-[12px] font-medium"
-                                    style={{ color: "var(--text-muted)" }}
-                                  >
-                                    Minuten
-                                  </span>
-                                </div>
-
-                                <div className="flex flex-wrap gap-2">
-                                  {QUICK_ESTIMATE_MINUTES.map((minutes) => (
-                                    <button
-                                      key={`${task.id}-${minutes}`}
-                                      type="button"
-                                      onClick={() => {
-                                        setEstimateDraftState((current) =>
-                                          updateSeededRecord(
-                                            current.seed,
-                                            estimateSeed,
-                                            current.values,
-                                            defaultEstimateDrafts,
-                                            (values) => ({
-                                              ...values,
-                                              [task.id]: String(minutes),
-                                            })
-                                          )
-                                        );
-                                        void updateTask(task.id, {
-                                          plannedTime: minutes,
-                                        });
-                                      }}
-                                      className="workspace-button h-auto min-h-0 px-3 py-2 text-[12px]"
-                                    >
-                                      {formatMinutes(minutes)}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <EmptyState text="Noch keine offenen Tasks fuer diesen Tag vorhanden. Zieh zuerst Aufgaben aus dem Backlog rein oder lege neue an." />
-                  )}
-                </SurfaceCard>
-              </div>
-
-              <div className="planning-ritual-column">
-                <SurfaceCard
-                  eyebrow="Schritt 4"
-                  title="Workload gegen dein Tageslimit halten"
-                >
-                  <div className="planning-workload-panel">
-                    <div className="planning-workload-head">
-                      <div className="planning-workload-metric">
-                        <p
-                          className="planning-workload-label"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          Geplant
-                        </p>
-                        <p
-                          className="planning-workload-value"
-                          style={{ color: "var(--text-primary)" }}
-                        >
-                          {formatMinutes(plannedMinutes)}
-                        </p>
-                      </div>
-
-                      <div className="planning-workload-divider" aria-hidden="true" />
-
-                      <div className="planning-workload-metric planning-workload-metric--secondary">
-                        <p
-                          className="planning-workload-label"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          Limit
-                        </p>
-                        <p
-                          className="planning-workload-value planning-workload-value--secondary"
-                          style={{ color: "var(--text-secondary)" }}
-                        >
-                          {formatMinutes(dailyLimit)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div
-                      className="planning-workload-bar h-3 overflow-hidden rounded-full"
-                      style={{ backgroundColor: "rgba(230, 223, 215, 0.92)" }}
-                    >
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${Math.min(workloadRatio, 1) * 100}%`,
-                          background:
-                            workloadTone === "danger"
-                              ? "linear-gradient(90deg, #e06f6f, #e88d8d)"
-                              : workloadTone === "warning"
-                                ? "linear-gradient(90deg, #f4ad46, #f2c06d)"
-                                : "linear-gradient(90deg, #57b679, #7bc892)",
-                        }}
-                      />
-                    </div>
-
-                    <div className="planning-workload-badges">
-                      <StatusPill
-                        label={
-                          remainingMinutes >= 0
-                            ? `${formatMinutes(remainingMinutes)} frei`
-                            : `${formatMinutes(Math.abs(remainingMinutes))} ueber Limit`
-                        }
-                        tone={workloadTone}
-                      />
-                      <StatusPill
-                        label={`${openDayTasks.length} Tasks im Fokus`}
-                        tone="neutral"
-                      />
-                      <StatusPill
-                        label={`${unestimatedCount} ohne Zeit`}
-                        tone={unestimatedCount > 0 ? "warning" : "success"}
-                      />
-                    </div>
-
-                    <div
-                      className={`workspace-note planning-workload-note px-4 py-3 text-[13px] leading-6 ${
-                        workloadTone === "danger"
-                          ? "workspace-surface--danger"
-                          : workloadTone === "warning"
-                            ? "workspace-surface--warning"
-                            : ""
-                      }`}
-                    >
-                      {workloadTone === "danger"
-                        ? "Du bist ueber deinem Tageslimit. Ein Task sollte raus, kleiner geschaetzt oder in einen anderen Tag geschoben werden."
-                        : workloadTone === "warning"
-                          ? "Die Planung ist dicht. Noch eine groessere Aufgabe wuerde den Tag vermutlich ueberladen."
-                          : "Die Planung liegt innerhalb des Limits und laesst noch Luft fuer Kontextwechsel und Ueberraschungen."}
-                    </div>
-                  </div>
-                </SurfaceCard>
-
-                <SurfaceCard
-                  eyebrow="Schritt 5"
-                  title="Plan teilen und Ritual abschliessen"
-                  accent
-                >
-                  <p
-                    className="text-[13px] leading-6"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Slack- oder Teams-Integration ist noch nicht direkt verdrahtet.
-                    Der formatierte Tagesplan ist aber bereit zum Kopieren und Teilen.
-                  </p>
-
-                  <textarea
-                    readOnly
-                    value={shareCopy}
-                    className="workspace-input workspace-input--textarea planning-share-copy mt-5 min-h-44 w-full resize-none text-[13px] leading-7"
-                  />
-
-                  <div className="planning-share-actions mt-6">
-                    <button
-                      type="button"
-                      onClick={() => void handleCopySharePlan()}
-                      className="workspace-button"
-                    >
-                      {shareCopied ? (
-                        <ClipboardCheck size={15} strokeWidth={2} />
-                      ) : (
-                        <Copy size={15} strokeWidth={2} />
-                      )}
-                      {shareCopied ? "Kopiert" : "Plan kopieren"}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleCompletePlanning}
-                      className="workspace-button workspace-button--primary"
-                    >
-                      <CalendarCheck2 size={15} strokeWidth={2} />
-                      Ritual abschliessen
-                    </button>
-                  </div>
-                </SurfaceCard>
-
-                <SurfaceCard
-                  eyebrow="Heute im Blick"
-                  title="Was der Plan gerade priorisiert"
-                >
-                  {openDayTasks.length > 0 ? (
-                    <div className="planning-flow-list">
-                      {openDayTasks.slice(0, 4).map((task) => (
-                        <div
-                          key={task.id}
-                          className="planning-flow-item planning-flow-item--highlight"
-                        >
-                          <span
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold"
-                            style={{
-                              backgroundColor: "rgba(141, 124, 246, 0.14)",
-                              color: "var(--accent-primary)",
-                            }}
-                          >
-                            <Sparkles size={14} strokeWidth={2} />
-                          </span>
+                      return (
+                        <label key={task.id} className="ritual-row ritual-row--selectable">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleCarryover(task.id)}
+                            className="mt-1 h-4 w-4 accent-[var(--accent-primary)]"
+                          />
                           <TaskCopy
                             title={task.title}
                             meta={[
                               task.channel?.name ? `#${task.channel.name}` : null,
                               task.plannedTime
                                 ? `${formatMinutes(task.plannedTime)} geplant`
-                                : "noch ohne Zeitfenster",
+                                : "ohne Schaetzung",
+                            ]}
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  <div className="ritual-actions">
+                    <button
+                      type="button"
+                      onClick={() => void handleCarryoverApply()}
+                      className="workspace-button workspace-button--primary"
+                      disabled={activeCarryoverSelection.length === 0}
+                    >
+                      Auswahl uebernehmen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDate(previousDate)}
+                      className="workspace-button"
+                    >
+                      Gestern ansehen
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <EmptyState text="Gestern ist nichts offen geblieben. Du startest mit einem sauberen Blatt." />
+              )}
+            </RitualSection>
+
+            <RitualSection title="Hinzufuegen" subtitle="Neu anlegen oder aus dem Backlog">
+              <div className="ritual-form">
+                <input
+                  type="text"
+                  value={newTaskTitle}
+                  onChange={(event) => setNewTaskTitle(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void handleAddTask();
+                    }
+                  }}
+                  placeholder="Neue Aufgabe fuer heute"
+                  className="workspace-input settings-input"
+                />
+                <div className="flex gap-2">
+                  <select
+                    value={newTaskChannelId}
+                    onChange={(event) => setNewTaskChannelId(event.target.value)}
+                    className="workspace-input settings-input min-w-0 flex-1"
+                  >
+                    <option value="">Kein Channel</option>
+                    {channels.map((channel) => (
+                      <option key={channel.id} value={channel.id}>
+                        #{channel.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min={5}
+                    step={5}
+                    value={newTaskPlannedTime}
+                    onChange={(event) => setNewTaskPlannedTime(event.target.value)}
+                    placeholder="Min"
+                    className="workspace-input analytics-minutes"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleAddTask()}
+                  className="workspace-button workspace-button--primary self-start"
+                >
+                  <Plus size={15} strokeWidth={2} />
+                  Zum Plan hinzufuegen
+                </button>
+              </div>
+
+              <div className="ritual-subhead">
+                <input
+                  type="text"
+                  value={backlogQuery}
+                  onChange={(event) => setBacklogQuery(event.target.value)}
+                  placeholder="Backlog durchsuchen"
+                  className="workspace-input settings-input min-w-0 flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => router.push("/backlog")}
+                  className="planning-toolbar__button"
+                >
+                  Backlog
+                </button>
+              </div>
+
+              {filteredBacklogTasks.length > 0 ? (
+                <div className="ritual-list">
+                  {filteredBacklogTasks.slice(0, 6).map((task) => (
+                    <div key={task.id} className="ritual-row">
+                      <TaskCopy
+                        title={task.title}
+                        meta={[
+                          task.backlogFolder ??
+                            BACKLOG_BUCKET_LABELS[task.backlogBucket ?? "someday"] ??
+                            "Backlog",
+                          task.channel?.name ? `#${task.channel.name}` : null,
+                          task.plannedTime ? formatMinutes(task.plannedTime) : null,
+                        ]}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleImportBacklog(task)}
+                        className="planning-toolbar__button shrink-0"
+                      >
+                        <Plus size={13} strokeWidth={2.2} />
+                        Einziehen
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState text="Kein passender Backlog-Eintrag gefunden." />
+              )}
+            </RitualSection>
+
+            <RitualSection
+              title="Schaetzen"
+              subtitle={
+                unestimatedCount > 0 ? (
+                  <span style={{ color: "var(--accent-warning)" }}>
+                    {unestimatedCount} ohne Schaetzung
+                  </span>
+                ) : (
+                  "In 5-Minuten-Schritten"
+                )
+              }
+            >
+              {openDayTasks.length > 0 ? (
+                <div className="ritual-list">
+                  {openDayTasks.map((task) => {
+                    const draftValue =
+                      activeEstimateDrafts[task.id] ?? String(task.plannedTime ?? 30);
+                    const parsedDraft = Number(draftValue);
+                    const donutMinutes =
+                      Number.isFinite(parsedDraft) && parsedDraft > 0
+                        ? parsedDraft
+                        : Math.max(task.plannedTime ?? 30, 5);
+
+                    return (
+                      <div key={task.id} className="ritual-row ritual-row--stacked">
+                        <div className="flex items-start gap-3">
+                          <DonutTimer planned={donutMinutes} actual={donutMinutes} size={32} />
+                          <TaskCopy
+                            title={task.title}
+                            meta={[
+                              task.channel?.name ? `#${task.channel.name}` : null,
+                              task.status === "IN_PROGRESS" ? "in Bearbeitung" : null,
                             ]}
                           />
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyState text="Sobald du Aufgaben fuer heute einplanst, tauchen sie hier als kompakte Fokusliste auf." />
-                  )}
-                </SurfaceCard>
+
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={5}
+                            step={5}
+                            value={draftValue}
+                            onChange={(event) =>
+                              setEstimateDraftState((current) =>
+                                updateSeededRecord(
+                                  current.seed,
+                                  estimateSeed,
+                                  current.values,
+                                  defaultEstimateDrafts,
+                                  (values) => ({
+                                    ...values,
+                                    [task.id]: event.target.value,
+                                  })
+                                )
+                              )
+                            }
+                            onBlur={() => void commitEstimate(task.id)}
+                            onKeyDown={(event) => handleEstimateKeyDown(event, task.id)}
+                            className="workspace-input analytics-minutes ritual-estimate-input"
+                            aria-label="Minuten"
+                          />
+                          {QUICK_ESTIMATE_MINUTES.map((minutes) => (
+                            <button
+                              key={`${task.id}-${minutes}`}
+                              type="button"
+                              onClick={() => {
+                                setEstimateDraftState((current) =>
+                                  updateSeededRecord(
+                                    current.seed,
+                                    estimateSeed,
+                                    current.values,
+                                    defaultEstimateDrafts,
+                                    (values) => ({
+                                      ...values,
+                                      [task.id]: String(minutes),
+                                    })
+                                  )
+                                );
+                                void updateTask(task.id, {
+                                  plannedTime: minutes,
+                                });
+                              }}
+                              className="ritual-chip"
+                            >
+                              {formatMinutes(minutes)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <EmptyState text="Noch keine offenen Tasks fuer diesen Tag. Zieh Aufgaben aus dem Backlog rein oder lege neue an." />
+              )}
+            </RitualSection>
+
+            <RitualSection
+              title="Workload"
+              subtitle={
+                remainingMinutes >= 0
+                  ? `${formatMinutes(remainingMinutes)} frei`
+                  : `${formatMinutes(Math.abs(remainingMinutes))} ueber Limit`
+              }
+            >
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="analytics-stat__label">Geplant</p>
+                  <p className="analytics-timer">{formatMinutes(plannedMinutes)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="analytics-stat__label">Limit</p>
+                  <p className="analytics-timer" style={{ color: "var(--text-secondary)" }}>
+                    {formatMinutes(dailyLimit)}
+                  </p>
+                </div>
               </div>
-            </div>
+
+              <div className="planning-progress ritual-progress">
+                <div
+                  className="planning-progress__fill"
+                  style={{
+                    width: `${Math.min(workloadRatio, 1) * 100}%`,
+                    background:
+                      workloadTone === "danger"
+                        ? "var(--accent-danger)"
+                        : workloadTone === "warning"
+                          ? "var(--accent-warning)"
+                          : "var(--accent-success)",
+                  }}
+                />
+              </div>
+
+              <p className="settings-row__description mt-3">
+                {workloadTone === "danger"
+                  ? "Du bist ueber deinem Tageslimit. Ein Task sollte raus, kleiner geschaetzt oder verschoben werden."
+                  : workloadTone === "warning"
+                    ? "Die Planung ist dicht. Noch eine groessere Aufgabe wuerde den Tag vermutlich ueberladen."
+                    : "Die Planung liegt im Limit und laesst Luft fuer Ueberraschungen."}
+              </p>
+            </RitualSection>
+
+            <RitualSection title="Teilen" subtitle="Plan kopieren und abschliessen">
+              <textarea
+                readOnly
+                value={shareCopy}
+                className="workspace-input workspace-input--textarea ritual-textarea"
+              />
+              <div className="ritual-actions">
+                <button
+                  type="button"
+                  onClick={() => void handleCopySharePlan()}
+                  className="workspace-button"
+                >
+                  {shareCopied ? (
+                    <ClipboardCheck size={15} strokeWidth={2} />
+                  ) : (
+                    <Copy size={15} strokeWidth={2} />
+                  )}
+                  {shareCopied ? "Kopiert" : "Plan kopieren"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCompletePlanning}
+                  className="workspace-button workspace-button--primary"
+                >
+                  <CalendarCheck2 size={15} strokeWidth={2} />
+                  Ritual abschliessen
+                </button>
+              </div>
+            </RitualSection>
+
+            <RitualSection title="Heute im Blick" subtitle="Was der Plan priorisiert">
+              {openDayTasks.length > 0 ? (
+                <div className="ritual-list">
+                  {openDayTasks.slice(0, 5).map((task) => (
+                    <div key={task.id} className="ritual-row">
+                      <TaskCopy
+                        title={task.title}
+                        meta={[task.channel?.name ? `#${task.channel.name}` : null]}
+                      />
+                      <span className="planning-card__duration">
+                        {task.plannedTime ? formatMinutes(task.plannedTime) : "--"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState text="Sobald du Aufgaben einplanst, tauchen sie hier auf." />
+              )}
+            </RitualSection>
           </div>
         </div>
       </div>
@@ -992,83 +808,62 @@ export default function DailyPlanningPage() {
   );
 }
 
-function SurfaceCard({
+function RitualSection({
   title,
-  eyebrow,
-  children,
+  subtitle,
   action,
-  accent = false,
+  children,
 }: {
   title: string;
-  eyebrow?: string;
-  children: ReactNode;
+  subtitle: ReactNode;
   action?: ReactNode;
-  accent?: boolean;
+  children: ReactNode;
 }) {
   return (
-    <section
-      className={`workspace-surface workspace-section planning-section ${accent ? "workspace-surface--accent planning-section--accent" : ""}`}
-    >
-      <div className="workspace-section__header">
-        <div className="workspace-section__intro">
-          {eyebrow && <p className="workspace-section__eyebrow">{eyebrow}</p>}
-          <h2 className="workspace-section__title">{title}</h2>
+    <section className="analytics-section">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="planning-column__title">{title}</h2>
+          <p className="planning-column__date">{subtitle}</p>
         </div>
         {action}
       </div>
-      <div className="workspace-section__body">{children}</div>
+      <div className="analytics-section__body">{children}</div>
     </section>
   );
 }
 
-function StatCard({
-  icon,
+function Stat({
   label,
   value,
   detail,
+  tone,
 }: {
-  icon: ReactNode;
   label: string;
   value: string;
   detail: string;
+  tone?: "accent" | "neutral" | "success" | "warning" | "danger";
 }) {
+  const color =
+    tone === "danger"
+      ? "var(--accent-danger)"
+      : tone === "warning"
+        ? "var(--accent-warning)"
+        : undefined;
+
   return (
-    <div className="workspace-surface workspace-section planning-stat-card flex min-h-[156px] flex-col justify-between">
-      <div className="space-y-5">
-        <div className="flex items-start gap-4">
-          <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]"
-            style={{
-              backgroundColor: "rgba(244, 239, 232, 0.92)",
-              color: "var(--accent-primary)",
-            }}
-          >
-            {icon}
-          </span>
-
-          <div className="space-y-2">
-            <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-              {label}
-            </p>
-            <p
-              className="text-[30px] font-semibold leading-[1.02] tracking-[-0.06em]"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {value}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <p className="text-[12px] leading-6" style={{ color: "var(--text-muted)" }}>
-        {detail}
+    <div className="analytics-stat">
+      <p className="analytics-stat__label">{label}</p>
+      <p className="analytics-stat__value" style={color ? { color } : undefined}>
+        {value}
       </p>
+      <p className="analytics-stat__detail">{detail}</p>
     </div>
   );
 }
 
 function EmptyState({ text }: { text: string }) {
-  return <div className="workspace-note text-[14px] leading-7">{text}</div>;
+  return <p className="settings-row__description">{text}</p>;
 }
 
 function TaskCopy({
@@ -1082,36 +877,8 @@ function TaskCopy({
 
   return (
     <div className="planning-task-copy min-w-0 flex-1">
-      <p
-        className="text-[14px] font-medium leading-6"
-        style={{ color: "var(--text-primary)" }}
-      >
-        {title}
-      </p>
-      <p className="mt-1 text-[12px] leading-6" style={{ color: "var(--text-muted)" }}>
-        {detail || "Ohne weitere Details"}
-      </p>
+      <p className="settings-row__label">{title}</p>
+      {detail && <p className="settings-row__description">{detail}</p>}
     </div>
   );
-}
-
-function StatusPill({
-  label,
-  tone,
-}: {
-  label: string;
-  tone: "accent" | "neutral" | "success" | "warning" | "danger";
-}) {
-  const toneClassName =
-    tone === "accent"
-      ? "workspace-badge--accent"
-      : tone === "success"
-        ? "workspace-badge--success"
-        : tone === "warning"
-          ? "workspace-badge--warning"
-          : tone === "danger"
-            ? "workspace-badge--danger"
-            : "";
-
-  return <span className={`workspace-badge ${toneClassName}`}>{label}</span>;
 }

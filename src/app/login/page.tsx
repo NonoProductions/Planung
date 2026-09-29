@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRight, CircleAlert, LoaderCircle } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -32,7 +33,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (result?.error) {
-      setError("Anmeldung fehlgeschlagen.");
+      setError("E-Mail oder Passwort ist falsch.");
     } else {
       router.replace(callbackUrl);
       router.refresh();
@@ -40,77 +41,71 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-primary)" }}>
-      <div
-        className="w-full max-w-sm rounded-2xl p-8 shadow-sm"
-        style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)" }}
-      >
-        <h1
-          className="text-xl font-semibold mb-1"
-          style={{ color: "var(--text-primary)" }}
-        >
-          Noes Planer
-        </h1>
-        <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
-          Melde dich an, um fortzufahren.
-        </p>
+    <main className="login-page">
+      <header className="login-page__bar">
+        <span className="login-page__brand">Noes Planer</span>
+      </header>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-              E-Mail
+      <div className="login-page__center">
+        <section className="login-card">
+          <h1 className="login-card__title">Anmelden</h1>
+          <p className="login-card__copy">
+            Melde dich an, um deinen Tag zu planen.
+          </p>
+
+          <form onSubmit={handleSubmit} className="login-form">
+            <label className="login-field">
+              <span className="login-field__label">E-Mail</span>
+              <input
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                autoFocus
+                placeholder="du@beispiel.de"
+                className="workspace-input"
+              />
             </label>
-            <input
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              className="rounded-lg px-3 py-2 text-sm outline-none focus:ring-2"
-              style={{
-                background: "var(--bg-input)",
-                border: "1px solid var(--border-color)",
-                color: "var(--text-primary)",
-              }}
-            />
-          </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-              Passwort
+            <label className="login-field">
+              <span className="login-field__label">Passwort</span>
+              <input
+                name="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+                className="workspace-input"
+              />
             </label>
-            <input
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              className="rounded-lg px-3 py-2 text-sm outline-none focus:ring-2"
-              style={{
-                background: "var(--bg-input)",
-                border: "1px solid var(--border-color)",
-                color: "var(--text-primary)",
-              }}
-            />
-          </div>
 
-          {error && (
-            <p className="text-xs" style={{ color: "var(--accent-danger)" }}>
-              {error}
-            </p>
-          )}
+            {error && (
+              <p className="login-error" role="alert">
+                <CircleAlert size={16} strokeWidth={2.2} />
+                {error}
+              </p>
+            )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-1 rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-60"
-            style={{
-              background: "var(--accent-primary)",
-              color: "#fff",
-            }}
-          >
-            {loading ? "Wird angemeldet…" : "Anmelden"}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="workspace-button workspace-button--primary login-submit"
+            >
+              {loading ? (
+                <>
+                  <LoaderCircle size={16} strokeWidth={2.2} className="animate-spin" />
+                  Wird angemeldet…
+                </>
+              ) : (
+                <>
+                  Anmelden
+                  <ArrowRight size={16} strokeWidth={2.2} />
+                </>
+              )}
+            </button>
+          </form>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

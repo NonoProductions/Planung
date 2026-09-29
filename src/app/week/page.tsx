@@ -4,8 +4,8 @@ import { useState } from "react";
 import { addWeeks, format, startOfWeek, subWeeks } from "date-fns";
 import { de } from "date-fns/locale";
 import { BarChart2, ChevronLeft, ChevronRight } from "lucide-react";
-import { motion } from "framer-motion";
 import AppShell from "@/components/layout/AppShell";
+import MobileDateNav from "@/components/layout/MobileDateNav";
 import WeeklyObjectives from "@/components/weekly/WeeklyObjectives";
 import WeekGrid from "@/components/weekly/WeekGrid";
 import WeeklyReviewModal from "@/components/weekly/WeeklyReviewModal";
@@ -41,87 +41,68 @@ export default function WeekPage() {
 
   return (
     <DndWrapper>
-      <AppShell>
+      <AppShell
+        mobileCenter={
+          <MobileDateNav
+            label={`KW ${format(currentWeek, "I", { locale: de })}`}
+            onPrev={prevWeek}
+            onNext={nextWeek}
+            onReset={goToCurrentWeek}
+            prevLabel="Vorherige Woche"
+            nextLabel="Naechste Woche"
+          />
+        }
+        mobileAction={
+          <button
+            type="button"
+            onClick={() => setShowReview(true)}
+            className="mobile-topbar__button"
+            aria-label="Wochenrueckblick"
+          >
+            <BarChart2 size={18} strokeWidth={2.1} />
+          </button>
+        }
+      >
         <div className="app-main-surface">
           <div className="week-page-shell">
             <div className="week-page-toolbar">
-              <div className="week-page-toolbar__nav">
+              <div className="planning-toolbar__group planning-toolbar__group--nav">
                 <button
+                  type="button"
                   onClick={prevWeek}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors duration-150"
-                  style={{ color: "var(--text-muted)" }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.backgroundColor = "var(--bg-hover)";
-                    event.currentTarget.style.color = "var(--text-primary)";
-                  }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.backgroundColor = "transparent";
-                    event.currentTarget.style.color = "var(--text-muted)";
-                  }}
+                  className="planning-toolbar__button planning-toolbar__button--icon"
                   aria-label="Vorherige Woche"
                 >
-                  <ChevronLeft size={16} strokeWidth={1.8} />
+                  <ChevronLeft size={16} strokeWidth={2} />
                 </button>
 
                 <button
+                  type="button"
                   onClick={goToCurrentWeek}
-                  className="rounded-xl px-4 py-2 text-[14px] font-medium transition-colors duration-150"
-                  style={{ color: "var(--text-primary)" }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.backgroundColor = "var(--bg-hover)";
-                  }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.backgroundColor = "transparent";
-                  }}
+                  className="planning-toolbar__button"
                 >
                   {weekLabel}
                 </button>
 
                 <button
+                  type="button"
                   onClick={nextWeek}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors duration-150"
-                  style={{ color: "var(--text-muted)" }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.backgroundColor = "var(--bg-hover)";
-                    event.currentTarget.style.color = "var(--text-primary)";
-                  }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.backgroundColor = "transparent";
-                    event.currentTarget.style.color = "var(--text-muted)";
-                  }}
+                  className="planning-toolbar__button planning-toolbar__button--icon"
                   aria-label="Naechste Woche"
                 >
-                  <ChevronRight size={16} strokeWidth={1.8} />
+                  <ChevronRight size={16} strokeWidth={2} />
                 </button>
               </div>
 
-              <div
-                className="week-page-toolbar__meta"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Wochenplanung
-              </div>
-
               <div className="ml-auto">
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
+                <button
+                  type="button"
                   onClick={() => setShowReview(true)}
-                  className="flex items-center gap-2 rounded-2xl px-5 py-2.5 text-[13px] font-medium transition-all duration-150"
-                  style={{
-                    backgroundColor: "var(--accent-glow)",
-                    color: "var(--accent-primary)",
-                    border: "1px solid rgba(47, 111, 228, 0.14)",
-                  }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.backgroundColor = "var(--accent-primary-light)";
-                  }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.backgroundColor = "var(--accent-glow)";
-                  }}
+                  className="planning-toolbar__button"
                 >
                   <BarChart2 size={14} strokeWidth={2} />
                   Wochenrueckblick
-                </motion.button>
+                </button>
               </div>
             </div>
 

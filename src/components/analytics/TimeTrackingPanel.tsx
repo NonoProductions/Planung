@@ -4,7 +4,7 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
-import { Clock3, PauseCircle, PlayCircle, TimerReset } from "lucide-react";
+import { Clock3, PauseCircle, PlayCircle } from "lucide-react";
 import type { AnalyticsTaskOption, TimeEntry } from "@/types";
 
 const RUNNING_TIMER_KEY = "sunsama-running-timer";
@@ -214,201 +214,129 @@ export default function TimeTrackingPanel({
   const recentEntries = entries.slice(0, 5);
 
   return (
-    <section className="workspace-surface workspace-section flex h-full min-h-0 flex-col gap-5">
-      <div className="workspace-section__header">
-        <div className="workspace-section__intro">
-          <p className="workspace-section__eyebrow">Zeiterfassung</p>
-          <h2 className="workspace-section__title">Timer oder manueller Log</h2>
-        </div>
-
-        <span className="workspace-badge">
-          <Clock3 size={13} />
-          {entries.length} Eintraege
-        </span>
-      </div>
-
-      <div className="workspace-surface workspace-surface--warning workspace-section">
-        <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-          Aktiver Timer
-        </p>
-
-        <div className="mt-6 flex flex-col gap-6">
-          <label className="flex flex-col gap-2">
-            <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>
-              Aufgabe
-            </span>
-            <select
-              value={selectedTaskId}
-              onChange={(event) => setSelectedTaskId(event.target.value)}
-              disabled={Boolean(runningTimer)}
-              className="workspace-input"
-            >
-              {tasks.map((task) => (
-                <option key={task.id} value={task.id}>
-                  {task.title}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0 space-y-3">
-              <p
-                className="text-[38px] font-semibold leading-[0.95] tracking-[-0.065em]"
-                style={{ color: "var(--text-primary)" }}
-              >
-                {runningTimer ? formatElapsed(runningTimer.startedAt, now) : "00:00:00"}
-              </p>
-              <p className="truncate text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                {runningTask ? runningTask.title : "Keine Aufgabe ausgewaehlt"}
-              </p>
-            </div>
-
-            {runningTimer ? (
-              <button
-                type="button"
-                onClick={handleStopTimer}
-                disabled={submitting}
-                className="workspace-button workspace-button--warning min-w-[180px]"
-              >
-                <PauseCircle size={16} />
-                Timer stoppen
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleStartTimer}
-                disabled={!selectedTaskId || submitting}
-                className="workspace-button workspace-button--primary min-w-[180px]"
-              >
-                <PlayCircle size={16} />
-                Timer starten
-              </button>
-            )}
+    <div className="analytics-tracking">
+      <div className="settings-row">
+        <p className="settings-row__label">Timer</p>
+        <select
+          value={selectedTaskId}
+          onChange={(event) => setSelectedTaskId(event.target.value)}
+          disabled={Boolean(runningTimer)}
+          className="workspace-input settings-input"
+          aria-label="Aufgabe fuer den Timer"
+        >
+          {tasks.map((task) => (
+            <option key={task.id} value={task.id}>
+              {task.title}
+            </option>
+          ))}
+        </select>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="analytics-timer">
+              {runningTimer ? formatElapsed(runningTimer.startedAt, now) : "00:00:00"}
+            </p>
+            <p className="settings-row__description truncate">
+              {runningTask ? runningTask.title : "Kein Timer aktiv"}
+            </p>
           </div>
+          {runningTimer ? (
+            <button
+              type="button"
+              onClick={handleStopTimer}
+              disabled={submitting}
+              className="workspace-button workspace-button--warning"
+            >
+              <PauseCircle size={15} />
+              Stoppen
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleStartTimer}
+              disabled={!selectedTaskId || submitting}
+              className="workspace-button workspace-button--primary"
+            >
+              <PlayCircle size={15} />
+              Starten
+            </button>
+          )}
         </div>
       </div>
 
-      <form
-        onSubmit={handleManualEntry}
-        className="workspace-surface workspace-section workspace-surface--soft"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-              Manuell erfassen
-            </p>
-            <p className="mt-1 text-[12px]" style={{ color: "var(--text-muted)" }}>
-              Ideal fuer nachgetragenes Tracking oder Meetings.
-            </p>
-          </div>
-
-          <span className="workspace-badge workspace-badge--accent">
-            <TimerReset size={12} />
-            Schnelllog
-          </span>
-        </div>
-
-        <div className="mt-6 grid gap-5 md:grid-cols-2">
-          <label className="flex flex-col gap-2">
-            <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>
-              Aufgabe
-            </span>
-            <select
-              value={manualTaskId}
-              onChange={(event) => setManualTaskId(event.target.value)}
-              className="workspace-input"
-            >
-              {tasks.map((task) => (
-                <option key={task.id} value={task.id}>
-                  {task.title}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-2">
-            <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>
-              Dauer in Minuten
-            </span>
-            <input
-              type="number"
-              min={5}
-              step={5}
-              value={manualMinutes}
-              onChange={(event) => setManualMinutes(event.target.value)}
-              className="workspace-input"
-            />
-          </label>
-        </div>
-
-        <label className="mt-5 flex flex-col gap-2">
-          <span className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>
-            Startzeit
-          </span>
+      <form onSubmit={handleManualEntry} className="settings-row">
+        <p className="settings-row__label">Manuell erfassen</p>
+        <select
+          value={manualTaskId}
+          onChange={(event) => setManualTaskId(event.target.value)}
+          className="workspace-input settings-input"
+          aria-label="Aufgabe"
+        >
+          {tasks.map((task) => (
+            <option key={task.id} value={task.id}>
+              {task.title}
+            </option>
+          ))}
+        </select>
+        <div className="flex gap-2">
           <input
             type="datetime-local"
             value={manualStartedAt}
             onChange={(event) => setManualStartedAt(event.target.value)}
-            className="workspace-input"
+            className="workspace-input settings-input min-w-0 flex-1"
+            aria-label="Startzeit"
           />
-        </label>
-
+          <input
+            type="number"
+            min={5}
+            step={5}
+            value={manualMinutes}
+            onChange={(event) => setManualMinutes(event.target.value)}
+            className="workspace-input analytics-minutes"
+            aria-label="Dauer in Minuten"
+          />
+        </div>
         <button
           type="submit"
           disabled={submitting || !manualTaskId}
-          className="workspace-button workspace-button--success mt-6 self-start"
+          className="workspace-button self-start"
         >
-          <Clock3 size={15} />
+          <Clock3 size={14} />
           Eintrag speichern
         </button>
       </form>
 
-      <div className="workspace-surface workspace-section min-h-[280px] flex-1">
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-            Letzte Sessions
-          </p>
+      <div className="settings-block">
+        <div className="flex items-center justify-between gap-3">
+          <p className="settings-row__label">Letzte Sessions</p>
           {message && (
-            <span className="text-[11px] font-medium" style={{ color: "var(--accent-primary)" }}>
+            <span className="text-[11px] font-semibold" style={{ color: "var(--accent-primary)" }}>
               {message}
             </span>
           )}
         </div>
-
-        <div className="mt-6 flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1">
-          {recentEntries.length > 0 ? (
-            recentEntries.map((entry) => {
-              const task = tasks.find((item) => item.id === entry.taskId);
-              return (
-                <div key={entry.id} className="workspace-list-item">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p
-                        className="truncate text-[13px] font-medium"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        {task?.title ?? "Unbekannte Aufgabe"}
-                      </p>
-                      <p className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                        {format(parseISO(entry.startTime), "EEE, d. MMM - HH:mm", { locale: de })}
-                      </p>
-                    </div>
-
-                    <span className="workspace-badge">
-                      {formatDurationFromSeconds(entry.duration ?? 0)}
-                    </span>
-                  </div>
+        {recentEntries.length > 0 ? (
+          recentEntries.map((entry) => {
+            const task = tasks.find((item) => item.id === entry.taskId);
+            return (
+              <div key={entry.id} className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-medium" style={{ color: "var(--text-primary)" }}>
+                    {task?.title ?? "Unbekannte Aufgabe"}
+                  </p>
+                  <p className="settings-row__description">
+                    {format(parseISO(entry.startTime), "EEE, d. MMM - HH:mm", { locale: de })}
+                  </p>
                 </div>
-              );
-            })
-          ) : (
-            <div className="workspace-empty h-full">
-              Noch keine Time Entries fuer diese Woche vorhanden.
-            </div>
-          )}
-        </div>
+                <span className="planning-card__duration">
+                  {formatDurationFromSeconds(entry.duration ?? 0)}
+                </span>
+              </div>
+            );
+          })
+        ) : (
+          <p className="settings-row__description">Noch keine Sessions in dieser Woche.</p>
+        )}
       </div>
-    </section>
+    </div>
   );
 }

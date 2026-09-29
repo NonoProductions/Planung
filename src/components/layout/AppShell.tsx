@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { Menu, MoonStar, PanelRightClose, PanelRightOpen } from "lucide-react";
@@ -18,6 +24,10 @@ import { useUIStore } from "@/stores/uiStore";
 interface AppShellProps {
   children: ReactNode;
   bodyClassName?: string;
+  /** Replaces the page title in the mobile top bar (e.g. date navigation). */
+  mobileCenter?: ReactNode;
+  /** Replaces the right-hand button in the mobile top bar. */
+  mobileAction?: ReactNode;
 }
 
 function getPageMeta(pathname: string) {
@@ -67,6 +77,18 @@ function supportsCalendar(pathname: string) {
 }
 
 const AUTO_SHUTDOWN_HOUR = 18;
+const MOBILE_QUERY = "(max-width: 767px)";
+
+const subscribeNoop = () => () => {};
+
+// Persisted UI state is only available on the client, so it must not affect the SSR markup.
+function useIsClient() {
+  return useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false
+  );
+}
 
 function hasReachedClockTime(now: Date, clockValue: string) {
   const [hoursValue, minutesValue] = clockValue.split(":");
@@ -83,15 +105,24 @@ function hasReachedClockTime(now: Date, clockValue: string) {
   );
 }
 
-export default function AppShell({ children, bodyClassName }: AppShellProps) {
+export default function AppShell({
+  children,
+  bodyClassName,
+  mobileCenter,
+  mobileAction,
+}: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   useKeyboardShortcuts();
 
   const sidebarExpanded = useUIStore((state) => state.sidebarExpanded);
   const setSidebarExpanded = useUIStore((state) => state.setSidebarExpanded);
+  const isClient = useIsClient();
+  const storedSidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
+  const sidebarCollapsed = isClient && storedSidebarCollapsed;
   const calendarVisible = useUIStore((state) => state.calendarVisible);
   const toggleCalendar = useUIStore((state) => state.toggleCalendar);
+  const setCalendarVisible = useUIStore((state) => state.setCalendarVisible);
   const darkMode = useUIStore((state) => state.darkMode);
   const planningRitualCompletedDates = useUIStore(
     (state) => state.planningRitualCompletedDates
@@ -112,6 +143,14 @@ export default function AppShell({ children, bodyClassName }: AppShellProps) {
   useEffect(() => {
     setSidebarExpanded(false);
   }, [pathname, setSidebarExpanded]);
+
+  // On phones the calendar is a full-screen sheet, so it only opens on demand.
+  // Until this has run, CSS keeps the server-rendered calendar hidden on mobile.
+  useLayoutEffect(() => {
+    if (window.matchMedia(MOBILE_QUERY).matches) {
+      setCalendarVisible(false);
+    }
+  }, [pathname, setCalendarVisible]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -186,7 +225,12 @@ export default function AppShell({ children, bodyClassName }: AppShellProps) {
     shutdownRitualOpen,
   ]);
 
-  const shellClassName = ["app-shell", sidebarExpanded ? "app-shell--sidebar-open" : ""]
+  const shellClassName = [
+    "app-shell",
+    sidebarExpanded ? "app-shell--sidebar-open" : "",
+    sidebarCollapsed ? "app-shell--sidebar-collapsed" : "",
+    isClient ? "" : "app-shell--calendar-pending",
+  ]
     .filter(Boolean)
     .join(" ");
   const shellBodyClassName = ["app-shell__body", bodyClassName].filter(Boolean).join(" ");
@@ -270,11 +314,17 @@ export default function AppShell({ children, bodyClassName }: AppShellProps) {
         </button>
 
         <div className="mobile-topbar__copy">
-          <span className="mobile-topbar__eyebrow">{pageMeta.eyebrow}</span>
-          <span className="mobile-topbar__title">{pageMeta.title}</span>
+          {mobileCenter ?? (
+            <>
+              <span className="mobile-topbar__eyebrow">{pageMeta.eyebrow}</span>
+              <span className="mobile-topbar__title">{pageMeta.title}</span>
+            </>
+          )}
         </div>
 
-        {hasCalendar ? (
+        {mobileAction ? (
+          mobileAction
+        ) : hasCalendar ? (
           <button
             type="button"
             onClick={toggleCalendar}
@@ -302,7 +352,10 @@ export default function AppShell({ children, bodyClassName }: AppShellProps) {
       )}
 
       <div className="app-shell__sidebar">
-        <Sidebar onClose={() => setSidebarExpanded(false)} />
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onClose={() => setSidebarExpanded(false)}
+        />
       </div>
 
       <div

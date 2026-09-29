@@ -90,7 +90,7 @@ export default function WeeklyObjectives({ weekStart }: Props) {
           {[1, 2].map((item) => (
             <div
               key={item}
-              className="h-16 animate-pulse rounded-[18px]"
+              className="h-16 animate-pulse rounded-[8px]"
               style={{ backgroundColor: "var(--bg-hover)" }}
             />
           ))}
