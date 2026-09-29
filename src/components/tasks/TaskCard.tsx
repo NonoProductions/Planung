@@ -72,7 +72,6 @@ export default function TaskCard({ task }: TaskCardProps) {
   const renameSubtask = useTaskStore((state) => state.renameSubtask);
   const reorderSubtasks = useTaskStore((state) => state.reorderSubtasks);
   const channels = useTaskStore((state) => state.channels);
-  const selectedTaskId = useUIStore((state) => state.selectedTaskId);
   const editingTaskId = useUIStore((state) => state.editingTaskId);
   const selectTask = useUIStore((state) => state.selectTask);
   const startEditingTask = useUIStore((state) => state.startEditingTask);
@@ -95,7 +94,6 @@ export default function TaskCard({ task }: TaskCardProps) {
   };
 
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const isSelected = selectedTaskId === task.id;
   const editing = editingTaskId === task.id;
   const isCompleted = task.status === "COMPLETED";
   const channelColor = task.channel?.color || "var(--text-secondary)";
@@ -124,21 +122,8 @@ export default function TaskCard({ task }: TaskCardProps) {
     <motion.article
       ref={setNodeRef}
       className="group planning-card"
-      onClick={() => selectTask(task.id)}
-      aria-selected={isSelected}
-      style={{
-        ...sortableStyle,
-        borderColor: isSelected ? "rgba(141, 124, 246, 0.82)" : undefined,
-        boxShadow: isSelected
-          ? "0 0 0 1px rgba(141, 124, 246, 0.24), 0 16px 40px rgba(141, 124, 246, 0.12)"
-          : undefined,
-        backgroundColor: isSelected ? "rgba(249, 246, 255, 0.92)" : undefined,
-      }}
-      whileHover={{
-        boxShadow: isSelected
-          ? "0 0 0 1px rgba(141, 124, 246, 0.24), 0 18px 44px rgba(141, 124, 246, 0.14)"
-          : "0 4px 12px rgba(89, 72, 48, 0.05)",
-      }}
+      style={sortableStyle}
+      whileHover={{ boxShadow: "0 4px 12px rgba(var(--shadow-rgb), 0.05)" }}
       transition={{ duration: 0.2 }}
     >
       <div className="planning-card__meta">
@@ -243,7 +228,7 @@ export default function TaskCard({ task }: TaskCardProps) {
 
           <button
             className="planning-card__ghost-action"
-            style={{ backgroundColor: "#f5f2ee", color: "var(--text-secondary)" }}
+            style={{ backgroundColor: "var(--surface-sunken)", color: "var(--text-secondary)" }}
             onClick={() => startEditingTask(task.id)}
             aria-label="Edit"
           >
@@ -255,7 +240,7 @@ export default function TaskCard({ task }: TaskCardProps) {
             style={{
               backgroundColor: confirmDelete
                 ? "var(--accent-danger-light)"
-                : "#f5f2ee",
+                : "var(--surface-sunken)",
               color: confirmDelete
                 ? "var(--accent-danger)"
                 : "var(--text-secondary)",
@@ -275,7 +260,7 @@ export default function TaskCard({ task }: TaskCardProps) {
 
           <button
             className="planning-card__ghost-action"
-            style={{ backgroundColor: "#f5f2ee", color: "var(--text-secondary)" }}
+            style={{ backgroundColor: "var(--surface-sunken)", color: "var(--text-secondary)" }}
             {...attributes}
             {...listeners}
             aria-label="Drag"
@@ -431,7 +416,7 @@ function EditableTaskCard({
         ...sortableStyle,
         borderColor: "var(--accent-primary)",
         boxShadow:
-          "0 0 0 1px rgba(141, 124, 246, 0.2), 0 16px 36px rgba(89, 72, 48, 0.08)",
+          "0 0 0 1px rgba(141, 124, 246, 0.2), 0 16px 36px rgba(var(--shadow-rgb), 0.08)",
       }}
     >
       <input
@@ -443,7 +428,7 @@ function EditableTaskCard({
         style={{
           borderColor: "var(--border-color)",
           color: "var(--text-primary)",
-          backgroundColor: "#fbfaf8",
+          backgroundColor: "var(--surface-subtle)",
         }}
       />
       <div className="planning-add-form__controls">
@@ -455,7 +440,7 @@ function EditableTaskCard({
           style={{
             borderColor: "var(--border-color)",
             color: "var(--text-secondary)",
-            backgroundColor: "#fbfaf8",
+            backgroundColor: "var(--surface-subtle)",
           }}
         >
           <option value="">No channel</option>
@@ -476,14 +461,14 @@ function EditableTaskCard({
           style={{
             borderColor: "var(--border-color)",
             color: "var(--text-secondary)",
-            backgroundColor: "#fbfaf8",
+            backgroundColor: "var(--surface-subtle)",
           }}
         />
         <button
           type="button"
           onClick={handleSave}
           className="planning-add-form__save"
-          style={{ backgroundColor: "#7f766d" }}
+          style={{ backgroundColor: "var(--text-secondary)" }}
         >
           Save
         </button>
@@ -570,7 +555,7 @@ function EditableTaskCard({
                               borderRadius: 4,
                               padding: "2px 6px",
                               fontSize: 12,
-                              backgroundColor: "#fbfaf8",
+                              backgroundColor: "var(--surface-subtle)",
                               color: "var(--text-primary)",
                               outline: "none",
                             }}
@@ -608,7 +593,7 @@ function EditableTaskCard({
                 onKeyDown={(event) => {
                   if (event.key === "Enter") void handleAddSubtask();
                 }}
-                placeholder="Subtask hinzufuegen..."
+                placeholder="Subtask hinzufügen..."
                 className="planning-card__subtask-input"
                 style={{
                   flex: 1,
@@ -616,7 +601,7 @@ function EditableTaskCard({
                   borderRadius: 6,
                   padding: "4px 8px",
                   fontSize: 12,
-                  backgroundColor: "#fbfaf8",
+                  backgroundColor: "var(--surface-subtle)",
                   color: "var(--text-primary)",
                   outline: "none",
                 }}
@@ -632,11 +617,11 @@ function EditableTaskCard({
                   border: "1px solid var(--border-color)",
                   borderRadius: 6,
                   fontSize: 12,
-                  backgroundColor: "#f5f2ee",
+                  backgroundColor: "var(--surface-sunken)",
                   color: "var(--text-secondary)",
                   cursor: "pointer",
                 }}
-                aria-label="Subtask hinzufuegen"
+                aria-label="Subtask hinzufügen"
               >
                 <Plus size={12} strokeWidth={2} />
               </button>

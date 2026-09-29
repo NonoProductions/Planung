@@ -9,20 +9,28 @@ import { useUIStore } from "@/stores/uiStore";
 import { useTaskStore } from "@/stores/taskStore";
 import TimeBlock from "@/components/calendar/TimeBlock";
 import CurrentTimeLine from "@/components/calendar/CurrentTimeLine";
+import { type PopoverAnchor } from "@/components/calendar/CalendarPopover";
 import EventForm from "@/components/calendar/EventForm";
 import TaskScheduleForm from "@/components/calendar/TaskScheduleForm";
 import type { CalendarEvent, Task } from "@/types";
 
-export const START_HOUR = 6;
-export const END_HOUR = 22;
+export const START_HOUR = 0;
+export const END_HOUR = 24;
 export const HOUR_HEIGHT = 72;
 
 const GRID_GUTTER = 62;
-const FORM_MARGIN = 12;
-const EVENT_FORM_WIDTH = 360;
-const EVENT_FORM_HEIGHT = 720;
-const TASK_FORM_WIDTH = 336;
-const TASK_FORM_HEIGHT = 560;
+const LAST_SLOT_MINUTES = (END_HOUR - START_HOUR) * 60 - 15;
+
+function pad(value: number) {
+  return value.toString().padStart(2, "0");
+}
+
+/** One hour after "HH:MM", capped at 23:59 so it stays a valid time of day. */
+function oneHourLater(time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  const total = Math.min(hours * 60 + minutes + 60, END_HOUR * 60 - 1);
+  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+}
 const HOURS = Array.from(
   { length: END_HOUR - START_HOUR },
   (_, index) => START_HOUR + index
@@ -35,8 +43,7 @@ interface FormState {
   task?: Task;
   defaultStart?: string;
   defaultEnd?: string;
-  top: number;
-  left: number;
+  anchor: PopoverAnchor;
 }
 
 export default function CalendarView() {
@@ -60,35 +67,21 @@ export default function CalendarView() {
   const [formState, setFormState] = useState<FormState | null>(null);
   const selectedDateObj = parseISO(selectedDate);
 
-  const clampFormPosition = useCallback((
-    top: number,
-    left: number,
-    width: number,
-    height = 320
-  ) => {
-    const grid = gridRef.current;
-    if (!grid) {
-      return { top, left };
-    }
+  // Viewport anchor for a popover opened without a click (FAB, planning handoff).
+  const getGridAnchor = useCallback((gridY: number): PopoverAnchor => {
+    const rect = gridRef.current?.getBoundingClientRect();
+    if (!rect) return { x: window.innerWidth / 2, y: window.innerHeight / 3 };
 
-    const maxLeft = Math.max(FORM_MARGIN, grid.clientWidth - width - FORM_MARGIN);
-    const maxTop = Math.max(FORM_MARGIN, HOURS.length * HOUR_HEIGHT - height - FORM_MARGIN);
-
-    return {
-      top: Math.max(FORM_MARGIN, Math.min(top, maxTop)),
-      left: Math.max(FORM_MARGIN, Math.min(left, maxLeft)),
-    };
+    return { x: rect.left + GRID_GUTTER, y: rect.top + gridY };
   }, []);
 
   const yToTime = useCallback((y: number): string => {
     const totalMinutes = Math.round((y / HOUR_HEIGHT) * 60);
-    const snapped = Math.round(totalMinutes / 15) * 15;
+    const snapped = Math.min(Math.max(Math.round(totalMinutes / 15) * 15, 0), LAST_SLOT_MINUTES);
     const hour = START_HOUR + Math.floor(snapped / 60);
     const minute = snapped % 60;
 
-    return `${hour.toString().padStart(2, "0")}:${minute
-      .toString()
-      .padStart(2, "0")}`;
+    return `${pad(hour)}:${pad(minute)}`;
   }, []);
 
   const getTimeRangeFromClientY = useCallback(
@@ -127,10 +120,13 @@ export default function CalendarView() {
     fetchCalendarCategories();
   }, [fetchCalendarCategories]);
 
+  // The grid spans the whole day, so open it near the current time (or the
+  // start of a working day for other dates) instead of at midnight.
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
-    }
+    if (!scrollRef.current) return;
+    const now = new Date();
+    const focusHour = isSameDay(parseISO(selectedDate), now) ? Math.max(now.getHours() - 1, 0) : 7;
+    scrollRef.current.scrollTop = (focusHour - START_HOUR) * HOUR_HEIGHT;
   }, [selectedDate]);
 
   useEffect(() => {
@@ -142,23 +138,17 @@ export default function CalendarView() {
 
     const start = parseISO(task.scheduledStart);
     const startMinutes = (start.getHours() - START_HOUR) * 60 + start.getMinutes();
-    const position = clampFormPosition(
-      (startMinutes / 60) * HOUR_HEIGHT,
-      GRID_GUTTER,
-      TASK_FORM_WIDTH,
-      TASK_FORM_HEIGHT
-    );
+    const anchor = getGridAnchor((startMinutes / 60) * HOUR_HEIGHT);
 
     startTransition(() => {
       setFormState({
         kind: "task",
         task,
-        top: position.top,
-        left: position.left,
+        anchor,
       });
       setCalendarPlanningTaskId(null);
     });
-  }, [calendarPlanningTaskId, clampFormPosition, selectedDateObj, setCalendarPlanningTaskId, tasks]);
+  }, [calendarPlanningTaskId, getGridAnchor, selectedDateObj, setCalendarPlanningTaskId, tasks]);
 
   const dayEvents = useMemo(
     () =>
@@ -193,21 +183,17 @@ export default function CalendarView() {
       if (x < GRID_GUTTER) return;
 
       const startTime = yToTime(y);
-      const [startHourString, startMinutes] = startTime.split(":");
-      const endHour = Math.min(parseInt(startHourString, 10) + 1, END_HOUR);
-      const endTime = `${endHour.toString().padStart(2, "0")}:${startMinutes}`;
-      const position = clampFormPosition(y, x + 10, EVENT_FORM_WIDTH, EVENT_FORM_HEIGHT);
+      const endTime = oneHourLater(startTime);
 
       setFormState({
         kind: "event",
         mode: "create",
         defaultStart: startTime,
         defaultEnd: endTime,
-        top: position.top,
-        left: position.left,
+        anchor: { x: event.clientX, y: event.clientY },
       });
     },
-    [clampFormPosition, yToTime]
+    [yToTime]
   );
 
   const handleEventClick = useCallback(
@@ -215,43 +201,25 @@ export default function CalendarView() {
       mouseEvent.stopPropagation();
       if (event.id.startsWith("demo-")) return;
 
-      const grid = gridRef.current;
-      if (!grid) return;
-
-      const rect = grid.getBoundingClientRect();
-      const y = mouseEvent.clientY - rect.top + (scrollRef.current?.scrollTop || 0);
-      const x = mouseEvent.clientX - rect.left;
-      const position = clampFormPosition(y, x + 10, EVENT_FORM_WIDTH, EVENT_FORM_HEIGHT);
-
       setFormState({
         kind: "event",
         mode: "edit",
         event,
-        top: position.top,
-        left: position.left,
+        anchor: { x: mouseEvent.clientX, y: mouseEvent.clientY },
       });
     },
-    [clampFormPosition]
+    []
   );
 
   const handleTaskClick = useCallback((task: Task, mouseEvent: React.MouseEvent) => {
     mouseEvent.stopPropagation();
 
-    const grid = gridRef.current;
-    if (!grid) return;
-
-    const rect = grid.getBoundingClientRect();
-    const y = mouseEvent.clientY - rect.top + (scrollRef.current?.scrollTop || 0);
-    const x = mouseEvent.clientX - rect.left;
-    const position = clampFormPosition(y, x + 10, TASK_FORM_WIDTH, TASK_FORM_HEIGHT);
-
     setFormState({
       kind: "task",
       task,
-      top: position.top,
-      left: position.left,
+      anchor: { x: mouseEvent.clientX, y: mouseEvent.clientY },
     });
-  }, [clampFormPosition]);
+  }, []);
 
   const handleSaveEvent = useCallback(
     async (data: {
@@ -289,27 +257,17 @@ export default function CalendarView() {
     const minuteCarry = roundedMinutes === 60 ? 1 : 0;
     const startHour = Math.min(now.getHours() + minuteCarry, END_HOUR - 1);
     const displayMinutes = roundedMinutes === 60 ? 0 : roundedMinutes;
-    const endHour = Math.min(startHour + 1, END_HOUR);
-    const position = clampFormPosition(
-      (startHour - START_HOUR) * HOUR_HEIGHT,
-      GRID_GUTTER,
-      EVENT_FORM_WIDTH,
-      EVENT_FORM_HEIGHT
-    );
+    const anchor = getGridAnchor((startHour - START_HOUR) * HOUR_HEIGHT);
+    const defaultStart = `${pad(startHour)}:${pad(displayMinutes)}`;
 
     setFormState({
       kind: "event",
       mode: "create",
-      defaultStart: `${startHour
-        .toString()
-        .padStart(2, "0")}:${displayMinutes.toString().padStart(2, "0")}`,
-      defaultEnd: `${endHour
-        .toString()
-        .padStart(2, "0")}:${displayMinutes.toString().padStart(2, "0")}`,
-      top: position.top,
-      left: position.left,
+      defaultStart,
+      defaultEnd: oneHourLater(defaultStart),
+      anchor,
     });
-  }, [clampFormPosition]);
+  }, [getGridAnchor]);
 
   const handleSaveTaskSchedule = useCallback(
     async (data: {
@@ -366,7 +324,7 @@ export default function CalendarView() {
             type="button"
             onClick={() => setCalendarVisible(false)}
             className="calendar-toolbar__button calendar-toolbar__button--dismiss"
-            aria-label="Kalender schliessen"
+            aria-label="Kalender schließen"
           >
             <X size={15} strokeWidth={2.1} />
           </button>
@@ -456,7 +414,7 @@ export default function CalendarView() {
             ))}
           </div>
 
-          <CurrentTimeLine startHour={START_HOUR} hourHeight={HOUR_HEIGHT} />
+          <CurrentTimeLine startHour={START_HOUR} endHour={END_HOUR} hourHeight={HOUR_HEIGHT} />
 
           {formState?.kind === "event" && (
             <EventForm
@@ -469,7 +427,7 @@ export default function CalendarView() {
               onSave={handleSaveEvent}
               onDelete={formState.mode === "edit" ? handleDeleteEvent : undefined}
               onClose={() => setFormState(null)}
-              position={{ top: formState.top, left: formState.left }}
+              anchor={formState.anchor}
             />
           )}
 
@@ -481,7 +439,7 @@ export default function CalendarView() {
               onSave={handleSaveTaskSchedule}
               onUnschedule={handleUnscheduleTask}
               onClose={() => setFormState(null)}
-              position={{ top: formState.top, left: formState.left }}
+              anchor={formState.anchor}
             />
           )}
         </div>

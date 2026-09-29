@@ -6,13 +6,11 @@ import {
   CalendarRange,
   ChevronDown,
   ClipboardList,
-  Coffee,
   House,
   LogOut,
   NotebookText,
   PanelLeftClose,
   PanelLeftOpen,
-  PencilLine,
   Settings2,
   X,
 } from "lucide-react";
@@ -25,19 +23,13 @@ const mainNav = [
   { label: "Home", href: "/", icon: House },
   { label: "Backlog", href: "/backlog", icon: ClipboardList },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
-  { label: "Focus", href: "/week", icon: Coffee },
+  { label: "Weekly planning", shortLabel: "Weekly", href: "/week", icon: CalendarRange },
   { label: "Settings", href: "/settings", icon: Settings2 },
 ];
 
 const dayLinks = [
   { label: "Daily planning", icon: CalendarCheck2, href: "/planning" },
   { label: "Daily shutdown", icon: NotebookText, action: "shutdown" },
-  { label: "Daily highlights", icon: PencilLine },
-];
-
-const weekLinks = [
-  { label: "Weekly planning", icon: CalendarRange },
-  { label: "Weekly review", icon: ClipboardList },
 ];
 
 function SidebarRow({
@@ -134,7 +126,7 @@ export default function Sidebar({ collapsed = false, onClose }: SidebarProps) {
             type="button"
             onClick={handleClose}
             className="sidebar-mobile-close"
-            aria-label="Navigation schliessen"
+            aria-label="Navigation schließen"
           >
             <X size={16} strokeWidth={2.2} />
           </button>
@@ -200,24 +192,6 @@ export default function Sidebar({ collapsed = false, onClose }: SidebarProps) {
           </div>
         </section>
 
-        <section className="sidebar-group">
-          <div className="sidebar-group__header">
-            <p className="sidebar-group__label">Week</p>
-          </div>
-          <div className="sidebar-group__stack">
-            {weekLinks.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                className="sidebar-item sidebar-item--button"
-                title={itemTitle(item.label)}
-              >
-                <SidebarRow label={item.label} icon={item.icon} />
-              </button>
-            ))}
-          </div>
-        </section>
-
         <section className="sidebar-group sidebar-group--footer">
           <button
             type="button"
@@ -242,7 +216,7 @@ export default function Sidebar({ collapsed = false, onClose }: SidebarProps) {
               aria-current={active ? "page" : undefined}
             >
               <Icon size={18} strokeWidth={2} />
-              <span>{item.label}</span>
+              <span>{"shortLabel" in item ? item.shortLabel : item.label}</span>
             </Link>
           );
         })}

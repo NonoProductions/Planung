@@ -23,7 +23,7 @@ function MobileDayNav() {
       onNext={() => setSelectedDate(toLocalDateString(addDays(baseDate, 1)))}
       onReset={() => setSelectedDate(toLocalDateString(new Date()))}
       prevLabel="Vorheriger Tag"
-      nextLabel="Naechster Tag"
+      nextLabel="Nächster Tag"
     />
   );
 }

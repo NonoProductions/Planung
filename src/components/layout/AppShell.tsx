@@ -62,7 +62,7 @@ function getPageMeta(pathname: string) {
   if (pathname.startsWith("/week")) {
     return {
       eyebrow: "Weekly",
-      title: "Focus",
+      title: "Weekly planning",
     };
   }
 
@@ -73,7 +73,7 @@ function getPageMeta(pathname: string) {
 }
 
 function supportsCalendar(pathname: string) {
-  return pathname === "/" || pathname.startsWith("/backlog");
+  return pathname === "/";
 }
 
 const AUTO_SHUTDOWN_HOUR = 18;
@@ -123,7 +123,6 @@ export default function AppShell({
   const calendarVisible = useUIStore((state) => state.calendarVisible);
   const toggleCalendar = useUIStore((state) => state.toggleCalendar);
   const setCalendarVisible = useUIStore((state) => state.setCalendarVisible);
-  const darkMode = useUIStore((state) => state.darkMode);
   const planningRitualCompletedDates = useUIStore(
     (state) => state.planningRitualCompletedDates
   );
@@ -153,11 +152,6 @@ export default function AppShell({
   }, [pathname, setCalendarVisible]);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.documentElement.classList.toggle("dark", darkMode);
-  }, [darkMode]);
-
-  useEffect(() => {
     if (typeof window === "undefined") return undefined;
 
     const checkPlanningWindow = () => {
@@ -172,10 +166,18 @@ export default function AppShell({
         return;
       }
 
-      if (hasReachedClockTime(now, planningTime)) {
-        router.push("/planning");
-        setAutoPlanningPromptedDate(today);
-      }
+      if (!hasReachedClockTime(now, planningTime)) return;
+
+      // Only prompt when nothing is planned for today yet.
+      setAutoPlanningPromptedDate(today);
+      void fetch(`/api/tasks?date=${today}`)
+        .then((response) => (response.ok ? response.json() : []))
+        .then((todayTasks: unknown) => {
+          if (Array.isArray(todayTasks) && todayTasks.length === 0) {
+            router.push("/planning");
+          }
+        })
+        .catch(() => {});
     };
 
     checkPlanningWindow();
@@ -248,56 +250,22 @@ export default function AppShell({
   return (
     <div className={shellClassName}>
       {quietMode && (
-        <div
-          className="pointer-events-none fixed left-1/2 top-4 z-[85] w-[min(92vw,520px)] -translate-x-1/2 rounded-[22px] border px-4 py-3 shadow-lg"
-          style={{
-            borderColor: "rgba(228, 220, 211, 0.94)",
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(249,245,239,0.96))",
-            boxShadow: "0 18px 34px rgba(88, 75, 57, 0.12)",
-          }}
-        >
-          <div className="pointer-events-auto flex items-center gap-3">
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px]"
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(141,124,246,0.16), rgba(244,173,70,0.16))",
-                color: "var(--accent-primary)",
-              }}
-            >
-              <MoonStar size={17} strokeWidth={1.9} />
-            </div>
+        <div className="app-toast" role="status">
+          <span className="app-icon-tile">
+            <MoonStar size={16} strokeWidth={2} />
+          </span>
 
-            <div className="min-w-0 flex-1">
-              <p
-                className="text-[11px] font-semibold uppercase tracking-[0.2em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Ruhemodus
-              </p>
-              <p
-                className="text-[13px] leading-6"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Shutdown fuer {quietModeLabel} abgeschlossen. Der Tag ist jetzt
-                sauber geparkt.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={clearQuietMode}
-              className="rounded-full border px-3 py-2 text-[12px] font-medium"
-              style={{
-                borderColor: "var(--border-color)",
-                backgroundColor: "#ffffff",
-                color: "var(--text-secondary)",
-              }}
-            >
-              Weiterarbeiten
-            </button>
+          <div className="app-toast__text">
+            <p className="settings-row__label">Ruhemodus</p>
+            <p className="settings-row__description">
+              Shutdown für {quietModeLabel} abgeschlossen. Der Tag ist jetzt
+              sauber geparkt.
+            </p>
           </div>
+
+          <button type="button" onClick={clearQuietMode} className="workspace-button">
+            Weiterarbeiten
+          </button>
         </div>
       )}
 
@@ -306,7 +274,7 @@ export default function AppShell({
           type="button"
           onClick={() => setSidebarExpanded(!sidebarExpanded)}
           className="mobile-topbar__button"
-          aria-label={sidebarExpanded ? "Navigation schliessen" : "Navigation oeffnen"}
+          aria-label={sidebarExpanded ? "Navigation schließen" : "Navigation öffnen"}
           aria-expanded={sidebarExpanded}
           aria-controls="app-navigation"
         >
@@ -329,7 +297,7 @@ export default function AppShell({
             type="button"
             onClick={toggleCalendar}
             className="mobile-topbar__button"
-            aria-label={calendarVisible ? "Kalender schliessen" : "Kalender oeffnen"}
+            aria-label={calendarVisible ? "Kalender schließen" : "Kalender öffnen"}
           >
             {calendarVisible ? (
               <PanelRightClose size={18} strokeWidth={2.1} />
@@ -346,7 +314,7 @@ export default function AppShell({
         <button
           type="button"
           className="app-shell__backdrop"
-          aria-label="Navigation schliessen"
+          aria-label="Navigation schließen"
           onClick={() => setSidebarExpanded(false)}
         />
       )}

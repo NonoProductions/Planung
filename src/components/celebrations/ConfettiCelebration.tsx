@@ -77,12 +77,7 @@ export default function ConfettiCelebration() {
         >
           <div
             className="absolute inset-0"
-            style={{
-              background:
-                activeCelebration.type === "fireworks"
-                  ? "radial-gradient(circle at center, rgba(141, 124, 246, 0.16), transparent 48%)"
-                  : "radial-gradient(circle at center, rgba(255, 255, 255, 0.28), transparent 42%)",
-            }}
+            style={{ background: "rgba(var(--surface-rgb), 0.42)" }}
           />
 
           {activeCelebration.type === "confetti" &&
@@ -172,74 +167,37 @@ export default function ConfettiCelebration() {
               />
             ))}
 
-          <motion.div
-            className="absolute left-1/2 top-1/2 flex w-[min(90vw,26rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center"
-            initial={{ opacity: 0, scale: 0.9, y: 18 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.94, y: 12 }}
-            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-          >
+          <div className="absolute inset-0 flex items-center justify-center">
             <motion.div
-              className="mb-4 flex h-20 w-20 items-center justify-center rounded-[28px]"
-              initial={{ rotate: -12, scale: 0.84 }}
-              animate={{ rotate: 0, scale: 1 }}
-              transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
-              style={{
-                background:
-                  activeCelebration.type === "fireworks"
-                    ? "linear-gradient(135deg, rgba(244, 173, 70, 0.28), rgba(141, 124, 246, 0.2))"
-                    : activeCelebration.type === "checkmark"
-                      ? "linear-gradient(135deg, rgba(87, 182, 121, 0.24), rgba(255, 255, 255, 0.92))"
-                      : "linear-gradient(135deg, rgba(255, 143, 112, 0.24), rgba(255, 255, 255, 0.92))",
-                border: "1px solid rgba(255, 255, 255, 0.64)",
-                boxShadow: "0 24px 60px rgba(88, 75, 57, 0.18)",
-              }}
+              className="celebration-card"
+              initial={{ opacity: 0, scale: 0.94, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             >
-              {activeCelebration.type === "checkmark" ? (
-                <Check size={34} strokeWidth={3} style={{ color: "var(--accent-success)" }} />
-              ) : (
-                <Sparkles
-                  size={30}
-                  strokeWidth={2.4}
-                  style={{
-                    color:
-                      activeCelebration.type === "fireworks"
-                        ? "var(--accent-warning)"
-                        : "var(--accent-primary)",
-                  }}
-                />
-              )}
+              <motion.span
+                className={`app-icon-tile${
+                activeCelebration.type === "checkmark"
+                  ? " app-icon-tile--success"
+                  : activeCelebration.type === "fireworks"
+                    ? " app-icon-tile--warning"
+                    : ""
+              }`}
+                initial={{ rotate: -10, scale: 0.84 }}
+                animate={{ rotate: 0, scale: 1 }}
+                transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {activeCelebration.type === "checkmark" ? (
+                  <Check size={24} strokeWidth={2.6} />
+                ) : (
+                  <Sparkles size={22} strokeWidth={2.2} />
+                )}
+              </motion.span>
+              <span className="workspace-badge workspace-badge--accent">Geschafft</span>
+              <h3 className="celebration-card__title mt-3">{activeCelebration.title}</h3>
+              <p className="celebration-card__subtitle">{activeCelebration.subtitle}</p>
             </motion.div>
-
-            <div
-              className="rounded-[30px] px-6 py-5"
-              style={{
-                backgroundColor: "rgba(255, 255, 255, 0.84)",
-                backdropFilter: "blur(12px)",
-                border: "1px solid rgba(255, 255, 255, 0.75)",
-                boxShadow: "0 28px 60px rgba(88, 75, 57, 0.16)",
-              }}
-            >
-              <p
-                className="text-[0.72rem] font-semibold uppercase tracking-[0.28em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Celebration
-              </p>
-              <h3
-                className="mt-2 text-[1.8rem] font-semibold leading-none"
-                style={{ color: "var(--text-primary)" }}
-              >
-                {activeCelebration.title}
-              </h3>
-              <p
-                className="mt-2 text-[0.96rem]"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {activeCelebration.subtitle}
-              </p>
-            </div>
-          </motion.div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

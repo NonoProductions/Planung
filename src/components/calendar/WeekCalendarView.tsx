@@ -12,6 +12,7 @@ import { de } from "date-fns/locale";
 import { useTaskStore } from "@/stores/taskStore";
 import TimeBlock from "@/components/calendar/TimeBlock";
 import CurrentTimeLine from "@/components/calendar/CurrentTimeLine";
+import { type PopoverAnchor } from "@/components/calendar/CalendarPopover";
 import EventForm from "@/components/calendar/EventForm";
 import type { CalendarEvent } from "@/types";
 import { toLocalDateString } from "@/lib/date";
@@ -31,8 +32,7 @@ interface FormState {
   defaultStart?: string;
   defaultEnd?: string;
   dayDate: string; // YYYY-MM-DD for which day to create on
-  top: number;
-  left: number;
+  anchor: PopoverAnchor;
 }
 
 interface Props {
@@ -117,7 +117,7 @@ export default function WeekCalendarView({
   }, []);
 
   const handleColumnClick = useCallback(
-    (e: React.MouseEvent, dayDate: string, colIndex: number) => {
+    (e: React.MouseEvent, dayDate: string) => {
       if ((e.target as HTMLElement).closest("[data-timeblock]")) return;
       if (formState) {
         setFormState(null);
@@ -139,19 +139,12 @@ export default function WeekCalendarView({
       const endHour = Math.min(parseInt(startParts[0]) + 1, END_HOUR);
       const endTime = `${endHour.toString().padStart(2, "0")}:${startParts[1]}`;
 
-      // Position form near click, capped within view
-      const formTop = Math.min(y, HOURS.length * HOUR_HEIGHT - 360);
-      // Estimate left offset based on column index
-      const colWidth = (grid.clientWidth - 44) / 7;
-      const formLeft = Math.min(44 + colIndex * colWidth, grid.clientWidth - 290);
-
       setFormState({
         mode: "create",
         defaultStart: startTime,
         defaultEnd: endTime,
         dayDate,
-        top: Math.max(0, formTop),
-        left: Math.max(44, formLeft),
+        anchor: { x: e.clientX, y: e.clientY },
       });
     },
     [formState, yToTime]
@@ -161,21 +154,11 @@ export default function WeekCalendarView({
     (event: CalendarEvent, e: React.MouseEvent) => {
       e.stopPropagation();
 
-      const grid = gridRef.current;
-      if (!grid) return;
-
-      const rect = grid.getBoundingClientRect();
-      const y = e.clientY - rect.top + (scrollRef.current?.scrollTop || 0);
-      const x = e.clientX - rect.left;
-      const formTop = Math.min(y, HOURS.length * HOUR_HEIGHT - 360);
-      const formLeft = Math.min(x - 20, grid.clientWidth - 290);
-
       setFormState({
         mode: "edit",
         event,
         dayDate: event.startTime.split("T")[0],
-        top: Math.max(0, formTop),
-        left: Math.max(44, formLeft),
+        anchor: { x: e.clientX, y: e.clientY },
       });
     },
     []
@@ -295,7 +278,7 @@ export default function WeekCalendarView({
                   ? "color-mix(in srgb, var(--accent-primary) 2%, transparent)"
                   : "transparent",
               }}
-              onClick={(e) => handleColumnClick(e, dayStr, colIdx)}
+              onClick={(e) => handleColumnClick(e, dayStr)}
             >
               {/* Horizontal hour lines */}
               {HOURS.map((hour) => (
@@ -380,7 +363,7 @@ export default function WeekCalendarView({
             onSave={handleSaveEvent}
             onDelete={formState.mode === "edit" ? handleDeleteEvent : undefined}
             onClose={() => setFormState(null)}
-            position={{ top: formState.top, left: formState.left }}
+            anchor={formState.anchor}
           />
         )}
       </div>

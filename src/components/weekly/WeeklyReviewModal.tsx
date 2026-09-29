@@ -106,8 +106,7 @@ export default function WeeklyReviewModal({ weekStart, onClose }: Props) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.18 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6"
-        style={{ backgroundColor: "rgba(10,10,8,0.45)", backdropFilter: "blur(4px)" }}
+        className="app-overlay z-50"
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
@@ -118,13 +117,8 @@ export default function WeeklyReviewModal({ weekStart, onClose }: Props) {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.97, y: 8 }}
           transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-          className="flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl"
-          style={{
-            backgroundColor: "var(--bg-primary)",
-            boxShadow: "var(--shadow-lg)",
-            border: "1px solid var(--border-subtle)",
-            maxHeight: "88vh",
-          }}
+          className="ritual-modal ritual-modal--board flex w-full max-w-2xl flex-col overflow-hidden"
+          style={{ maxHeight: "88vh" }}
         >
           {/* Header */}
           <div
@@ -146,7 +140,7 @@ export default function WeeklyReviewModal({ weekStart, onClose }: Props) {
             </div>
             <button
               onClick={onClose}
-              className="ml-auto flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-150"
+              className="ml-auto flex h-8 w-8 items-center justify-center rounded-[8px] transition-all duration-150"
               style={{ color: "var(--text-muted)" }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--bg-hover)";
@@ -383,19 +377,7 @@ export default function WeeklyReviewModal({ weekStart, onClose }: Props) {
           >
             <button
               onClick={onClose}
-              className="rounded-xl px-5 py-2 text-[13px] font-medium transition-all duration-150"
-              style={{
-                backgroundColor: "var(--accent-primary)",
-                color: "white",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-                  "var(--accent-primary-hover)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-                  "var(--accent-primary)";
-              }}
+              className="workspace-button workspace-button--primary"
             >
               Schließen
             </button>
@@ -421,7 +403,7 @@ function KpiCard({
 }) {
   return (
     <div
-      className="flex flex-col gap-1.5 rounded-xl p-4"
+      className="flex flex-col gap-1.5 rounded-[8px] p-4"
       style={{
         backgroundColor: "var(--bg-card)",
         border: "1px solid var(--border-subtle)",

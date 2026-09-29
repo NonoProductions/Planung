@@ -30,7 +30,6 @@ type QuickAddRequest =
 interface UIState {
   sidebarExpanded: boolean;
   sidebarCollapsed: boolean;
-  darkMode: boolean;
   calendarVisible: boolean;
   selectedDate: string;
   selectedTaskId: string | null;
@@ -55,7 +54,6 @@ interface UIState {
   toggleSidebar: () => void;
   setSidebarExpanded: (expanded: boolean) => void;
   toggleSidebarCollapsed: () => void;
-  toggleDarkMode: () => void;
   toggleCalendar: () => void;
   setCalendarVisible: (visible: boolean) => void;
   setSelectedDate: (date: string) => void;
@@ -124,7 +122,7 @@ function getCelebrationCopy(trigger: CelebrationTrigger) {
     case "all_tasks_complete":
       return {
         title: "Alles erledigt",
-        subtitle: "Dein Tag ist aufgeraeumt und abgeschlossen.",
+        subtitle: "Dein Tag ist aufgeräumt und abgeschlossen.",
       };
     case "planning_ritual":
       return {
@@ -134,19 +132,14 @@ function getCelebrationCopy(trigger: CelebrationTrigger) {
     case "shutdown_ritual":
       return {
         title: "Shutdown geschafft",
-        subtitle: "Feierabend kann sich jetzt gut anfuehlen.",
+        subtitle: "Feierabend kann sich jetzt gut anfühlen.",
       };
     default:
       return {
         title: "Starker Moment",
-        subtitle: "Zeit fuer einen kleinen Sieg.",
+        subtitle: "Zeit für einen kleinen Sieg.",
       };
   }
-}
-
-function applyDarkModeClass(enabled: boolean) {
-  if (typeof document === "undefined") return;
-  document.documentElement.classList.toggle("dark", enabled);
 }
 
 export const useUIStore = create<UIState>()(
@@ -154,7 +147,6 @@ export const useUIStore = create<UIState>()(
     (set, get) => ({
       sidebarExpanded: false,
       sidebarCollapsed: false,
-      darkMode: false,
       calendarVisible: true,
       selectedDate: toLocalDateString(new Date()),
       selectedTaskId: null,
@@ -185,23 +177,6 @@ export const useUIStore = create<UIState>()(
 
       toggleSidebarCollapsed: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-
-      toggleDarkMode: () =>
-        set((state) => {
-          const nextDarkMode = !state.darkMode;
-
-          if (typeof document !== "undefined") {
-            const html = document.documentElement;
-            html.classList.add("theme-transition");
-            applyDarkModeClass(nextDarkMode);
-            window.setTimeout(
-              () => html.classList.remove("theme-transition"),
-              450
-            );
-          }
-
-          return { darkMode: nextDarkMode };
-        }),
 
       toggleCalendar: () =>
         set((state) => ({ calendarVisible: !state.calendarVisible })),
@@ -356,7 +331,6 @@ export const useUIStore = create<UIState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
-        darkMode: state.darkMode,
         quietMode: state.quietMode,
         quietModeDate: state.quietModeDate,
         celebrationEnabled: state.celebrationEnabled,
@@ -365,9 +339,6 @@ export const useUIStore = create<UIState>()(
         shutdownRitualCompletedDates: state.shutdownRitualCompletedDates,
         dailyShutdownNotes: state.dailyShutdownNotes,
       }),
-      onRehydrateStorage: () => (state) => {
-        applyDarkModeClass(Boolean(state?.darkMode));
-      },
     }
   )
 );

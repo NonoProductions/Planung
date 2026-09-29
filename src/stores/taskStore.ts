@@ -429,6 +429,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       const updated = { ...t, ...updates };
       if (updates.status === "COMPLETED") {
         updated.completedAt = new Date().toISOString();
+        updated.subtasks = t.subtasks?.map((subtask) =>
+          subtask.status === "COMPLETED"
+            ? subtask
+            : { ...subtask, status: "COMPLETED", completedAt: updated.completedAt }
+        );
       } else if (updates.status) {
         updated.completedAt = undefined;
       }

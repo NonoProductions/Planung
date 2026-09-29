@@ -59,11 +59,11 @@ export default function TimeBlock({
         top,
         height,
         backgroundColor: color,
-        boxShadow: "0 1px 0 rgba(77, 66, 54, 0.05), 0 8px 14px rgba(77, 66, 54, 0.07)",
+        boxShadow: "0 1px 0 rgba(var(--shadow-rgb), 0.05), 0 8px 14px rgba(var(--shadow-rgb), 0.07)",
         opacity: isEvent ? 1 : 0.94,
       }}
       whileHover={{
-        boxShadow: "0 12px 20px rgba(77, 66, 54, 0.1)",
+        boxShadow: "0 12px 20px rgba(var(--shadow-rgb), 0.1)",
       }}
     >
       <div

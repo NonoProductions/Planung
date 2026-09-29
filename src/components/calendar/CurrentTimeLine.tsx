@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 
 interface CurrentTimeLineProps {
   startHour: number;
+  endHour?: number;
   hourHeight: number;
   gutterWidth?: number;
 }
 
 export default function CurrentTimeLine({
   startHour,
+  endHour = 24,
   hourHeight,
 }: CurrentTimeLineProps) {
   const [now, setNow] = useState(new Date());
@@ -23,7 +25,7 @@ export default function CurrentTimeLine({
   const minutes = now.getMinutes();
   const top = (hours - startHour + minutes / 60) * hourHeight;
 
-  if (hours < startHour || hours >= 22) return null;
+  if (hours < startHour || hours >= endHour) return null;
 
   return (
     <div

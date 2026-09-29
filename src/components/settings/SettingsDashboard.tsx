@@ -15,6 +15,7 @@ import { buildPlannerExportCsv } from "@/lib/planner-export";
 import { useObjectiveStore } from "@/stores/objectiveStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTaskStore } from "@/stores/taskStore";
+import TimeInput from "@/components/ui/TimeInput";
 import type {
   CelebrationType,
   PlannerExportData,
@@ -178,7 +179,7 @@ export default function SettingsDashboard() {
       setNotice({
         tone: "success",
         message: isDbFallback
-          ? "Export erstellt. Die Datenbank war nicht erreichbar, deshalb enthaelt die Datei nur den aktuell verfuegbaren Datenstand."
+          ? "Export erstellt. Die Datenbank war nicht erreichbar, deshalb enthält die Datei nur den aktuell verfügbaren Datenstand."
           : `Export als ${format.toUpperCase()} gespeichert.`,
       });
     } catch {
@@ -196,7 +197,7 @@ export default function SettingsDashboard() {
       setDeleteArmed(true);
       setNotice({
         tone: "pending",
-        message: "Noch einmal klicken, um alle Demo-Daten endgueltig zu loeschen.",
+        message: "Noch einmal klicken, um alle Demo-Daten endgültig zu löschen.",
       });
       return;
     }
@@ -227,7 +228,7 @@ export default function SettingsDashboard() {
     } catch {
       setNotice({
         tone: "error",
-        message: "Die Demo-Daten konnten nicht geloescht werden.",
+        message: "Die Demo-Daten konnten nicht gelöscht werden.",
       });
     } finally {
       setDeletingDemo(false);
@@ -287,7 +288,7 @@ export default function SettingsDashboard() {
                 placeholder="name@example.com"
               />
             </SettingRow>
-            <SettingRow label="Avatar-Kuerzel" description="Bis zu drei Buchstaben.">
+            <SettingRow label="Avatar-Kürzel" description="Bis zu drei Buchstaben.">
               <TextInput
                 value={settings.profile.avatar}
                 onChange={(value) =>
@@ -322,18 +323,6 @@ export default function SettingsDashboard() {
                 }
               />
             </SettingRow>
-            <SettingRow label="Zeitformat">
-              <SegmentedControl
-                value={settings.display.timeFormat}
-                options={[
-                  { value: "24h", label: "24h" },
-                  { value: "12h", label: "12h" },
-                ]}
-                onChange={(value) =>
-                  updateSection("display", { timeFormat: value as "24h" | "12h" })
-                }
-              />
-            </SettingRow>
             <SettingRow label="Sprache">
               <SegmentedControl
                 value={settings.display.language}
@@ -347,16 +336,17 @@ export default function SettingsDashboard() {
           </SettingsSection>
 
           <SettingsSection title="Planung" subtitle={"Rituale und Rollover"}>
-            <SettingRow label="Planungszeit" description="Startpunkt fuer deinen Morgen.">
-              <TextInput
-                type="time"
+            <SettingRow label="Planungszeit" description="Startpunkt für deinen Morgen.">
+              <TimeInput
                 value={settings.planning.planningTime}
                 onChange={(value) => updateSection("planning", { planningTime: value })}
+                className="workspace-input settings-input"
+                aria-label="Planungszeit"
               />
             </SettingRow>
             <SettingRow inline
               label="Auto-Rollover"
-              description="Unerledigte Aufgaben wandern automatisch in den naechsten Tag."
+              description="Unerledigte Aufgaben wandern automatisch in den nächsten Tag."
             >
               <Switch
                 checked={settings.planning.autoRollover}
@@ -416,7 +406,7 @@ export default function SettingsDashboard() {
           </SettingsSection>
 
           <SettingsSection
-            title="Kapazitaet"
+            title="Kapazität"
             subtitle={
               <span style={{ color: workloadBadgeColor }}>
                 {formatMinutes(totalWeeklyCapacity)} pro Woche
@@ -469,7 +459,7 @@ export default function SettingsDashboard() {
                 }
               />
             </SettingRow>
-            <SettingRow inline label="Faellige Aufgaben" description="Hebt anstehende Deadlines hervor.">
+            <SettingRow inline label="Fällige Aufgaben" description="Hebt anstehende Deadlines hervor.">
               <Switch
                 checked={settings.notifications.taskDue}
                 onToggle={() =>
@@ -481,7 +471,7 @@ export default function SettingsDashboard() {
             </SettingRow>
             <SettingRow inline
               label="Animationen"
-              description="Rueckmeldung bei erledigten Tagen und Ritualen."
+              description="Rückmeldung bei erledigten Tagen und Ritualen."
             >
               <Switch
                 checked={settings.celebrations.enabled}
@@ -534,7 +524,7 @@ export default function SettingsDashboard() {
                         void updateCalendarCategory(category.id, { color: event.target.value })
                       }
                       className="settings-color"
-                      aria-label={`Farbe fuer ${category.name}`}
+                      aria-label={`Farbe für ${category.name}`}
                     />
                     <input
                       value={category.name}
@@ -548,7 +538,7 @@ export default function SettingsDashboard() {
                       type="button"
                       onClick={() => void deleteCalendarCategory(category.id)}
                       className="planning-toolbar__button planning-toolbar__button--icon"
-                      aria-label={`${category.name} loeschen`}
+                      aria-label={`${category.name} löschen`}
                     >
                       <Trash2 size={14} strokeWidth={2} />
                     </button>
@@ -578,13 +568,13 @@ export default function SettingsDashboard() {
 
               {!apiAvailable && (
                 <p className="settings-row__description">
-                  Die Datenbank ist gerade nicht verfuegbar. Farb-Aenderungen laufen lokal weiter.
+                  Die Datenbank ist gerade nicht verfügbar. Farb-Änderungen laufen lokal weiter.
                 </p>
               )}
             </div>
           </SettingsSection>
 
-          <SettingsSection title="Daten" subtitle={"Export und Zuruecksetzen"}>
+          <SettingsSection title="Daten" subtitle={"Export und Zurücksetzen"}>
             <SettingRow label="Export" description="Snapshot aller Aufgaben inklusive Einstellungen.">
               <div className="flex flex-wrap gap-2">
                 <button
@@ -609,7 +599,7 @@ export default function SettingsDashboard() {
             </SettingRow>
             <SettingRow
               label="Standardwerte"
-              description="Setzt alle Einstellungen zurueck. Deine Daten bleiben erhalten."
+              description="Setzt alle Einstellungen zurück. Deine Daten bleiben erhalten."
             >
               <button
                 type="button"
@@ -617,18 +607,18 @@ export default function SettingsDashboard() {
                   resetSettings();
                   setNotice({
                     tone: "success",
-                    message: "Alle Einstellungen wurden auf die Standardwerte zurueckgesetzt.",
+                    message: "Alle Einstellungen wurden auf die Standardwerte zurückgesetzt.",
                   });
                 }}
                 disabled={deletingDemo || Boolean(exportingFormat)}
                 className="workspace-button"
               >
                 <Repeat size={14} strokeWidth={2} />
-                Zuruecksetzen
+                Zurücksetzen
               </button>
             </SettingRow>
             <SettingRow
-              label="Alle Daten loeschen"
+              label="Alle Daten löschen"
               description="Entfernt Aufgaben, Ziele, Events, Channels und Kalenderfarben."
             >
               <button
@@ -642,7 +632,7 @@ export default function SettingsDashboard() {
                 ) : (
                   <Trash2 size={14} strokeWidth={2} />
                 )}
-                {deleteArmed ? "Wirklich loeschen" : "Loeschen"}
+                {deleteArmed ? "Wirklich löschen" : "Löschen"}
               </button>
             </SettingRow>
 

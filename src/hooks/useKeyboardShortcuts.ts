@@ -3,6 +3,7 @@
 import { addDays, parseISO, subDays } from "date-fns";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { toggleThemeMode } from "@/components/theme/ThemeSync";
 import { toLocalDateString } from "@/lib/date";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
@@ -83,7 +84,6 @@ export default function useKeyboardShortcuts() {
   const focusTaskId = useUIStore((state) => state.focusTaskId);
   const quickAddRequest = useUIStore((state) => state.quickAddRequest);
   const setSelectedDate = useUIStore((state) => state.setSelectedDate);
-  const toggleDarkMode = useUIStore((state) => state.toggleDarkMode);
   const toggleCalendar = useUIStore((state) => state.toggleCalendar);
   const closeShutdownRitual = useUIStore((state) => state.closeShutdownRitual);
   const openShortcutHelp = useUIStore((state) => state.openShortcutHelp);
@@ -179,7 +179,7 @@ export default function useKeyboardShortcuts() {
 
       if (event.shiftKey && noCtrlMetaAlt && normalizedKey === "l") {
         event.preventDefault();
-        toggleDarkMode();
+        toggleThemeMode();
         return;
       }
 
@@ -297,7 +297,6 @@ export default function useKeyboardShortcuts() {
     stopEditingTask,
     tasks,
     toggleCalendar,
-    toggleDarkMode,
     toggleTaskStatus,
     updateTask,
   ]);

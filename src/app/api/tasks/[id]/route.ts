@@ -63,6 +63,21 @@ export async function PATCH(
 
   if (error) throw error;
 
+  if (body.status === "COMPLETED") {
+    const { error: subtaskError } = await supabase
+      .from("Task")
+      .update({
+        status: "COMPLETED",
+        completedAt: data.completedAt,
+        updatedAt: data.updatedAt,
+      })
+      .eq("parentId", id)
+      .eq("userId", userId)
+      .neq("status", "COMPLETED");
+
+    if (subtaskError) throw subtaskError;
+  }
+
   return Response.json(task);
 }
 

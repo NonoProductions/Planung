@@ -1,13 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { addDays, format, isSameDay, isToday, parseISO } from "date-fns";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
+import { addDays, format, isPast, isSameDay, isToday, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
-import { CheckCircle2, Circle, Clock } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Plus } from "lucide-react";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
+import TaskCard from "@/components/tasks/TaskCard";
 import type { Task } from "@/types";
 import { extractDateOnly, toLocalDateString } from "@/lib/date";
 
@@ -16,10 +23,31 @@ interface Props {
 }
 
 export default function WeekGrid({ weekStart }: Props) {
-  const { tasks, fetchTasks, toggleTaskStatus } = useTaskStore();
-  const { setSelectedDate } = useUIStore();
+  const tasks = useTaskStore((state) => state.tasks);
+  const channels = useTaskStore((state) => state.channels);
+  const fetchTasks = useTaskStore((state) => state.fetchTasks);
+  const fetchChannels = useTaskStore((state) => state.fetchChannels);
+  const addTask = useTaskStore((state) => state.addTask);
+  const setSelectedDate = useUIStore((state) => state.setSelectedDate);
+  const quickAddRequest = useUIStore((state) => state.quickAddRequest);
+  const requestDayQuickAdd = useUIStore((state) => state.requestDayQuickAdd);
+  const clearQuickAddRequest = useUIStore((state) => state.clearQuickAddRequest);
   const router = useRouter();
-  const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
+
+  const [newTitle, setNewTitle] = useState("");
+  const [newChannelId, setNewChannelId] = useState("");
+  const [newPlannedTime, setNewPlannedTime] = useState("");
+  const addInputRef = useRef<HTMLInputElement>(null);
+
+  const addFormDate = quickAddRequest?.mode === "day" ? quickAddRequest.value : null;
+
+  useEffect(() => {
+    fetchChannels();
+  }, [fetchChannels]);
+
+  useEffect(() => {
+    if (addFormDate) addInputRef.current?.focus();
+  }, [addFormDate]);
 
   useEffect(() => {
     fetchTasks(undefined);
@@ -78,11 +106,50 @@ export default function WeekGrid({ weekStart }: Props) {
     router.push("/");
   }
 
+  function resetAddForm() {
+    setNewTitle("");
+    setNewChannelId("");
+    setNewPlannedTime("");
+    clearQuickAddRequest();
+  }
+
+  async function handleAddTask(date: string, position: number) {
+    if (!newTitle.trim()) return;
+
+    await addTask({
+      title: newTitle.trim(),
+      scheduledDate: date,
+      channelId: newChannelId || undefined,
+      plannedTime: newPlannedTime ? parseInt(newPlannedTime, 10) : undefined,
+      position,
+    });
+
+    resetAddForm();
+  }
+
+  function handleAddKeyDown(
+    event: ReactKeyboardEvent<HTMLInputElement | HTMLSelectElement>,
+    date: string,
+    position: number
+  ) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void handleAddTask(date, position);
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      resetAddForm();
+    }
+  }
+
   return (
-    <div className="week-grid">
+    <div className="week-days">
       {weekDays.map((day) => {
+        const dayDate = toLocalDateString(day);
         const dayTasks = tasksForDay(day);
         const today = isToday(day);
+        const past = !today && isPast(day);
         const completedCount = dayTasks.filter((task) => task.status === "COMPLETED").length;
         const totalPlanned = dayTasks.reduce((sum, task) => sum + (task.plannedTime || 0), 0);
         const completionPct = dayTasks.length > 0 ? (completedCount / dayTasks.length) * 100 : 0;
@@ -95,162 +162,119 @@ export default function WeekGrid({ weekStart }: Props) {
               : "var(--accent-danger)";
 
         return (
-          <div key={day.toISOString()} className="week-grid__day">
-            <div
-              className="week-grid__header"
-              style={{ borderBottom: "1px solid var(--border-subtle)" }}
+          <section key={dayDate} className={`week-day${past ? " week-day--past" : ""}`}>
+            <button
+              type="button"
+              onClick={() => navigateToDay(day)}
+              className="planning-column__button"
+              title="Tag auf Home öffnen"
             >
-              <button
-                onClick={() => navigateToDay(day)}
-                className="week-grid__day-button"
-                onMouseEnter={(event) => {
-                  event.currentTarget.style.backgroundColor = "var(--bg-hover)";
-                }}
-                onMouseLeave={(event) => {
-                  event.currentTarget.style.backgroundColor = "transparent";
-                }}
+              <h2
+                className="week-day__title"
+                style={today ? { color: "var(--accent-primary)" } : undefined}
               >
-                <span
-                  className="text-[11px] font-semibold uppercase tracking-[0.14em]"
-                  style={{ color: today ? "var(--accent-primary)" : "var(--text-muted)" }}
-                >
-                  {format(day, "EEE", { locale: de })}
-                </span>
+                {format(day, "EEEE", { locale: de })}
+              </h2>
+              <p className="week-day__date">{format(day, "d. MMMM", { locale: de })}</p>
+            </button>
 
-                <span
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-[17px] font-semibold"
-                  style={
-                    today
-                      ? { backgroundColor: "var(--accent-primary)", color: "white" }
-                      : { color: "var(--text-primary)" }
-                  }
-                >
-                  {format(day, "d")}
-                </span>
-              </button>
-
-              {totalPlanned > 0 && (
-                <div
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10.5px] font-medium"
-                  style={{
-                    backgroundColor: `${workloadColor}18`,
-                    color: workloadColor,
-                  }}
-                >
-                  <Clock size={9} strokeWidth={2.2} />
-                  {formatMinutes(totalPlanned)}
-                </div>
-              )}
-
-              {dayTasks.length > 0 && (
-                <div className="mt-3 h-1 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bg-hover)" }}>
-                  <motion.div
-                    animate={{ width: `${completionPct}%` }}
-                    transition={{ duration: 0.4 }}
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: "var(--accent-success)" }}
-                  />
-                </div>
-              )}
+            <div className="planning-progress week-day__progress">
+              <div
+                className="planning-progress__fill"
+                style={{ width: `${completionPct}%` }}
+              />
             </div>
 
-            <div className="week-grid__body">
-              <AnimatePresence mode="popLayout">
-                {dayTasks.map((task) => (
-                  <motion.div
-                    key={task.id}
-                    layout
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.96 }}
-                    transition={{ duration: 0.16 }}
-                    className="week-grid__task group"
-                    style={{
-                      backgroundColor:
-                        hoveredTaskId === task.id ? "var(--bg-hover)" : "rgba(255, 255, 255, 0.78)",
-                      borderColor:
-                        hoveredTaskId === task.id
-                          ? "rgba(214, 206, 197, 0.92)"
-                          : "rgba(230, 223, 215, 0.68)",
-                      boxShadow:
-                        hoveredTaskId === task.id
-                          ? "0 6px 18px rgba(89, 72, 48, 0.07)"
-                          : "0 1px 0 rgba(89, 72, 48, 0.03)",
-                    }}
-                    onMouseEnter={() => setHoveredTaskId(task.id)}
-                    onMouseLeave={() => setHoveredTaskId(null)}
+            <button
+              type="button"
+              onClick={() => {
+                if (addFormDate === dayDate) {
+                  resetAddForm();
+                  return;
+                }
+                setNewTitle("");
+                requestDayQuickAdd(dayDate);
+              }}
+              className="planning-quick-add week-day__add"
+            >
+              <span className="planning-quick-add__label">
+                <Plus size={15} strokeWidth={2} />
+                Aufgabe
+              </span>
+              {totalPlanned > 0 && (
+                <span className="planning-card__duration" style={{ color: workloadColor }}>
+                  {formatMinutes(totalPlanned)}
+                </span>
+              )}
+            </button>
+
+            {addFormDate === dayDate && (
+              <div className="planning-add-form">
+                <input
+                  ref={addInputRef}
+                  type="text"
+                  value={newTitle}
+                  onChange={(event) => setNewTitle(event.target.value)}
+                  onKeyDown={(event) => handleAddKeyDown(event, dayDate, dayTasks.length)}
+                  placeholder="Neue Aufgabe..."
+                  className="planning-add-form__input"
+                  style={{
+                    borderColor: "var(--border-color)",
+                    color: "var(--text-primary)",
+                    backgroundColor: "var(--surface-subtle)",
+                  }}
+                />
+                <div className="planning-add-form__controls">
+                  <select
+                    value={newChannelId}
+                    onChange={(event) => setNewChannelId(event.target.value)}
+                    onKeyDown={(event) => handleAddKeyDown(event, dayDate, dayTasks.length)}
+                    className="planning-add-form__select"
                   >
-                    <button
-                      onClick={() => toggleTaskStatus(task.id)}
-                      className="mt-0.5 shrink-0 transition-all duration-150"
-                      aria-label={
-                        task.status === "COMPLETED"
-                          ? "Als offen markieren"
-                          : "Als erledigt markieren"
-                      }
-                    >
-                      {task.status === "COMPLETED" ? (
-                        <CheckCircle2
-                          size={15}
-                          strokeWidth={1.8}
-                          style={{ color: "var(--accent-success)" }}
-                        />
-                      ) : (
-                        <Circle
-                          size={15}
-                          strokeWidth={1.6}
-                          style={{ color: "var(--text-muted)" }}
-                        />
-                      )}
-                    </button>
+                    <option value="">Kein Kanal</option>
+                    {channels.map((channel) => (
+                      <option key={channel.id} value={channel.id}>
+                        #{channel.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newPlannedTime}
+                    onChange={(event) => setNewPlannedTime(event.target.value)}
+                    onKeyDown={(event) => handleAddKeyDown(event, dayDate, dayTasks.length)}
+                    placeholder="Min"
+                    className="planning-add-form__minutes"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleAddTask(dayDate, dayTasks.length)}
+                    disabled={!newTitle.trim()}
+                    className="planning-add-form__save disabled:opacity-40"
+                    style={{ backgroundColor: "var(--accent-primary)" }}
+                  >
+                    Hinzufügen
+                  </button>
+                </div>
+              </div>
+            )}
 
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className="text-[13px] font-medium leading-[1.45]"
-                        style={{
-                          color:
-                            task.status === "COMPLETED"
-                              ? "var(--text-muted)"
-                              : "var(--text-primary)",
-                          textDecoration: task.status === "COMPLETED" ? "line-through" : "none",
-                        }}
-                      >
-                        {task.title}
-                      </p>
-
-                      {task.channel && (
-                        <span
-                          className="mt-1 inline-flex items-center gap-1.5 text-[10.5px] font-medium"
-                          style={{ color: task.channel.color }}
-                        >
-                          <span
-                            className="inline-block h-1.5 w-1.5 rounded-full"
-                            style={{ backgroundColor: task.channel.color }}
-                          />
-                          {task.channel.name}
-                        </span>
-                      )}
-                    </div>
-
-                    {task.plannedTime && (
-                      <span
-                        className="shrink-0 pt-0.5 text-[10.5px] font-medium"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        {formatMinutes(task.plannedTime)}
-                      </span>
-                    )}
-                  </motion.div>
+            <div className="week-day__cards">
+              <SortableContext
+                items={dayTasks.map((task) => task.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {dayTasks.map((task) => (
+                  <TaskCard key={task.id} task={task} />
                 ))}
-              </AnimatePresence>
+              </SortableContext>
 
               {dayTasks.length === 0 && (
-                <div className="week-grid__empty" style={{ color: "var(--text-muted)" }}>
-                  Keine Aufgaben
-                </div>
+                <p className="backlog-empty-copy">Keine Aufgaben</p>
               )}
             </div>
-          </div>
+          </section>
         );
       })}
     </div>

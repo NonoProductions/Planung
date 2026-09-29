@@ -112,13 +112,13 @@ export default function DailyPlanningModal() {
                   className="mt-2 text-[1.7rem] font-semibold leading-[1.08] tracking-[-0.045em]"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  Planung fuer {format(parseISO(selectedDate), "EEEE, d. MMMM", { locale: de })}
+                  Planung für {format(parseISO(selectedDate), "EEEE, d. MMMM", { locale: de })}
                 </h2>
                 <p
                   className="mt-2 max-w-2xl text-[0.98rem]"
                   style={{ color: "var(--text-secondary)" }}
                 >
-                  Ein kurzer Check-in fuer Fokus, Umfang und die wichtigsten Aufgaben des Tages.
+                  Ein kurzer Check-in für Fokus, Umfang und die wichtigsten Aufgaben des Tages.
                 </p>
               </div>
 
@@ -127,7 +127,7 @@ export default function DailyPlanningModal() {
                 onClick={closePlanningRitual}
                 className="workspace-button h-10 w-10 px-0"
                 style={{ color: "var(--text-muted)" }}
-                aria-label="Planning Ritual schliessen"
+                aria-label="Planning Ritual schließen"
               >
                 <X size={18} strokeWidth={2} />
               </button>
@@ -154,7 +154,7 @@ export default function DailyPlanningModal() {
                 detail={
                   plannedMinutes > 0
                     ? "Heute bewusst begrenzen"
-                    : "Schaetzung fehlt noch"
+                    : "Schätzung fehlt noch"
                 }
                 color="var(--accent-warning)"
               />
@@ -169,7 +169,7 @@ export default function DailyPlanningModal() {
 
               <div className="mt-5 grid gap-5 sm:grid-cols-[1.15fr_0.85fr]">
               <section className="workspace-surface workspace-section workspace-surface--soft">
-                <p className="workspace-section__eyebrow">Fokus fuer heute</p>
+                <p className="workspace-section__eyebrow">Fokus für heute</p>
                 <div className="mt-4 space-y-3">
                   {focusTasks.length > 0 ? (
                     focusTasks.map((task, index) => (
@@ -199,14 +199,14 @@ export default function DailyPlanningModal() {
                           >
                             {task.plannedTime
                               ? `${formatMinutes(task.plannedTime)} eingeplant`
-                              : "Noch ohne Zeitschaetzung"}
+                              : "Noch ohne Zeitschätzung"}
                           </p>
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="workspace-note text-[0.95rem]">
-                      Noch keine offenen Tasks fuer heute. Du kannst direkt mit einem leeren Fokus starten oder zuerst Aufgaben anlegen.
+                      Noch keine offenen Tasks für heute. Du kannst direkt mit einem leeren Fokus starten oder zuerst Aufgaben anlegen.
                     </div>
                   )}
                 </div>
@@ -224,7 +224,7 @@ export default function DailyPlanningModal() {
                   className="mt-2 text-[0.92rem]"
                   style={{ color: "var(--text-secondary)" }}
                 >
-                  Wenn dein Plan fuer heute stimmig ist, schliesse das Ritual ab und starte mit einer kleinen Celebration in den Tag.
+                  Wenn dein Plan für heute stimmig ist, schließe das Ritual ab und starte mit einer kleinen Celebration in den Tag.
                 </p>
 
                 <button
@@ -232,7 +232,7 @@ export default function DailyPlanningModal() {
                   onClick={() => completePlanningRitual(selectedDate)}
                   className="workspace-button workspace-button--primary mt-5 w-full"
                 >
-                  Ritual abschliessen
+                  Ritual abschließen
                 </button>
 
                 <button

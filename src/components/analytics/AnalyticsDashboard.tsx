@@ -107,7 +107,7 @@ function Stat({
   );
 }
 
-const chartGrid = "#f1ebe4";
+const chartGrid = "var(--line-soft)";
 const axisProps = {
   axisLine: false,
   tickLine: false,
@@ -215,7 +215,7 @@ export default function AnalyticsDashboard() {
             type="button"
             onClick={() => shiftWeek("next")}
             className="planning-toolbar__button planning-toolbar__button--icon"
-            aria-label="Naechste Woche"
+            aria-label="Nächste Woche"
           >
             <ChevronRight size={16} strokeWidth={2} />
           </button>
@@ -233,7 +233,7 @@ export default function AnalyticsDashboard() {
           </div>
         ) : error || !snapshot ? (
           <div className="flex h-full items-center justify-center">
-            <span className="workspace-badge">{error ?? "Keine Analytics verfuegbar."}</span>
+            <span className="workspace-badge">{error ?? "Keine Analytics verfügbar."}</span>
           </div>
         ) : (
           <div className="analytics-page">
@@ -272,10 +272,10 @@ export default function AnalyticsDashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={snapshot.channels} barGap={6}>
                       <CartesianGrid stroke={chartGrid} vertical={false} />
-                      <XAxis dataKey="name" tick={{ fill: "#8d857b", fontSize: 12 }} {...axisProps} />
-                      <YAxis tickFormatter={axisTick} tick={{ fill: "#b2aaa1", fontSize: 11 }} width={36} {...axisProps} />
-                      <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(244, 239, 232, 0.6)" }} />
-                      <Bar dataKey="plannedMinutes" name="Geplant" radius={[4, 4, 0, 0]} fill="#e4dfd8" />
+                      <XAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 12 }} {...axisProps} />
+                      <YAxis tickFormatter={axisTick} tick={{ fill: "var(--text-muted)", fontSize: 11 }} width={36} {...axisProps} />
+                      <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(var(--hover-rgb), 0.6)" }} />
+                      <Bar dataKey="plannedMinutes" name="Geplant" radius={[4, 4, 0, 0]} fill="var(--track-fill)" />
                       <Bar dataKey="actualMinutes" name="Getrackt" radius={[4, 4, 0, 0]}>
                         {snapshot.channels.map((channel) => (
                           <Cell key={channel.channelId} fill={channel.color} />
@@ -288,7 +288,7 @@ export default function AnalyticsDashboard() {
 
               <AnalyticsSection
                 title="Zeiterfassung"
-                subtitle={`${snapshot.timeEntries.length} Eintraege diese Woche`}
+                subtitle={`${snapshot.timeEntries.length} Einträge diese Woche`}
               >
                 <TimeTrackingPanel
                   tasks={snapshot.taskOptions}
@@ -302,8 +302,8 @@ export default function AnalyticsDashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={snapshot.daily}>
                       <CartesianGrid stroke={chartGrid} vertical={false} />
-                      <XAxis dataKey="label" tick={{ fill: "#8d857b", fontSize: 12 }} {...axisProps} />
-                      <YAxis tickFormatter={axisTick} tick={{ fill: "#b2aaa1", fontSize: 11 }} width={36} {...axisProps} />
+                      <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 12 }} {...axisProps} />
+                      <YAxis tickFormatter={axisTick} tick={{ fill: "var(--text-muted)", fontSize: 11 }} width={36} {...axisProps} />
                       <Tooltip content={<ChartTooltip />} />
                       <Line
                         type="monotone"
@@ -324,10 +324,10 @@ export default function AnalyticsDashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={snapshot.daily} barGap={4}>
                       <CartesianGrid stroke={chartGrid} vertical={false} />
-                      <XAxis dataKey="label" tick={{ fill: "#8d857b", fontSize: 12 }} {...axisProps} />
-                      <YAxis tickFormatter={axisTick} tick={{ fill: "#b2aaa1", fontSize: 11 }} width={36} {...axisProps} />
-                      <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(244, 239, 232, 0.6)" }} />
-                      <Bar dataKey="plannedMinutes" name="Geplant" radius={[4, 4, 0, 0]} fill="#e4dfd8" />
+                      <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 12 }} {...axisProps} />
+                      <YAxis tickFormatter={axisTick} tick={{ fill: "var(--text-muted)", fontSize: 11 }} width={36} {...axisProps} />
+                      <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(var(--hover-rgb), 0.6)" }} />
+                      <Bar dataKey="plannedMinutes" name="Geplant" radius={[4, 4, 0, 0]} fill="var(--track-fill)" />
                       <Bar dataKey="actualMinutes" name="Getrackt" radius={[4, 4, 0, 0]} fill="#8d7cf6" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -357,7 +357,7 @@ export default function AnalyticsDashboard() {
                   ))
                 ) : (
                   <p className="settings-row__description">
-                    Noch keine Channel-Verteilung fuer diese Woche.
+                    Noch keine Channel-Verteilung für diese Woche.
                   </p>
                 )}
               </AnalyticsSection>

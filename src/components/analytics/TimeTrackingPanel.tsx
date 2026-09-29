@@ -222,7 +222,7 @@ export default function TimeTrackingPanel({
           onChange={(event) => setSelectedTaskId(event.target.value)}
           disabled={Boolean(runningTimer)}
           className="workspace-input settings-input"
-          aria-label="Aufgabe fuer den Timer"
+          aria-label="Aufgabe für den Timer"
         >
           {tasks.map((task) => (
             <option key={task.id} value={task.id}>

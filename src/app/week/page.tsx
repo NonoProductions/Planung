@@ -49,7 +49,7 @@ export default function WeekPage() {
             onNext={nextWeek}
             onReset={goToCurrentWeek}
             prevLabel="Vorherige Woche"
-            nextLabel="Naechste Woche"
+            nextLabel="Nächste Woche"
           />
         }
         mobileAction={
@@ -57,15 +57,15 @@ export default function WeekPage() {
             type="button"
             onClick={() => setShowReview(true)}
             className="mobile-topbar__button"
-            aria-label="Wochenrueckblick"
+            aria-label="Wochenrückblick"
           >
             <BarChart2 size={18} strokeWidth={2.1} />
           </button>
         }
       >
         <div className="app-main-surface">
-          <div className="week-page-shell">
-            <div className="week-page-toolbar">
+          <section className="planning-board">
+            <div className="planning-toolbar">
               <div className="planning-toolbar__group planning-toolbar__group--nav">
                 <button
                   type="button"
@@ -88,34 +88,29 @@ export default function WeekPage() {
                   type="button"
                   onClick={nextWeek}
                   className="planning-toolbar__button planning-toolbar__button--icon"
-                  aria-label="Naechste Woche"
+                  aria-label="Nächste Woche"
                 >
                   <ChevronRight size={16} strokeWidth={2} />
                 </button>
               </div>
 
-              <div className="ml-auto">
+              <div className="planning-toolbar__group">
                 <button
                   type="button"
                   onClick={() => setShowReview(true)}
                   className="planning-toolbar__button"
                 >
                   <BarChart2 size={14} strokeWidth={2} />
-                  Wochenrueckblick
+                  Wochenrückblick
                 </button>
               </div>
             </div>
 
-            <div className="week-page-layout">
-              <div className="week-page-objectives">
-                <WeeklyObjectives weekStart={weekStartStr} />
-              </div>
-
-              <div className="week-page-grid">
-                <WeekGrid weekStart={weekStartStr} />
-              </div>
+            <div className="week-scroll">
+              <WeeklyObjectives weekStart={weekStartStr} />
+              <WeekGrid weekStart={weekStartStr} />
             </div>
-          </div>
+          </section>
         </div>
 
         {showReview && (

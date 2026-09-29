@@ -16,7 +16,9 @@ import {
 } from "@dnd-kit/sortable";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
+import { FolderPlus, Plus, Search, Sparkles, X } from "lucide-react";
 import BacklogTaskCard from "@/components/backlog/BacklogTaskCard";
+import type { Task } from "@/types";
 
 type BucketKey = "this_week" | "next_weeks" | "someday";
 
@@ -30,17 +32,17 @@ const BUCKETS: SectionConfig[] = [
   {
     key: "this_week",
     label: "Diese Woche",
-    description: "Fokus fuer die naechsten Tage.",
+    description: "Fokus für die nächsten Tage.",
   },
   {
     key: "next_weeks",
-    label: "Naechste Wochen",
+    label: "Nächste Wochen",
     description: "Wichtige Themen ohne Tagesdruck.",
   },
   {
     key: "someday",
     label: "Irgendwann",
-    description: "Ideen, Parkthemen und spaetere Optionen.",
+    description: "Ideen, Parkthemen und spätere Optionen.",
   },
 ];
 
@@ -48,61 +50,45 @@ function formatTaskCount(count: number) {
   return `${count} ${count === 1 ? "Aufgabe" : "Aufgaben"}`;
 }
 
-function Section({
+function BacklogColumn({
   title,
   description,
-  count,
-  collapsed,
-  onToggle,
+  tasks,
   children,
 }: {
   title: string;
   description: string;
-  count: number;
-  collapsed: boolean;
-  onToggle: () => void;
+  tasks: Task[];
   children: ReactNode;
 }) {
-  return (
-    <section className="backlog-section">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="backlog-section__header"
-      >
-        <div className="min-w-0 flex-1">
-          <div className="backlog-section__title-row">
-            <h3 className="backlog-section__title">{title}</h3>
-            <span className="backlog-section__count">
-              {formatTaskCount(count)}
-            </span>
-          </div>
-          <p className="backlog-section__description">{description}</p>
-        </div>
-        <motion.span
-          animate={{ opacity: collapsed ? 0.72 : 1 }}
-          transition={{ duration: 0.16 }}
-          className="backlog-section__toggle"
-        >
-          {collapsed ? "Anzeigen" : "Einklappen"}
-        </motion.span>
-      </button>
+  const completed = tasks.filter((task) => task.status === "COMPLETED").length;
+  const progress = tasks.length > 0 ? (completed / tasks.length) * 100 : 0;
 
-      <AnimatePresence initial={false}>
-        {!collapsed && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="backlog-section__content">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+  return (
+    <section className="planning-column">
+      <div className="planning-column__inner">
+        <div className="planning-column__heading">
+          <h2 className="planning-column__title backlog-column__title">{title}</h2>
+          <p className="planning-column__date">{description}</p>
+
+          <div className="planning-progress">
+            <div
+              className="planning-progress__fill"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          {children}
+        </div>
+      </div>
     </section>
   );
+}
+
+function formatMinutes(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}:${remainingMinutes.toString().padStart(2, "0")}`;
 }
 
 export default function BacklogList() {
@@ -120,12 +106,6 @@ export default function BacklogList() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterChannel, setFilterChannel] = useState("");
-  const [collapsedBuckets, setCollapsedBuckets] = useState<Set<string>>(
-    new Set()
-  );
-  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
-    new Set()
-  );
 
   const [brainDumpActive, setBrainDumpActive] = useState(false);
   const [brainDumpBucket, setBrainDumpBucket] = useState<BucketKey>("someday");
@@ -231,33 +211,12 @@ export default function BacklogList() {
 
   const totalCount = backlogTasks.length;
   const visibleCount = filteredTasks.length;
-  const completedCount = filteredTasks.filter(
-    (task) => task.status === "COMPLETED"
-  ).length;
 
   const resetInlineForm = () => {
     clearQuickAddRequest();
     setNewTitle("");
     setNewChannelId("");
     setNewPlannedTime("");
-  };
-
-  const toggleBucket = (key: string) => {
-    setCollapsedBuckets((previous) => {
-      const next = new Set(previous);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
-  const toggleFolder = (name: string) => {
-    setCollapsedFolders((previous) => {
-      const next = new Set(previous);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
   };
 
   const handleAddTask = async (bucket: string) => {
@@ -330,14 +289,10 @@ export default function BacklogList() {
     setNewFolderName("");
   };
 
+  const isFiltering = Boolean(searchQuery || filterChannel);
+
   const renderAddForm = (bucketOrFolder: string, isFolder?: boolean) => (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 4 }}
-      transition={{ duration: 0.16 }}
-      className="backlog-inline-form"
-    >
+    <div className="planning-add-form">
       <input
         ref={addInputRef}
         type="text"
@@ -345,23 +300,18 @@ export default function BacklogList() {
         onChange={(event) => setNewTitle(event.target.value)}
         onKeyDown={(event) => handleAddKeyDown(event, bucketOrFolder, isFolder)}
         placeholder="Neue Aufgabe..."
-        className="w-full border-b bg-transparent pb-3 text-[14px] font-medium outline-none"
+        className="planning-add-form__input"
         style={{
+          borderColor: "var(--border-color)",
           color: "var(--text-primary)",
-          borderColor: "var(--border-subtle)",
+          backgroundColor: "var(--surface-subtle)",
         }}
       />
-
-      <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center">
+      <div className="planning-add-form__controls">
         <select
           value={newChannelId}
           onChange={(event) => setNewChannelId(event.target.value)}
-          className="rounded-lg border px-3 py-2 text-[11px] font-semibold outline-none"
-          style={{
-            backgroundColor: "var(--bg-input)",
-            borderColor: "var(--border-color)",
-            color: "var(--text-secondary)",
-          }}
+          className="planning-add-form__select"
         >
           <option value="">Kein Kanal</option>
           {channels.map((channel) => (
@@ -370,494 +320,319 @@ export default function BacklogList() {
             </option>
           ))}
         </select>
-
         <input
           type="number"
           min={0}
           value={newPlannedTime}
           onChange={(event) => setNewPlannedTime(event.target.value)}
           onKeyDown={(event) => handleAddKeyDown(event, bucketOrFolder, isFolder)}
-          placeholder="Min."
-          className="rounded-lg border px-3 py-2 text-[11px] font-semibold outline-none md:w-[88px]"
-          style={{
-            backgroundColor: "var(--bg-input)",
-            borderColor: "var(--border-color)",
-            color: "var(--text-secondary)",
-          }}
+          placeholder="Min"
+          className="planning-add-form__minutes"
         />
-
-        <div className="flex gap-2 md:ml-auto">
-          <button
-            type="button"
-            onClick={resetInlineForm}
-            className="rounded-lg px-3 py-2 text-[11px] font-semibold"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Abbrechen
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              isFolder ? handleAddInFolder(bucketOrFolder) : handleAddTask(bucketOrFolder)
-            }
-            disabled={!newTitle.trim()}
-            className="rounded-lg px-3 py-2 text-[11px] font-bold text-white disabled:opacity-30"
-            style={{ backgroundColor: "var(--accent-primary)" }}
-          >
-            Hinzufuegen
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() =>
+            isFolder ? handleAddInFolder(bucketOrFolder) : handleAddTask(bucketOrFolder)
+          }
+          disabled={!newTitle.trim()}
+          className="planning-add-form__save disabled:opacity-40"
+          style={{ backgroundColor: "var(--accent-primary)" }}
+        >
+          Hinzufügen
+        </button>
       </div>
-    </motion.div>
+    </div>
   );
 
-  const showGlobalEmpty = !backlogLoading && totalCount === 0;
-  const showNoResults = !backlogLoading && totalCount > 0 && visibleCount === 0;
+  const renderColumnBody = (
+    tasks: Task[],
+    target: string,
+    isFolder?: boolean
+  ) => {
+    const plannedTotal = tasks.reduce((sum, task) => sum + (task.plannedTime || 0), 0);
+
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => {
+            if (backlogQuickAddTarget === target) {
+              resetInlineForm();
+              return;
+            }
+            requestBacklogQuickAdd(target);
+            setNewTitle("");
+          }}
+          className="planning-quick-add"
+        >
+          <span className="planning-quick-add__label">
+            <Plus size={16} strokeWidth={2} />
+            Aufgabe
+          </span>
+          <span className="planning-card__duration">
+            {plannedTotal > 0 ? formatMinutes(plannedTotal) : formatTaskCount(tasks.length)}
+          </span>
+        </button>
+
+        {backlogQuickAddTarget === target && renderAddForm(target, isFolder)}
+
+        <div className="planning-cards">
+          <SortableContext
+            items={tasks.map((task) => task.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="planning-cards__stack">
+              <AnimatePresence mode="popLayout">
+                {tasks.map((task) => (
+                  <motion.div
+                    key={task.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: -12 }}
+                    transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                  >
+                    <BacklogTaskCard task={task} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {tasks.length === 0 && (
+                <p className="backlog-empty-copy">
+                  {backlogLoading
+                    ? "Wird geladen..."
+                    : isFiltering
+                      ? "Keine Treffer."
+                      : "Noch keine Aufgaben."}
+                </p>
+              )}
+            </div>
+          </SortableContext>
+        </div>
+      </>
+    );
+  };
+
+  const brainDumpCount = brainDumpText.split("\n").filter((line) => line.trim()).length;
 
   return (
     <section className="planning-board">
-      <div className="backlog-page-scroll">
-        <div className="backlog-page">
-          <header className="backlog-header">
-            <div className="backlog-header__top">
-              <div className="max-w-[680px]">
-                <div>
-                  <h1 className="backlog-header__title">Backlog</h1>
-                  <p className="backlog-header__description">
-                    Sammle Aufgaben fuer spaeter und sortiere sie mit mehr Luft
-                    und einer ruhigeren Struktur, passend zur Home-Seite.
-                  </p>
-                  <div className="backlog-header__stats">
-                    <span className="backlog-stat">{formatTaskCount(totalCount)}</span>
-                    <span className="backlog-stat">{visibleCount} sichtbar</span>
-                    <span className="backlog-stat">{completedCount} erledigt</span>
-                  </div>
-                </div>
-              </div>
+      <div className="planning-toolbar backlog-toolbar">
+        <div className="backlog-toolbar__title">
+          <span className="settings-toolbar__title">Backlog</span>
+          <span className="planning-card__duration">
+            {isFiltering ? `${visibleCount} von ${totalCount}` : formatTaskCount(totalCount)}
+          </span>
+        </div>
 
+        <div className="planning-toolbar__group backlog-toolbar__controls">
+          <label className="backlog-search">
+            <Search size={14} strokeWidth={2} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Backlog durchsuchen..."
+            />
+            {searchQuery && (
               <button
                 type="button"
-                onClick={() => setBrainDumpActive((current) => !current)}
-                className="backlog-braindump-toggle"
-                style={{
-                  borderColor: brainDumpActive
-                    ? "var(--accent-primary)"
-                    : "var(--border-color)",
-                  color: brainDumpActive
-                    ? "var(--accent-primary)"
-                    : "var(--text-secondary)",
-                  backgroundColor: brainDumpActive
-                    ? "rgba(240, 235, 255, 0.75)"
-                    : "rgba(255, 255, 255, 0.86)",
-                }}
+                onClick={() => setSearchQuery("")}
+                aria-label="Suche zurücksetzen"
               >
-                Brain Dump
+                <X size={13} strokeWidth={2} />
               </button>
-            </div>
+            )}
+          </label>
 
-            <div className="backlog-controls">
-              <div className="backlog-control backlog-control--search">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Backlog durchsuchen..."
-                  className="flex-1 bg-transparent text-[14px] font-medium outline-none placeholder:text-[var(--text-muted)]"
-                  style={{ color: "var(--text-primary)" }}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="text-[12px] font-semibold"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    Reset
-                  </button>
-                )}
+          <select
+            value={filterChannel}
+            onChange={(event) => setFilterChannel(event.target.value)}
+            className="planning-toolbar__button backlog-toolbar__select"
+            aria-label="Kanal filtern"
+          >
+            <option value="">Alle Kanäle</option>
+            {channels.map((channel) => (
+              <option key={channel.id} value={channel.id}>
+                #{channel.name}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={() => setBrainDumpActive((current) => !current)}
+            className="planning-toolbar__button backlog-toolbar__braindump"
+            aria-pressed={brainDumpActive}
+            aria-label="Brain Dump"
+            title="Brain Dump"
+            style={
+              brainDumpActive
+                ? {
+                    borderColor: "var(--accent-primary)",
+                    backgroundColor: "var(--accent-primary-light)",
+                    color: "var(--accent-primary)",
+                  }
+                : undefined
+            }
+          >
+            <Sparkles size={14} strokeWidth={2} />
+            <span className="backlog-toolbar__braindump-label">Brain Dump</span>
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence initial={false}>
+        {brainDumpActive && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+            className="shrink-0 overflow-hidden"
+          >
+            <div className="backlog-braindump">
+              <div className="backlog-braindump__head">
+                <p className="settings-row__label">Brain Dump</p>
+                <p className="settings-row__description">Eine Aufgabe pro Zeile.</p>
+                <select
+                  value={brainDumpBucket}
+                  onChange={(event) => setBrainDumpBucket(event.target.value as BucketKey)}
+                  className="planning-add-form__select ml-auto"
+                  aria-label="Ziel-Bereich"
+                >
+                  {BUCKETS.map((bucket) => (
+                    <option key={bucket.key} value={bucket.key}>
+                      {bucket.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <select
-                value={filterChannel}
-                onChange={(event) => setFilterChannel(event.target.value)}
-                className="backlog-control backlog-control--select text-[13px] font-semibold outline-none"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                <option value="">Alle Kanaele</option>
-                {channels.map((channel) => (
-                  <option key={channel.id} value={channel.id}>
-                    #{channel.name}
-                  </option>
-                ))}
-              </select>
+              <textarea
+                ref={brainDumpRef}
+                value={brainDumpText}
+                onChange={(event) => setBrainDumpText(event.target.value)}
+                placeholder={"E-Mails beantworten\nPräsentation vorbereiten\nGitHub Issues aufräumen\n..."}
+                rows={5}
+                className="workspace-input workspace-input--textarea ritual-textarea"
+              />
+
+              <div className="ritual-actions">
+                <button
+                  type="button"
+                  onClick={handleBrainDump}
+                  disabled={brainDumpCount === 0}
+                  className="workspace-button workspace-button--primary"
+                >
+                  {brainDumpCount > 0 ? `${brainDumpCount} hinzufügen` : "Hinzufügen"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBrainDumpActive(false);
+                    setBrainDumpText("");
+                  }}
+                  className="workspace-button"
+                >
+                  Abbrechen
+                </button>
+              </div>
             </div>
-          </header>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          <AnimatePresence initial={false}>
-            {brainDumpActive && (
-              <motion.section
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                className="overflow-hidden"
+      <div className="planning-columns">
+        <div className="backlog-columns">
+          {BUCKETS.map((bucket) => {
+            const tasks = tasksByBucket[bucket.key] || [];
+            return (
+              <BacklogColumn
+                key={bucket.key}
+                title={bucket.label}
+                description={bucket.description}
+                tasks={tasks}
               >
-                <div className="backlog-braindump-panel">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                    <p
-                      className="text-[13px] font-semibold"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      Brain Dump - eine Aufgabe pro Zeile
-                    </p>
+                {renderColumnBody(tasks, bucket.key)}
+              </BacklogColumn>
+            );
+          })}
 
-                    <select
-                      value={brainDumpBucket}
-                      onChange={(event) =>
-                        setBrainDumpBucket(event.target.value as BucketKey)
-                      }
-                      className="backlog-braindump-select text-[12px] font-semibold outline-none md:ml-auto"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {BUCKETS.map((bucket) => (
-                        <option key={bucket.key} value={bucket.key}>
-                          {bucket.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+          {visibleFolders.map((folder) => {
+            const tasks = tasksByFolder[folder] || [];
+            return (
+              <BacklogColumn
+                key={`folder-${folder}`}
+                title={folder}
+                description="Ordner"
+                tasks={tasks}
+              >
+                {renderColumnBody(tasks, `folder:${folder}`, true)}
+              </BacklogColumn>
+            );
+          })}
 
-                  <textarea
-                    ref={brainDumpRef}
-                    value={brainDumpText}
-                    onChange={(event) => setBrainDumpText(event.target.value)}
-                    placeholder={"E-Mails beantworten\nPraesentation vorbereiten\nGitHub Issues aufraeumen\n..."}
-                    rows={6}
-                    className="backlog-braindump-textarea"
-                    style={{ color: "var(--text-primary)" }}
-                  />
+          <section className="planning-column">
+            <div className="planning-column__inner">
+              <div className="planning-column__heading">
+                <h2 className="planning-column__title">Ordner</h2>
+                <p className="planning-column__date">
+                  {folders.length > 0
+                    ? `${folders.length} Ordner angelegt`
+                    : "Themen getrennt sammeln"}
+                </p>
 
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span
-                      className="text-[11px] font-semibold"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      {brainDumpText.split("\n").filter((line) => line.trim()).length}{" "}
-                      Eintraege
-                    </span>
+                <div className="planning-progress" aria-hidden="true" />
 
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBrainDumpActive(false);
-                          setBrainDumpText("");
-                        }}
-                        className="rounded-lg px-3 py-2 text-[12px] font-semibold"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        Abbrechen
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleBrainDump}
-                        disabled={
-                          !brainDumpText
-                            .split("\n")
-                            .some((line) => line.trim().length > 0)
+                <button
+                  type="button"
+                  onClick={() => setShowNewFolder((current) => !current)}
+                  className="planning-quick-add"
+                >
+                  <span className="planning-quick-add__label">
+                    <FolderPlus size={16} strokeWidth={2} />
+                    Neuer Ordner
+                  </span>
+                </button>
+
+                {showNewFolder && (
+                  <div className="planning-add-form">
+                    <input
+                      ref={folderInputRef}
+                      type="text"
+                      value={newFolderName}
+                      onChange={(event) => setNewFolderName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") handleCreateFolder();
+                        if (event.key === "Escape") {
+                          setShowNewFolder(false);
+                          setNewFolderName("");
                         }
-                        className="rounded-lg px-3 py-2 text-[12px] font-bold text-white disabled:opacity-30"
+                      }}
+                      placeholder="Ordnername..."
+                      className="planning-add-form__input"
+                      style={{
+                        borderColor: "var(--border-color)",
+                        color: "var(--text-primary)",
+                        backgroundColor: "var(--surface-subtle)",
+                      }}
+                    />
+                    <div className="planning-add-form__controls">
+                      <button
+                        type="button"
+                        onClick={handleCreateFolder}
+                        disabled={!newFolderName.trim()}
+                        className="planning-add-form__save disabled:opacity-40"
                         style={{ backgroundColor: "var(--accent-primary)" }}
                       >
-                        Alle hinzufuegen
+                        Erstellen
                       </button>
                     </div>
                   </div>
-                </div>
-              </motion.section>
-            )}
-          </AnimatePresence>
-
-          <div className="backlog-content">
-            {backlogLoading && backlogTasks.length === 0 && (
-              <div className="flex items-center justify-center py-24">
-                <motion.div
-                  className="h-5 w-5 rounded-full border-2 border-t-transparent"
-                  style={{
-                    borderColor: "var(--accent-primary)",
-                    borderTopColor: "transparent",
-                  }}
-                  animate={{ rotate: 360 }}
-                  transition={{
-                    duration: 0.7,
-                    repeat: Infinity,
-                    ease: "linear",
-                  }}
-                />
+                )}
               </div>
-            )}
-
-            {showGlobalEmpty && (
-              <div className="backlog-empty-state py-[72px] text-center">
-                <p
-                  className="text-[18px] font-semibold"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Dein Backlog ist leer
-                </p>
-                <p
-                  className="mt-2 text-[14px]"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Nutze Brain Dump oder fuege direkt im passenden Bereich eine
-                  Aufgabe hinzu.
-                </p>
-              </div>
-            )}
-
-            {showNoResults && (
-              <div className="backlog-empty-state py-[56px] text-center">
-                <p
-                  className="text-[15px] font-semibold"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Keine Treffer fuer die aktuelle Ansicht
-                </p>
-                <p
-                  className="mt-2 text-[13px]"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Passe Suche oder Kanalfilter an.
-                </p>
-              </div>
-            )}
-
-            {!showGlobalEmpty && !showNoResults && (
-              <div className="space-y-6">
-                {BUCKETS.map((bucket) => {
-                  const tasks = tasksByBucket[bucket.key] || [];
-
-                  return (
-                    <Section
-                      key={bucket.key}
-                      title={bucket.label}
-                      description={bucket.description}
-                      count={tasks.length}
-                      collapsed={collapsedBuckets.has(bucket.key)}
-                      onToggle={() => toggleBucket(bucket.key)}
-                    >
-                      <SortableContext
-                        items={tasks.map((task) => task.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        <AnimatePresence mode="popLayout">
-                          {tasks.map((task, index) => (
-                            <motion.div
-                              key={task.id}
-                              initial={{ opacity: 0, y: 6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, x: -12 }}
-                              transition={{
-                                duration: 0.22,
-                                delay: index * 0.02,
-                                ease: [0.4, 0, 0.2, 1],
-                              }}
-                            >
-                              <BacklogTaskCard task={task} />
-                            </motion.div>
-                          ))}
-                        </AnimatePresence>
-                      </SortableContext>
-
-                      {tasks.length === 0 && !searchQuery && (
-                        <p className="backlog-empty-copy">
-                          Noch keine Aufgaben in diesem Bereich.
-                        </p>
-                      )}
-
-                      <AnimatePresence mode="wait">
-                        {backlogQuickAddTarget === bucket.key ? (
-                          renderAddForm(bucket.key)
-                        ) : (
-                          <motion.button
-                            key={`add-${bucket.key}`}
-                            type="button"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => {
-                              requestBacklogQuickAdd(bucket.key);
-                              setNewTitle("");
-                            }}
-                            className="backlog-add-button"
-                          >
-                            Aufgabe hinzufuegen
-                          </motion.button>
-                        )}
-                      </AnimatePresence>
-                    </Section>
-                  );
-                })}
-
-                <section className="backlog-folder-shell">
-                  <div className="backlog-folder-shell__header">
-                    <div>
-                      <h3 className="backlog-folder-shell__title">Ordner</h3>
-                      <p className="backlog-folder-shell__description">
-                        Themen oder Projekte getrennt sammeln.
-                      </p>
-                    </div>
-
-                    <span className="backlog-section__count">
-                      {visibleFolders.length} sichtbar
-                    </span>
-                  </div>
-
-                  <div className="mt-6 space-y-6">
-                    {visibleFolders.length > 0 ? (
-                      visibleFolders.map((folder) => {
-                        const folderTasks = tasksByFolder[folder] || [];
-
-                        return (
-                          <Section
-                            key={folder}
-                            title={folder}
-                            description="Gemeinsamer Kontext fuer zusammengehoerige Aufgaben."
-                            count={folderTasks.length}
-                            collapsed={collapsedFolders.has(folder)}
-                            onToggle={() => toggleFolder(folder)}
-                          >
-                            <SortableContext
-                              items={folderTasks.map((task) => task.id)}
-                              strategy={verticalListSortingStrategy}
-                            >
-                              <AnimatePresence mode="popLayout">
-                                {folderTasks.map((task, index) => (
-                                  <motion.div
-                                    key={task.id}
-                                    initial={{ opacity: 0, y: 6 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, x: -12 }}
-                                    transition={{
-                                      duration: 0.22,
-                                      delay: index * 0.02,
-                                      ease: [0.4, 0, 0.2, 1],
-                                    }}
-                                  >
-                                    <BacklogTaskCard task={task} />
-                                  </motion.div>
-                                ))}
-                              </AnimatePresence>
-                            </SortableContext>
-
-                            {folderTasks.length === 0 && (
-                              <p className="backlog-empty-copy">
-                                Noch keine Aufgaben in diesem Ordner.
-                              </p>
-                            )}
-
-                            <AnimatePresence mode="wait">
-                              {backlogQuickAddTarget === `folder:${folder}` ? (
-                                renderAddForm(folder, true)
-                              ) : (
-                                <motion.button
-                                  key={`add-folder-${folder}`}
-                                  type="button"
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  exit={{ opacity: 0 }}
-                                  onClick={() => {
-                                    requestBacklogQuickAdd(`folder:${folder}`);
-                                    setNewTitle("");
-                                  }}
-                                  className="backlog-add-button"
-                                >
-                                  Aufgabe hinzufuegen
-                                </motion.button>
-                              )}
-                            </AnimatePresence>
-                          </Section>
-                        );
-                      })
-                    ) : (
-                      <p className="backlog-empty-copy">
-                        Noch keine Ordner angelegt.
-                      </p>
-                    )}
-
-                    <AnimatePresence mode="wait">
-                      {showNewFolder ? (
-                        <motion.div
-                          key="new-folder-form"
-                          initial={{ opacity: 0, y: 4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 4 }}
-                          className="backlog-inline-form"
-                        >
-                          <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                            <input
-                              ref={folderInputRef}
-                              type="text"
-                              value={newFolderName}
-                              onChange={(event) => setNewFolderName(event.target.value)}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") handleCreateFolder();
-                                if (event.key === "Escape") {
-                                  setShowNewFolder(false);
-                                  setNewFolderName("");
-                                }
-                              }}
-                              placeholder="Ordnername..."
-                              className="flex-1 border-b bg-transparent pb-2 text-[13px] font-medium outline-none"
-                              style={{
-                                color: "var(--text-primary)",
-                                borderColor: "var(--border-color)",
-                              }}
-                            />
-
-                            <div className="flex gap-2 md:ml-auto">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setShowNewFolder(false);
-                                  setNewFolderName("");
-                                }}
-                                className="rounded-lg px-3 py-2 text-[12px] font-semibold"
-                                style={{ color: "var(--text-secondary)" }}
-                              >
-                                Abbrechen
-                              </button>
-                              <button
-                                type="button"
-                                onClick={handleCreateFolder}
-                                disabled={!newFolderName.trim()}
-                                className="rounded-lg px-3 py-2 text-[12px] font-bold text-white disabled:opacity-30"
-                                style={{ backgroundColor: "var(--accent-primary)" }}
-                              >
-                                Erstellen
-                              </button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ) : (
-                        <motion.button
-                          key="new-folder-button"
-                          type="button"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          onClick={() => setShowNewFolder(true)}
-                          className="backlog-add-button"
-                        >
-                          Neuer Ordner
-                        </motion.button>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </section>
-              </div>
-            )}
-          </div>
+            </div>
+          </section>
         </div>
       </div>
     </section>

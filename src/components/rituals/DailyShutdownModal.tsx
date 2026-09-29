@@ -104,11 +104,7 @@ export default function DailyShutdownModal() {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6"
-          style={{
-            backgroundColor: "rgba(23, 19, 16, 0.34)",
-            backdropFilter: "blur(7px)",
-          }}
+          className="app-overlay z-[110]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -129,7 +125,7 @@ export default function DailyShutdownModal() {
               <div className="flex min-w-0 items-center gap-2">
                 <MoonStar size={16} strokeWidth={2} style={{ color: "var(--accent-primary)" }} />
                 <span className="settings-toolbar__title truncate">
-                  Shutdown fuer {activeDateLabel}
+                  Shutdown für {activeDateLabel}
                 </span>
                 {shutdownDone && (
                   <span className="workspace-badge workspace-badge--success">Abgeschlossen</span>
@@ -139,7 +135,7 @@ export default function DailyShutdownModal() {
                 type="button"
                 onClick={closeShutdownRitual}
                 className="planning-toolbar__button planning-toolbar__button--icon"
-                aria-label="Shutdown Ritual schliessen"
+                aria-label="Shutdown Ritual schließen"
               >
                 <X size={16} strokeWidth={2} />
               </button>
@@ -167,7 +163,7 @@ export default function DailyShutdownModal() {
                 <p className="analytics-stat__detail">
                   {totalPlannedMinutes > 0
                     ? `von ${formatMinutes(totalPlannedMinutes)} geplant`
-                    : "Ohne Zeitschaetzung"}
+                    : "Ohne Zeitschätzung"}
                 </p>
               </div>
               <div className="analytics-stat">
@@ -199,7 +195,7 @@ export default function DailyShutdownModal() {
                       />
                     ))
                   ) : (
-                    <EmptyState text="Noch nichts erledigt. Du kannst den Tag trotzdem bewusst abschliessen." />
+                    <EmptyState text="Noch nichts erledigt. Du kannst den Tag trotzdem bewusst abschließen." />
                   )}
                 </div>
               </section>
@@ -230,7 +226,7 @@ export default function DailyShutdownModal() {
 
               <section className="analytics-section">
                 <h3 className="planning-column__title">Journal</h3>
-                <p className="planning-column__date">Ein Gedanke fuer morgen</p>
+                <p className="planning-column__date">Ein Gedanke für morgen</p>
                 <div className="analytics-section__body">
                   <textarea
                     value={reflection}
@@ -253,7 +249,7 @@ export default function DailyShutdownModal() {
                       Feierabend
                     </button>
                     <button type="button" onClick={closeShutdownRitual} className="workspace-button">
-                      Spaeter
+                      Später
                     </button>
                   </div>
                 </div>

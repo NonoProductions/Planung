@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Clock3, TimerReset, X } from "lucide-react";
+import { CalendarClock, X } from "lucide-react";
+import CalendarPopover, { type PopoverAnchor } from "@/components/calendar/CalendarPopover";
+import TimeInput from "@/components/ui/TimeInput";
 import type { Task } from "@/types";
 
 interface TaskScheduleFormProps {
@@ -15,7 +17,7 @@ interface TaskScheduleFormProps {
   }) => void;
   onUnschedule: () => void;
   onClose: () => void;
-  position?: { top: number; left: number };
+  anchor: PopoverAnchor;
 }
 
 function toTimeInputValue(value?: string) {
@@ -55,7 +57,7 @@ export default function TaskScheduleForm({
   onSave,
   onUnschedule,
   onClose,
-  position,
+  anchor,
 }: TaskScheduleFormProps) {
   const dateRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -157,282 +159,112 @@ export default function TaskScheduleForm({
   };
 
   return (
-    <div
-      ref={formRef}
-      data-calendar-form
-      className="absolute z-50 flex flex-col overflow-hidden rounded-[12px] border shadow-xl"
-      onClick={(event) => event.stopPropagation()}
-      onMouseDown={(event) => event.stopPropagation()}
-      style={{
-        width: 336,
-        maxWidth: "calc(100% - 20px)",
-        maxHeight: "min(560px, calc(100dvh - 40px))",
-        background:
-          "linear-gradient(180deg, rgba(255,253,250,0.99) 0%, rgba(247,242,235,0.98) 100%)",
-        borderColor: "rgba(226, 218, 208, 0.98)",
-        boxShadow: "0 24px 52px rgba(82, 67, 48, 0.16)",
-        top: position?.top ?? 0,
-        left: position?.left ?? 0,
-      }}
-    >
-      <div
-        className="flex items-start justify-between gap-3 border-b px-5 py-5"
-        style={{ borderColor: "rgba(229, 222, 214, 0.98)" }}
-      >
-        <div className="min-w-0">
-          <p
-            className="text-[10px] font-semibold uppercase tracking-[0.18em]"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Task planen
-          </p>
-          <h3
-            className="mt-2 break-words text-[20px] font-semibold leading-[1.08] tracking-[-0.04em]"
-            style={{ color: "var(--text-primary)" }}
-          >
-            {task.title}
-          </h3>
-          <p className="mt-2 text-[12px] leading-[1.45]" style={{ color: "var(--text-muted)" }}>
-            Lege Tag, Start und Dauer direkt im Kalender fest.
-          </p>
+    <CalendarPopover anchor={anchor} width={336} panelRef={formRef}>
+      <div className="popover-panel__header">
+        <div className="flex min-w-0 items-center gap-2">
+          <CalendarClock size={16} strokeWidth={2} style={{ color: "var(--accent-primary)" }} />
+          <span className="settings-toolbar__title truncate">Task planen</span>
         </div>
-
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border transition-colors"
-          style={{
-            color: "var(--text-muted)",
-            borderColor: "rgba(226, 218, 208, 0.92)",
-            backgroundColor: "rgba(255,255,255,0.88)",
-          }}
+          className="planning-toolbar__button planning-toolbar__button--icon"
+          aria-label="Schließen"
         >
-          <X size={14} />
+          <X size={16} strokeWidth={2} />
         </button>
       </div>
 
-      <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-5">
-        <div
-          className="rounded-[10px] border px-5 py-5"
-          style={{
-            borderColor: "rgba(229, 222, 214, 0.98)",
-            background:
-              "linear-gradient(180deg, rgba(240, 235, 255, 0.58), rgba(255, 255, 255, 0.96))",
-          }}
-        >
-          <p
-            className="break-words text-[15px] font-semibold leading-[1.35]"
-            style={{ color: "var(--text-primary)" }}
-          >
-            {task.title}
-          </p>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span
-              className="inline-flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-[10px] font-semibold"
-              style={{
-                backgroundColor: "rgba(255,255,255,0.9)",
-                color: "var(--text-secondary)",
-              }}
-            >
-              <Clock3 size={11} />
-              {durationLabel}
-            </span>
+      <div className="popover-panel__body">
+        <div className="settings-row">
+          <p className="popover-title-input break-words">{task.title}</p>
+          <div className="flex flex-wrap gap-2">
+            <span className="planning-card__duration">{durationLabel}</span>
             {task.channel && (
-              <span
-                className="inline-flex items-center rounded-[8px] px-3 py-2 text-[10px] font-semibold"
-                style={{
-                  backgroundColor: `${task.channel.color}18`,
-                  color: task.channel.color,
-                }}
-              >
+              <span className="planning-card__duration" style={{ color: task.channel.color }}>
                 #{task.channel.name}
               </span>
             )}
           </div>
         </div>
 
-        <section
-          className="space-y-3 rounded-[10px] border px-5 py-5"
-          style={{
-            backgroundColor: "rgba(255,255,255,0.9)",
-            borderColor: "rgba(229, 222, 214, 0.98)",
-          }}
-        >
-          <label className="block">
-            <span
-              className="mb-1.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <CalendarDays size={11} />
-              Tag
-            </span>
-            <input
-              ref={dateRef}
-              type="date"
-              value={scheduleDate}
-              onChange={(event) => setScheduleDate(event.target.value)}
+        <div className="settings-row">
+          <p className="settings-row__label">Tag</p>
+          <input
+            ref={dateRef}
+            type="date"
+            value={scheduleDate}
+            onChange={(event) => setScheduleDate(event.target.value)}
+            onKeyDown={handleKeyDown}
+            className="workspace-input"
+          />
+        </div>
+
+        <div className="settings-row">
+          <p className="settings-row__label">Zeit</p>
+          <div className="grid grid-cols-2 gap-2">
+            <TimeInput
+              value={startTime}
+              onChange={handleStartTimeChange}
               onKeyDown={handleKeyDown}
-              className="w-full rounded-[8px] border px-4 py-3.5 text-[13px] outline-none"
-              style={{
-                backgroundColor: "rgba(250, 246, 241, 0.92)",
-                borderColor: "rgba(226, 218, 208, 0.92)",
-                color: "var(--text-secondary)",
-              }}
+              aria-label="Start"
             />
-          </label>
-
-          <div className="grid grid-cols-2 gap-3">
-            <label
-              className="rounded-[8px] border px-4 py-3.5"
-              style={{
-                backgroundColor: "rgba(250, 246, 241, 0.92)",
-                borderColor: "rgba(226, 218, 208, 0.92)",
-              }}
-            >
-              <span
-                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Start
-              </span>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(event) => handleStartTimeChange(event.target.value)}
-                onKeyDown={handleKeyDown}
-                className="mt-1.5 w-full bg-transparent text-[15px] font-semibold outline-none"
-                style={{ color: "var(--text-primary)" }}
-              />
-            </label>
-
-            <label
-              className="rounded-[8px] border px-4 py-3.5"
-              style={{
-                backgroundColor: "rgba(250, 246, 241, 0.92)",
-                borderColor: "rgba(226, 218, 208, 0.92)",
-              }}
-            >
-              <span
-                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Ende
-              </span>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(event) => handleEndTimeChange(event.target.value)}
-                onKeyDown={handleKeyDown}
-                className="mt-1.5 w-full bg-transparent text-[15px] font-semibold outline-none"
-                style={{ color: "var(--text-primary)" }}
-              />
-            </label>
+            <TimeInput
+              value={endTime}
+              onChange={handleEndTimeChange}
+              onKeyDown={handleKeyDown}
+              aria-label="Ende"
+            />
           </div>
-
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_112px] sm:items-end">
-            <label className="block">
-              <span
-                className="mb-1.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <TimerReset size={11} />
-                Geplante Dauer (Min.)
-              </span>
-              <input
-                type="number"
-                min={15}
-                step={15}
-                value={plannedTime}
-                onChange={(event) => handlePlannedTimeChange(event.target.value)}
-                onKeyDown={handleKeyDown}
-                className="w-full rounded-[8px] border px-4 py-3.5 text-[13px] outline-none"
-                style={{
-                  backgroundColor: "rgba(250, 246, 241, 0.92)",
-                  borderColor: "rgba(226, 218, 208, 0.92)",
-                  color: "var(--text-secondary)",
-                }}
-              />
-            </label>
-
-            <div
-              className="rounded-[8px] border px-4 py-3.5"
-              style={{
-                backgroundColor: "rgba(255,255,255,0.9)",
-                borderColor: "rgba(229, 222, 214, 0.98)",
-              }}
-            >
-              <p
-                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Dauer
-              </p>
-              <p className="mt-1 text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                {durationLabel}
-              </p>
-            </div>
-          </div>
-
           {showHint && (
-            <p
-              className="rounded-[8px] px-3.5 py-3 text-[11px] font-medium leading-[1.45]"
-              style={{
-                backgroundColor: "var(--accent-warning-light)",
-                color: "#ad7419",
-              }}
-            >
+            <p className="settings-notice" style={{ margin: 0, background: "var(--accent-warning-light)", color: "var(--warning-text)" }}>
               Das Ende muss nach dem Start liegen.
             </p>
           )}
-        </section>
+        </div>
+
+        <div className="settings-row settings-row--inline">
+          <div className="settings-row__text">
+            <p className="settings-row__label">Geplante Dauer</p>
+            <p className="settings-row__description">In Minuten</p>
+          </div>
+          <input
+            type="number"
+            min={15}
+            step={15}
+            value={plannedTime}
+            onChange={(event) => handlePlannedTimeChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            className="workspace-input text-center"
+            style={{ width: 88 }}
+          />
+        </div>
       </div>
 
-      <div
-        className="space-y-3 border-t px-5 py-5"
-        style={{ borderColor: "rgba(229, 222, 214, 0.98)" }}
-      >
+      <div className="popover-panel__footer">
         {isScheduled ? (
           <button
             type="button"
             onClick={onUnschedule}
-            className="w-full rounded-[8px] px-4 py-3 text-[11px] font-semibold transition-colors"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.92)",
-              color: "var(--accent-danger)",
-              border: "1px solid rgba(232, 215, 215, 0.96)",
-            }}
+            className="workspace-button settings-danger-button w-full"
           >
             Aus Kalender entfernen
           </button>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[8px] px-4 py-3 text-[11px] font-semibold transition-colors"
-            style={{
-              backgroundColor: "rgba(244, 239, 232, 0.92)",
-              color: "var(--text-muted)",
-            }}
-          >
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={onClose} className="workspace-button">
             Abbrechen
           </button>
           <button
             type="button"
             onClick={handleSubmit}
-            className="rounded-[8px] px-4 py-3 text-[11px] font-semibold text-white"
-            style={{
-              background:
-                "linear-gradient(135deg, var(--accent-primary) 0%, rgba(112, 92, 232, 0.92) 100%)",
-              boxShadow: "0 10px 20px rgba(141, 124, 246, 0.22)",
-            }}
+            className="workspace-button workspace-button--primary"
           >
             Planen
           </button>
         </div>
       </div>
-    </div>
+    </CalendarPopover>
   );
 }

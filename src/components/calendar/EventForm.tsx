@@ -1,17 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  AlignLeft,
-  CalendarDays,
-  ChevronDown,
-  Clock3,
-  Palette,
-  RefreshCw,
-  Trash2,
-  Type,
-  X,
-} from "lucide-react";
+import { CalendarDays, Trash2, X } from "lucide-react";
+import CalendarPopover, { type PopoverAnchor } from "@/components/calendar/CalendarPopover";
+import TimeInput from "@/components/ui/TimeInput";
 import type { CalendarCategory, CalendarEvent, RecurringRule } from "@/types";
 
 const EVENT_COLORS = [
@@ -45,7 +37,7 @@ interface EventFormProps {
   }) => void;
   onDelete?: () => void;
   onClose: () => void;
-  position?: { top: number; left: number };
+  anchor: PopoverAnchor;
 }
 
 function parseIsoTime(value: string) {
@@ -88,7 +80,7 @@ export default function EventForm({
   onSave,
   onDelete,
   onClose,
-  position,
+  anchor,
 }: EventFormProps) {
   const isEditing = !!event;
   const existingRule = event?.recurringRule;
@@ -161,8 +153,8 @@ export default function EventForm({
 
   const frequencyLabel: Record<string, string> = {
     none: "Nie",
-    daily: "Taeglich",
-    weekly: "Woechentlich",
+    daily: "Täglich",
+    weekly: "Wöchentlich",
     monthly: "Monatlich",
   };
 
@@ -219,391 +211,138 @@ export default function EventForm({
   };
 
   return (
-    <div
-      ref={formRef}
-      data-calendar-form
-      className="absolute z-50 flex flex-col overflow-hidden rounded-[12px] border shadow-xl"
-      onClick={(event) => event.stopPropagation()}
-      onMouseDown={(event) => event.stopPropagation()}
-      style={{
-        width: 360,
-        maxWidth: "calc(100% - 20px)",
-        maxHeight: "min(720px, calc(100dvh - 40px))",
-        background:
-          "linear-gradient(180deg, rgba(255,253,250,0.995) 0%, rgba(247,242,235,0.985) 100%)",
-        borderColor: "rgba(228, 221, 214, 0.98)",
-        boxShadow: "0 24px 52px rgba(82, 67, 48, 0.16)",
-        top: position?.top ?? 0,
-        left: position?.left ?? 0,
-      }}
-    >
-      <div
-        className="border-b px-5 py-5"
-        style={{
-          borderColor: "rgba(229, 222, 214, 0.98)",
-          background: `linear-gradient(180deg, ${color}14 0%, rgba(255,255,255,0.72) 100%)`,
-        }}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p
-              className="text-[10px] font-semibold uppercase tracking-[0.18em]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              {isEditing ? "Eintrag bearbeiten" : "Neuer Eintrag"}
-            </p>
-            <h3
-              className="mt-2 break-words text-[22px] font-semibold leading-[1.04] tracking-[-0.05em]"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {title.trim() || "Kalendereintrag"}
-            </h3>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border transition-colors"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.88)",
-              borderColor: "rgba(226, 218, 208, 0.92)",
-              color: "var(--text-muted)",
-            }}
-          >
-            <X size={14} />
-          </button>
+    <CalendarPopover anchor={anchor} width={360} panelRef={formRef}>
+      <div className="popover-panel__header">
+        <div className="flex min-w-0 items-center gap-2">
+          <CalendarDays size={16} strokeWidth={2} style={{ color: "var(--accent-primary)" }} />
+          <span className="settings-toolbar__title truncate">
+            {isEditing ? "Eintrag bearbeiten" : "Neuer Eintrag"}
+          </span>
+          <span className="planning-card__duration">{formatDateLabel(selectedDate)}</span>
         </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-[10px] font-semibold"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.92)",
-              color: "var(--text-secondary)",
-            }}
-          >
-            <CalendarDays size={11} />
-            {formatDateLabel(selectedDate)}
-          </span>
-          <span
-            className="inline-flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-[10px] font-semibold"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.92)",
-              color: "var(--text-secondary)",
-            }}
-          >
-            <Clock3 size={11} />
-            {startTime} - {endTime}
-          </span>
-          <span
-            className="inline-flex items-center rounded-[8px] px-3 py-2 text-[10px] font-semibold"
-            style={{
-              backgroundColor: `${color}18`,
-              color,
-            }}
-          >
-            {durationLabel}
-          </span>
-          {selectedCategory ? (
-            <span
-              className="inline-flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-[10px] font-semibold"
-              style={{
-                backgroundColor: "rgba(255,255,255,0.92)",
-                color: selectedCategory.color,
-              }}
-            >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: selectedCategory.color }}
-              />
-              {selectedCategory.name}
-            </span>
-          ) : null}
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="planning-toolbar__button planning-toolbar__button--icon"
+          aria-label="Schließen"
+        >
+          <X size={16} strokeWidth={2} />
+        </button>
       </div>
 
-      <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-5">
-        <section
-          className="space-y-3 rounded-[10px] border px-5 py-5"
-          style={{
-            backgroundColor: "rgba(255,255,255,0.9)",
-            borderColor: "rgba(232, 225, 217, 0.98)",
-          }}
-        >
-          <div className="space-y-1.5">
-            <label
-              className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <Type size={11} />
-              Titel
-            </label>
-            <input
-              ref={titleRef}
-              type="text"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Worum geht es?"
-              className="w-full rounded-[8px] border px-4 py-3.5 text-[14px] outline-none"
-              style={{
-                backgroundColor: "rgba(250, 246, 241, 0.92)",
-                borderColor: "rgba(228, 221, 214, 0.92)",
-                color: "var(--text-primary)",
-              }}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label
-              className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <AlignLeft size={11} />
-              Notiz
-            </label>
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Optionaler Kontext"
-              rows={4}
-              className="w-full resize-none rounded-[8px] border px-4 py-3.5 text-[13px] leading-[1.5] outline-none"
-              style={{
-                backgroundColor: "rgba(250, 246, 241, 0.92)",
-                borderColor: "rgba(228, 221, 214, 0.92)",
-                color: "var(--text-secondary)",
-              }}
-            />
-          </div>
-        </section>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <section
-            className="rounded-[10px] border px-5 py-5"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.9)",
-              borderColor: "rgba(232, 225, 217, 0.98)",
-            }}
-          >
-            <div className="mb-3">
-              <p
-                className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <Clock3 size={11} />
-                Zeit
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <div
-                className="rounded-[8px] border px-4 py-3.5"
-                style={{
-                  backgroundColor: "rgba(250, 246, 241, 0.92)",
-                  borderColor: "rgba(228, 221, 214, 0.92)",
-                }}
-              >
-                <p
-                  className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Start
-                </p>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(event) => setStartTime(event.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="mt-1.5 w-full bg-transparent text-[15px] font-semibold outline-none"
-                  style={{ color: "var(--text-primary)" }}
-                />
-              </div>
-
-              <div
-                className="rounded-[8px] border px-4 py-3.5"
-                style={{
-                  backgroundColor: "rgba(250, 246, 241, 0.92)",
-                  borderColor: "rgba(228, 221, 214, 0.92)",
-                }}
-              >
-                <p
-                  className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Ende
-                </p>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(event) => setEndTime(event.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="mt-1.5 w-full bg-transparent text-[15px] font-semibold outline-none"
-                  style={{ color: "var(--text-primary)" }}
-                />
-              </div>
-            </div>
-
-            <div
-              className="mt-3 rounded-[8px] border px-4 py-3.5"
-              style={{
-                backgroundColor: "rgba(255,255,255,0.94)",
-                borderColor: "rgba(232, 225, 217, 0.98)",
-              }}
-            >
-              <p
-                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Dauer
-              </p>
-              <p className="mt-1 text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                {durationLabel}
-              </p>
-            </div>
-          </section>
-
-          <section
-            className="space-y-3 rounded-[10px] border px-5 py-5"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.9)",
-              borderColor: "rgba(232, 225, 217, 0.98)",
-            }}
-          >
-            <div className="space-y-1.5">
-              <label
-                className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <CalendarDays size={11} />
-                Kalender
-              </label>
-              <div
-                className="relative flex items-center gap-2 rounded-[8px] border px-4 py-3.5"
-                style={{
-                  backgroundColor: "rgba(250, 246, 241, 0.92)",
-                  borderColor: "rgba(228, 221, 214, 0.92)",
-                }}
-              >
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{
-                    backgroundColor: selectedCategory?.color || "rgba(178,170,161,0.55)",
-                  }}
-                />
-                <select
-                  value={calendarCategoryId}
-                  onChange={(event) => setCalendarCategoryId(event.target.value)}
-                  className="min-w-0 flex-1 appearance-none bg-transparent pr-5 text-[13px] outline-none"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  <option value="">Kein Kalender</option>
-                  {calendarCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2"
-                  style={{ color: "var(--text-muted)" }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label
-                className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <Palette size={11} />
-                Farbe
-              </label>
-              <div className="grid grid-cols-4 gap-2.5">
-                {EVENT_COLORS.map((eventColor) => (
-                  <button
-                    key={eventColor}
-                    type="button"
-                    onClick={() => setColor(eventColor)}
-                    className="h-12 w-full rounded-[8px] border transition-all"
-                    style={{
-                      backgroundColor: eventColor,
-                      borderColor: color === eventColor ? "#ffffff" : "transparent",
-                      boxShadow:
-                        color === eventColor
-                          ? `0 0 0 2px ${eventColor}, 0 8px 18px ${eventColor}30`
-                          : "0 4px 10px rgba(77, 66, 54, 0.08)",
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </section>
+      <div className="popover-panel__body">
+        <div className="settings-row">
+          <input
+            ref={titleRef}
+            type="text"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Worum geht es?"
+            className="popover-title-input"
+          />
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Notiz (optional)"
+            rows={3}
+            className="workspace-input workspace-input--textarea"
+          />
         </div>
 
-        <section
-              className="rounded-[10px] border px-5 py-5"
-          style={{
-            backgroundColor: "rgba(255,255,255,0.9)",
-            borderColor: showRecurring
-              ? "rgba(141, 124, 246, 0.28)"
-              : "rgba(232, 225, 217, 0.98)",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setShowRecurring((value) => !value)}
-            className="flex w-full items-center justify-between gap-3 text-left"
-          >
-            <div className="flex items-center gap-2.5">
-              <span
-                className="inline-flex h-10 w-10 items-center justify-center rounded-[8px]"
-                style={{
-                  backgroundColor: showRecurring
-                    ? "var(--accent-primary-light)"
-                    : "rgba(244, 239, 232, 0.92)",
-                  color: showRecurring ? "var(--accent-primary)" : "var(--text-muted)",
-                }}
-              >
-                <RefreshCw size={14} />
-              </span>
-              <div>
-                <p className="text-[12px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                  Wiederholung
-                </p>
-                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                  {showRecurring ? frequencyLabel[frequency] : "Nur einmalig"}
-                </p>
-              </div>
-            </div>
+        <div className="settings-row">
+          <div className="flex items-center justify-between gap-3">
+            <p className="settings-row__label">Zeit</p>
+            <span className="planning-card__duration">{durationLabel}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <TimeInput
+              value={startTime}
+              onChange={setStartTime}
+              onKeyDown={handleKeyDown}
+              aria-label="Start"
+            />
+            <TimeInput
+              value={endTime}
+              onChange={setEndTime}
+              onKeyDown={handleKeyDown}
+              aria-label="Ende"
+            />
+          </div>
+        </div>
+
+        <div className="settings-row">
+          <p className="settings-row__label">Kalender</p>
+          <div className="flex w-full items-center gap-2">
             <span
-              className="rounded-[8px] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em]"
-              style={{
-                backgroundColor: showRecurring
-                  ? "rgba(141, 124, 246, 0.12)"
-                  : "rgba(244, 239, 232, 0.92)",
-                color: showRecurring ? "var(--accent-primary)" : "var(--text-muted)",
-              }}
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: selectedCategory?.color || "var(--track-fill)" }}
+            />
+            <select
+              value={calendarCategoryId}
+              onChange={(event) => setCalendarCategoryId(event.target.value)}
+              className="workspace-input"
             >
-              {showRecurring ? "An" : "Aus"}
-            </span>
-          </button>
+              <option value="">Kein Kalender</option>
+              {calendarCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="settings-row settings-row--inline">
+          <p className="settings-row__label">Farbe</p>
+          <div className="color-swatch-row" role="radiogroup" aria-label="Farbe">
+            {EVENT_COLORS.map((eventColor) => (
+              <button
+                key={eventColor}
+                type="button"
+                role="radio"
+                aria-checked={color === eventColor}
+                aria-label={eventColor}
+                onClick={() => setColor(eventColor)}
+                className="color-swatch"
+                style={{ backgroundColor: eventColor, color: eventColor }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-row--inline flex">
+            <div className="settings-row__text">
+              <p className="settings-row__label">Wiederholung</p>
+              <p className="settings-row__description">
+                {isRecurringEnabled ? frequencyLabel[frequency] : "Nur einmalig"}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showRecurring}
+              aria-label="Wiederholung"
+              onClick={() => setShowRecurring((value) => !value)}
+              className="settings-switch"
+            >
+              <span className="settings-switch__thumb" />
+            </button>
+          </div>
 
           {showRecurring && (
-            <div className="mt-4 space-y-3.5">
-              <div className="grid grid-cols-2 gap-2">
+            <>
+              <div className="settings-segmented settings-segmented--compact" role="radiogroup">
                 {(["none", "daily", "weekly", "monthly"] as const).map((value) => (
                   <button
                     key={value}
                     type="button"
+                    role="radio"
+                    aria-checked={frequency === value}
                     onClick={() => setFrequency(value)}
-                    className="rounded-[8px] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
-                    style={{
-                      backgroundColor:
-                        frequency === value ? "var(--accent-primary)" : "rgba(244, 239, 232, 0.92)",
-                      color: frequency === value ? "#ffffff" : "var(--text-muted)",
-                    }}
+                    className="settings-segmented__option"
                   >
                     {frequencyLabel[value]}
                   </button>
@@ -611,8 +350,8 @@ export default function EventForm({
               </div>
 
               {frequency !== "none" && (
-                <div className="grid gap-3 sm:grid-cols-[auto_72px_1fr] sm:items-center">
-                  <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
+                <div className="flex items-center gap-2">
+                  <span className="settings-row__description" style={{ marginTop: 0 }}>
                     Alle
                   </span>
                   <input
@@ -623,14 +362,10 @@ export default function EventForm({
                     onChange={(event) =>
                       setInterval(Math.max(1, parseInt(event.target.value, 10) || 1))
                     }
-                    className="rounded-[8px] border px-3 py-2.5 text-center text-[12px] outline-none"
-                    style={{
-                      backgroundColor: "rgba(250, 246, 241, 0.92)",
-                      borderColor: "rgba(228, 221, 214, 0.92)",
-                      color: "var(--text-primary)",
-                    }}
+                    className="workspace-input text-center"
+                    style={{ width: 64 }}
                   />
-                  <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
+                  <span className="settings-row__description" style={{ marginTop: 0 }}>
                     {frequency === "daily"
                       ? "Tag(e)"
                       : frequency === "weekly"
@@ -641,19 +376,15 @@ export default function EventForm({
               )}
 
               {frequency === "weekly" && (
-                <div className="grid grid-cols-7 gap-1.5">
+                <div className="settings-segmented settings-segmented--compact">
                   {DAY_LABELS.map((label, index) => (
                     <button
                       key={label}
                       type="button"
+                      role="checkbox"
+                      aria-checked={daysOfWeek.includes(index)}
                       onClick={() => toggleDayOfWeek(index)}
-                      className="rounded-[6px] px-1.5 py-2.5 text-[10px] font-semibold"
-                      style={{
-                        backgroundColor: daysOfWeek.includes(index)
-                          ? "var(--accent-primary)"
-                          : "rgba(244, 239, 232, 0.92)",
-                        color: daysOfWeek.includes(index) ? "#ffffff" : "var(--text-muted)",
-                      }}
+                      className="settings-segmented__option"
                     >
                       {label}
                     </button>
@@ -662,76 +393,51 @@ export default function EventForm({
               )}
 
               {frequency !== "none" && (
-                <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
-                  <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
+                <div className="flex items-center gap-2">
+                  <span className="settings-row__description" style={{ marginTop: 0 }}>
                     Endet
                   </span>
                   <input
                     type="date"
                     value={endDate}
                     onChange={(event) => setEndDate(event.target.value)}
-                    className="rounded-[8px] border px-3.5 py-2.5 text-[12px] outline-none"
-                    style={{
-                      backgroundColor: "rgba(250, 246, 241, 0.92)",
-                      borderColor: "rgba(228, 221, 214, 0.92)",
-                      color: "var(--text-secondary)",
-                    }}
+                    className="workspace-input"
                   />
                 </div>
               )}
-            </div>
+            </>
           )}
-        </section>
+        </div>
       </div>
 
-      <div
-        className="space-y-3 border-t px-5 py-5"
-        style={{ borderColor: "rgba(229, 222, 214, 0.98)" }}
-      >
+      <div className="popover-panel__footer">
         {isEditing && onDelete ? (
           <button
             type="button"
             onClick={handleDelete}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-[8px] px-4 py-3 text-[11px] font-semibold"
-            style={{
-              backgroundColor: confirmDelete
-                ? "var(--accent-danger-light)"
-                : "rgba(255,255,255,0.92)",
-              color: confirmDelete ? "var(--accent-danger)" : "var(--text-muted)",
-              border: "1px solid rgba(232, 215, 215, 0.96)",
-            }}
+            className={`workspace-button settings-danger-button w-full ${
+              confirmDelete ? "settings-danger-button--armed" : ""
+            }`}
           >
-            <Trash2 size={12} />
-            {confirmDelete ? "Bestaetigen?" : "Loeschen"}
+            <Trash2 size={13} />
+            {confirmDelete ? "Bestätigen?" : "Löschen"}
           </button>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[8px] px-4 py-3 text-[11px] font-semibold"
-            style={{
-              backgroundColor: "rgba(244, 239, 232, 0.92)",
-              color: "var(--text-muted)",
-            }}
-          >
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={onClose} className="workspace-button">
             Abbrechen
           </button>
           <button
             type="button"
             onClick={handleSubmit}
             disabled={!title.trim()}
-            className="rounded-[8px] px-4 py-3 text-[11px] font-semibold text-white disabled:opacity-40"
-            style={{
-              background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
-              boxShadow: `0 10px 20px ${color}30`,
-            }}
+            className="workspace-button workspace-button--primary"
           >
             {isEditing ? "Speichern" : "Erstellen"}
           </button>
         </div>
       </div>
-    </div>
+    </CalendarPopover>
   );
 }

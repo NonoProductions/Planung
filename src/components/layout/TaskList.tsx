@@ -235,7 +235,7 @@ export default function TaskList() {
             type="button"
             onClick={() => setSelectedDate(toLocalDateString(addDays(baseDate, 1)))}
             className="planning-toolbar__button planning-toolbar__button--icon"
-            aria-label="Naechster Tag"
+            aria-label="Nächster Tag"
           >
             <ChevronRight size={15} strokeWidth={2} />
           </button>
@@ -266,7 +266,7 @@ export default function TaskList() {
               <section
                 key={dayDate}
                 className="planning-column"
-                style={{ borderRight: index === visibleDays.length - 1 ? "0" : "1px solid #f0ebe5" }}
+                style={{ borderRight: index === visibleDays.length - 1 ? "0" : "1px solid var(--line-soft)" }}
               >
                 <div className="planning-column__inner">
                   <div className="planning-column__heading">
@@ -315,7 +315,7 @@ export default function TaskList() {
                           style={{
                             borderColor: "var(--border-color)",
                             color: "var(--text-primary)",
-                            backgroundColor: "#fbfaf8",
+                            backgroundColor: "var(--surface-subtle)",
                           }}
                         />
                         <div className="planning-add-form__controls">
@@ -327,7 +327,7 @@ export default function TaskList() {
                             style={{
                               borderColor: "var(--border-color)",
                               color: "var(--text-secondary)",
-                              backgroundColor: "#fbfaf8",
+                              backgroundColor: "var(--surface-subtle)",
                             }}
                           >
                             <option value="">No channel</option>
@@ -348,14 +348,14 @@ export default function TaskList() {
                             style={{
                               borderColor: "var(--border-color)",
                               color: "var(--text-secondary)",
-                              backgroundColor: "#fbfaf8",
+                              backgroundColor: "var(--surface-subtle)",
                             }}
                           />
                           <button
                             type="button"
                             onClick={() => handleAddTask(dayDate)}
                             className="planning-add-form__save"
-                            style={{ backgroundColor: "#7f766d" }}
+                            style={{ backgroundColor: "var(--text-secondary)" }}
                           >
                             Save
                           </button>
