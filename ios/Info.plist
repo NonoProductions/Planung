@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Planung Sync gleicht deine Tasks mit der Erinnerungen-Liste „Planung“ ab.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Planung Sync trägt geplante Tasks in den Kalender „Planung“ ein und übernimmt Änderungen daraus.</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.noelamborelle.planungsync.refresh</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Zum Testen mit dem Planung-Server auf deinem Mac im WLAN.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

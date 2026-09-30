@@ -1510,7 +1510,7 @@ textarea {
 
 .calendar-toolbar {
   display: flex;
-  height: 56px;
+  height: 58px;
   align-items: center;
   justify-content: flex-end;
   padding: 0 16px 0 16px;

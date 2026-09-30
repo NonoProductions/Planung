@@ -6,8 +6,13 @@ export default auth((req) => {
   const isApiRoute = req.nextUrl.pathname.startsWith("/api/");
   const isAuthRoute = req.nextUrl.pathname.startsWith("/api/auth/");
   const isLoginRoute = req.nextUrl.pathname === "/login";
+  const isMobileAuthRoute =
+    req.nextUrl.pathname === "/api/mobile/login" ||
+    req.nextUrl.pathname === "/api/mobile/refresh";
+  // The iOS sync app sends a Bearer token; route handlers verify it via requireUserId.
+  const hasBearer = req.headers.get("authorization")?.startsWith("Bearer ") ?? false;
 
-  if (isAuthRoute || isLoginRoute || req.auth) {
+  if (isAuthRoute || isLoginRoute || isMobileAuthRoute || req.auth || (isApiRoute && hasBearer)) {
     return;
   }
 

@@ -7,6 +7,7 @@ import {
   Monitor,
   Moon,
   Plus,
+  RefreshCw,
   Repeat,
   Sun,
   Trash2,
@@ -50,6 +51,16 @@ type NoticeTone = "success" | "error" | "pending";
 interface NoticeState {
   tone: NoticeTone;
   message: string;
+}
+
+type NativeAppWindow = Window & {
+  webkit?: { messageHandlers?: { planung?: { postMessage: (message: string) => void } } };
+};
+
+/** Bridge to the iOS app (Planung Sync), which embeds this page in a web view. */
+function nativeAppBridge() {
+  if (typeof window === "undefined") return null;
+  return (window as NativeAppWindow).webkit?.messageHandlers?.planung ?? null;
 }
 
 function formatMinutes(minutes: number) {
@@ -98,6 +109,11 @@ export default function SettingsDashboard() {
   const [exportingFormat, setExportingFormat] = useState<"json" | "csv" | null>(null);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [deletingDemo, setDeletingDemo] = useState(false);
+  const [inNativeApp, setInNativeApp] = useState(false);
+
+  useEffect(() => {
+    setInNativeApp(nativeAppBridge() !== null);
+  }, []);
 
   useEffect(() => {
     void fetchCalendarCategories();
@@ -573,6 +589,24 @@ export default function SettingsDashboard() {
               )}
             </div>
           </SettingsSection>
+
+          {inNativeApp && (
+            <SettingsSection title="Apple-Sync" subtitle={"Erinnerungen und Kalender"}>
+              <SettingRow
+                label="Automatischer Abgleich"
+                description="Tasks werden automatisch mit Apple Erinnerungen und Kalender synchronisiert."
+              >
+                <button
+                  type="button"
+                  onClick={() => nativeAppBridge()?.postMessage("openSync")}
+                  className="workspace-button"
+                >
+                  <RefreshCw size={14} strokeWidth={2} />
+                  Sync-Einstellungen
+                </button>
+              </SettingRow>
+            </SettingsSection>
+          )}
 
           <SettingsSection title="Daten" subtitle={"Export und Zurücksetzen"}>
             <SettingRow label="Export" description="Snapshot aller Aufgaben inklusive Einstellungen.">

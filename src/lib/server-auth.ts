@@ -1,4 +1,6 @@
+import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { verifyBearerToken } from "@/lib/mobile-auth";
 import { supabase } from "@/lib/supabase";
 
 // Session user ID -> app user ID ("User".id), resolved once per server process.
@@ -53,9 +55,18 @@ async function resolveAppUserId(sessionUserId: string, email?: string | null, na
 
 /**
  * Returns the authenticated user's ID, or null if not authenticated.
+ * Accepts either a NextAuth session or a Bearer token from the iOS sync app.
  * Use in API route handlers for defense-in-depth (middleware is the primary gate).
  */
 export async function requireUserId(): Promise<string | null> {
+  // iOS sync app: Supabase access token instead of a session cookie.
+  const authorization = (await headers()).get("authorization");
+  if (authorization?.startsWith("Bearer ")) {
+    const user = await verifyBearerToken(authorization.slice("Bearer ".length));
+    if (!user) return null;
+    return resolveAppUserId(user.id, user.email, user.name);
+  }
+
   const session = await auth();
   const sessionUserId = session?.user?.id;
   if (!sessionUserId) return null;

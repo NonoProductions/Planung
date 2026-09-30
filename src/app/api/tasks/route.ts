@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
+import { newRowId } from "@/lib/client-id";
 import {
   createDbUnavailableResponse,
   isDatabaseUnavailableError,
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
   const { data, error } = await supabase
     .from("Task")
     .insert({
-      id: crypto.randomUUID(),
+      id: newRowId(body.id),
       title: body.title,
       description: body.description || null,
       status: "OPEN",

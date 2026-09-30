@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { requireUserId } from "@/lib/server-auth";
+import { newRowId } from "@/lib/client-id";
 
 // GET /api/objectives?weekStart=2026-03-23
 export async function GET(request: NextRequest) {
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
   const { data, error } = await supabase
     .from("Objective")
     .insert({
-      id: crypto.randomUUID(),
+      id: newRowId(body.id),
       title: body.title,
       weekStart: new Date(body.weekStart).toISOString(),
       progress: body.progress ?? 0,
