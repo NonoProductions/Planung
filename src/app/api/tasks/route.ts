@@ -75,6 +75,12 @@ export async function POST(request: NextRequest) {
       scheduledDate: body.scheduledDate
         ? new Date(body.scheduledDate).toISOString()
         : null,
+      scheduledStart: body.scheduledStart
+        ? new Date(body.scheduledStart).toISOString()
+        : null,
+      scheduledEnd: body.scheduledEnd
+        ? new Date(body.scheduledEnd).toISOString()
+        : null,
       position: body.position ?? 0,
       channelId: body.channelId || null,
       parentId: body.parentId || null,

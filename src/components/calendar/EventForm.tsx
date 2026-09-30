@@ -35,6 +35,13 @@ interface EventFormProps {
     recurringRule?: RecurringRule | null;
     calendarCategoryId?: string;
   }) => void;
+  /** When set, a new entry can be created as a task instead of an event. */
+  onCreateTask?: (data: {
+    title: string;
+    description?: string;
+    startTime: string;
+    endTime: string;
+  }) => void;
   onDelete?: () => void;
   onClose: () => void;
   anchor: PopoverAnchor;
@@ -78,11 +85,15 @@ export default function EventForm({
   selectedDate,
   calendarCategories = [],
   onSave,
+  onCreateTask,
   onDelete,
   onClose,
   anchor,
 }: EventFormProps) {
   const isEditing = !!event;
+  const canCreateTask = !isEditing && !!onCreateTask;
+  const [kind, setKind] = useState<"task" | "event">(canCreateTask ? "task" : "event");
+  const isTask = canCreateTask && kind === "task";
   const existingRule = event?.recurringRule;
 
   const [title, setTitle] = useState(event?.title || "");
@@ -113,8 +124,10 @@ export default function EventForm({
   const titleRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
+  // The popover stays hidden until it has been positioned, so focus on the next frame.
   useEffect(() => {
-    titleRef.current?.focus();
+    const frame = requestAnimationFrame(() => titleRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
@@ -163,6 +176,17 @@ export default function EventForm({
 
     const startISO = new Date(`${selectedDate}T${startTime}:00`).toISOString();
     const endISO = new Date(`${selectedDate}T${endTime}:00`).toISOString();
+
+    if (isTask) {
+      onCreateTask?.({
+        title: title.trim(),
+        description: description || undefined,
+        startTime: startISO,
+        endTime: endISO,
+      });
+      return;
+    }
+
     const isRecurring = isRecurringEnabled;
 
     const recurringRule: RecurringRule | null = isRecurring
@@ -231,6 +255,23 @@ export default function EventForm({
       </div>
 
       <div className="popover-panel__body">
+        {canCreateTask && (
+          <div className="settings-segmented settings-segmented--compact" role="radiogroup">
+            {(["task", "event"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={kind === value}
+                onClick={() => setKind(value)}
+                className="settings-segmented__option"
+              >
+                {value === "task" ? "Task" : "Termin"}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="settings-row">
           <input
             ref={titleRef}
@@ -272,142 +313,146 @@ export default function EventForm({
           </div>
         </div>
 
-        <div className="settings-row">
-          <p className="settings-row__label">Kalender</p>
-          <div className="flex w-full items-center gap-2">
-            <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: selectedCategory?.color || "var(--track-fill)" }}
-            />
-            <select
-              value={calendarCategoryId}
-              onChange={(event) => setCalendarCategoryId(event.target.value)}
-              className="workspace-input"
-            >
-              <option value="">Kein Kalender</option>
-              {calendarCategories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="settings-row settings-row--inline">
-          <p className="settings-row__label">Farbe</p>
-          <div className="color-swatch-row" role="radiogroup" aria-label="Farbe">
-            {EVENT_COLORS.map((eventColor) => (
-              <button
-                key={eventColor}
-                type="button"
-                role="radio"
-                aria-checked={color === eventColor}
-                aria-label={eventColor}
-                onClick={() => setColor(eventColor)}
-                className="color-swatch"
-                style={{ backgroundColor: eventColor, color: eventColor }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="settings-row">
-          <div className="settings-row--inline flex">
-            <div className="settings-row__text">
-              <p className="settings-row__label">Wiederholung</p>
-              <p className="settings-row__description">
-                {isRecurringEnabled ? frequencyLabel[frequency] : "Nur einmalig"}
-              </p>
+        {!isTask && (
+          <>
+            <div className="settings-row">
+              <p className="settings-row__label">Kalender</p>
+              <div className="flex w-full items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: selectedCategory?.color || "var(--track-fill)" }}
+                />
+                <select
+                  value={calendarCategoryId}
+                  onChange={(event) => setCalendarCategoryId(event.target.value)}
+                  className="workspace-input"
+                >
+                  <option value="">Kein Kalender</option>
+                  {calendarCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={showRecurring}
-              aria-label="Wiederholung"
-              onClick={() => setShowRecurring((value) => !value)}
-              className="settings-switch"
-            >
-              <span className="settings-switch__thumb" />
-            </button>
-          </div>
 
-          {showRecurring && (
-            <>
-              <div className="settings-segmented settings-segmented--compact" role="radiogroup">
-                {(["none", "daily", "weekly", "monthly"] as const).map((value) => (
+            <div className="settings-row settings-row--inline">
+              <p className="settings-row__label">Farbe</p>
+              <div className="color-swatch-row" role="radiogroup" aria-label="Farbe">
+                {EVENT_COLORS.map((eventColor) => (
                   <button
-                    key={value}
+                    key={eventColor}
                     type="button"
                     role="radio"
-                    aria-checked={frequency === value}
-                    onClick={() => setFrequency(value)}
-                    className="settings-segmented__option"
-                  >
-                    {frequencyLabel[value]}
-                  </button>
+                    aria-checked={color === eventColor}
+                    aria-label={eventColor}
+                    onClick={() => setColor(eventColor)}
+                    className="color-swatch"
+                    style={{ backgroundColor: eventColor, color: eventColor }}
+                  />
                 ))}
               </div>
+            </div>
 
-              {frequency !== "none" && (
-                <div className="flex items-center gap-2">
-                  <span className="settings-row__description" style={{ marginTop: 0 }}>
-                    Alle
-                  </span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={99}
-                    value={interval}
-                    onChange={(event) =>
-                      setInterval(Math.max(1, parseInt(event.target.value, 10) || 1))
-                    }
-                    className="workspace-input text-center"
-                    style={{ width: 64 }}
-                  />
-                  <span className="settings-row__description" style={{ marginTop: 0 }}>
-                    {frequency === "daily"
-                      ? "Tag(e)"
-                      : frequency === "weekly"
-                        ? "Woche(n)"
-                        : "Monat(e)"}
-                  </span>
+            <div className="settings-row">
+              <div className="settings-row--inline flex">
+                <div className="settings-row__text">
+                  <p className="settings-row__label">Wiederholung</p>
+                  <p className="settings-row__description">
+                    {isRecurringEnabled ? frequencyLabel[frequency] : "Nur einmalig"}
+                  </p>
                 </div>
-              )}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={showRecurring}
+                  aria-label="Wiederholung"
+                  onClick={() => setShowRecurring((value) => !value)}
+                  className="settings-switch"
+                >
+                  <span className="settings-switch__thumb" />
+                </button>
+              </div>
 
-              {frequency === "weekly" && (
-                <div className="settings-segmented settings-segmented--compact">
-                  {DAY_LABELS.map((label, index) => (
-                    <button
-                      key={label}
-                      type="button"
-                      role="checkbox"
-                      aria-checked={daysOfWeek.includes(index)}
-                      onClick={() => toggleDayOfWeek(index)}
-                      className="settings-segmented__option"
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {showRecurring && (
+                <>
+                  <div className="settings-segmented settings-segmented--compact" role="radiogroup">
+                    {(["none", "daily", "weekly", "monthly"] as const).map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={frequency === value}
+                        onClick={() => setFrequency(value)}
+                        className="settings-segmented__option"
+                      >
+                        {frequencyLabel[value]}
+                      </button>
+                    ))}
+                  </div>
 
-              {frequency !== "none" && (
-                <div className="flex items-center gap-2">
-                  <span className="settings-row__description" style={{ marginTop: 0 }}>
-                    Endet
-                  </span>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(event) => setEndDate(event.target.value)}
-                    className="workspace-input"
-                  />
-                </div>
+                  {frequency !== "none" && (
+                    <div className="flex items-center gap-2">
+                      <span className="settings-row__description" style={{ marginTop: 0 }}>
+                        Alle
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        value={interval}
+                        onChange={(event) =>
+                          setInterval(Math.max(1, parseInt(event.target.value, 10) || 1))
+                        }
+                        className="workspace-input text-center"
+                        style={{ width: 64 }}
+                      />
+                      <span className="settings-row__description" style={{ marginTop: 0 }}>
+                        {frequency === "daily"
+                          ? "Tag(e)"
+                          : frequency === "weekly"
+                            ? "Woche(n)"
+                            : "Monat(e)"}
+                      </span>
+                    </div>
+                  )}
+
+                  {frequency === "weekly" && (
+                    <div className="settings-segmented settings-segmented--compact">
+                      {DAY_LABELS.map((label, index) => (
+                        <button
+                          key={label}
+                          type="button"
+                          role="checkbox"
+                          aria-checked={daysOfWeek.includes(index)}
+                          onClick={() => toggleDayOfWeek(index)}
+                          className="settings-segmented__option"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {frequency !== "none" && (
+                    <div className="flex items-center gap-2">
+                      <span className="settings-row__description" style={{ marginTop: 0 }}>
+                        Endet
+                      </span>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(event) => setEndDate(event.target.value)}
+                        className="workspace-input"
+                      />
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="popover-panel__footer">

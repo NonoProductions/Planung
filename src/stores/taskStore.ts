@@ -44,6 +44,16 @@ function assertApiResponse(res: Response) {
   }
 }
 
+/**
+ * The DB columns are `timestamp without time zone` holding UTC values, so the
+ * API returns them without an offset. Mark them as UTC so the browser doesn't
+ * read them as local time.
+ */
+function asUtcTimestamp(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value) return undefined;
+  return /(Z|[+-]\d{2}:?\d{2})$/.test(value) ? value : `${value}Z`;
+}
+
 function mapApiTask(t: Record<string, unknown>): Task {
   return {
     id: t.id as string,
@@ -53,8 +63,8 @@ function mapApiTask(t: Record<string, unknown>): Task {
     plannedTime: (t.plannedTime as number) || undefined,
     actualTime: (t.actualTime as number) || undefined,
     scheduledDate: extractDateOnly(t.scheduledDate as string | undefined),
-    scheduledStart: (t.scheduledStart as string) || undefined,
-    scheduledEnd: (t.scheduledEnd as string) || undefined,
+    scheduledStart: asUtcTimestamp(t.scheduledStart),
+    scheduledEnd: asUtcTimestamp(t.scheduledEnd),
     dueDate: (t.dueDate as string) || undefined,
     position: (t.position as number) ?? 0,
     channelId: (t.channelId as string) || undefined,
@@ -74,7 +84,7 @@ function mapApiTask(t: Record<string, unknown>): Task {
     isBacklog: (t.isBacklog as boolean) ?? false,
     backlogBucket: (t.backlogBucket as string) || undefined,
     backlogFolder: (t.backlogFolder as string) || undefined,
-    completedAt: (t.completedAt as string) || undefined,
+    completedAt: asUtcTimestamp(t.completedAt),
   };
 }
 
@@ -83,8 +93,8 @@ function mapApiEvent(e: Record<string, unknown>): CalendarEvent {
     id: e.id as string,
     title: e.title as string,
     description: (e.description as string) || undefined,
-    startTime: e.startTime as string,
-    endTime: e.endTime as string,
+    startTime: asUtcTimestamp(e.startTime) as string,
+    endTime: asUtcTimestamp(e.endTime) as string,
     color: (e.color as string) || undefined,
     isRecurring: (e.isRecurring as boolean) ?? false,
     recurringRule: (e.recurringRule as RecurringRule) || null,
@@ -192,6 +202,8 @@ interface TaskState {
     description?: string;
     plannedTime?: number;
     scheduledDate?: string;
+    scheduledStart?: string;
+    scheduledEnd?: string;
     channelId?: string;
     position?: number;
     isBacklog?: boolean;

@@ -82,8 +82,10 @@ export default function TaskScheduleForm({
 
   const isScheduled = Boolean(task.scheduledStart && task.scheduledEnd);
 
+  // The popover stays hidden until it has been positioned, so focus on the next frame.
   useEffect(() => {
-    dateRef.current?.focus();
+    const frame = requestAnimationFrame(() => dateRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {

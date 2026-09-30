@@ -60,6 +60,7 @@ export default function CalendarView() {
   const updateEvent = useTaskStore((state) => state.updateEvent);
   const deleteEvent = useTaskStore((state) => state.deleteEvent);
   const updateTask = useTaskStore((state) => state.updateTask);
+  const addTask = useTaskStore((state) => state.addTask);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -90,7 +91,7 @@ export default function CalendarView() {
       if (!grid) return null;
 
       const rect = grid.getBoundingClientRect();
-      const y = clientY - rect.top + (scrollRef.current?.scrollTop || 0);
+      const y = clientY - rect.top;
       if (y < 0 || y > HOURS.length * HOUR_HEIGHT) return null;
 
       const startTime = yToTime(y);
@@ -178,7 +179,7 @@ export default function CalendarView() {
       if (!grid) return;
 
       const rect = grid.getBoundingClientRect();
-      const y = event.clientY - rect.top + (scrollRef.current?.scrollTop || 0);
+      const y = event.clientY - rect.top;
       const x = event.clientX - rect.left;
       if (x < GRID_GUTTER) return;
 
@@ -221,6 +222,17 @@ export default function CalendarView() {
     });
   }, []);
 
+  const handleTaskTimeChange = useCallback(
+    (task: Task, scheduledStart: string, scheduledEnd: string) => {
+      const plannedTime = Math.round(
+        (new Date(scheduledEnd).getTime() - new Date(scheduledStart).getTime()) / 60000
+      );
+
+      void updateTask(task.id, { scheduledStart, scheduledEnd, plannedTime });
+    },
+    [updateTask]
+  );
+
   const handleSaveEvent = useCallback(
     async (data: {
       title: string;
@@ -241,6 +253,29 @@ export default function CalendarView() {
       setFormState(null);
     },
     [formState, addEvent, updateEvent]
+  );
+
+  const handleCreateTask = useCallback(
+    async (data: { title: string; description?: string; startTime: string; endTime: string }) => {
+      const plannedTime = Math.round(
+        (new Date(data.endTime).getTime() - new Date(data.startTime).getTime()) / 60000
+      );
+      const dayTaskCount = tasks.filter(
+        (task) => task.scheduledDate === selectedDate && !task.isBacklog
+      ).length;
+
+      setFormState(null);
+      await addTask({
+        title: data.title,
+        description: data.description,
+        scheduledDate: selectedDate,
+        scheduledStart: data.startTime,
+        scheduledEnd: data.endTime,
+        plannedTime: plannedTime > 0 ? plannedTime : undefined,
+        position: dayTaskCount,
+      });
+    },
+    [addTask, selectedDate, tasks]
   );
 
   const handleDeleteEvent = useCallback(async () => {
@@ -409,6 +444,9 @@ export default function CalendarView() {
                   startHour={START_HOUR}
                   hourHeight={HOUR_HEIGHT}
                   onClick={(mouseEvent) => handleTaskClick(task, mouseEvent)}
+                  onTimeChange={(scheduledStart, scheduledEnd) =>
+                    handleTaskTimeChange(task, scheduledStart, scheduledEnd)
+                  }
                 />
               </div>
             ))}
@@ -425,6 +463,7 @@ export default function CalendarView() {
               selectedDate={selectedDate}
               calendarCategories={calendarCategories}
               onSave={handleSaveEvent}
+              onCreateTask={handleCreateTask}
               onDelete={formState.mode === "edit" ? handleDeleteEvent : undefined}
               onClose={() => setFormState(null)}
               anchor={formState.anchor}
