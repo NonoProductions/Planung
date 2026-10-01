@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarClock, X } from "lucide-react";
-import CalendarPopover, { type PopoverAnchor } from "@/components/calendar/CalendarPopover";
+import CalendarPopover, {
+  isPhoneViewport,
+  type PopoverAnchor,
+} from "@/components/calendar/CalendarPopover";
 import TimeInput from "@/components/ui/TimeInput";
 import type { Task } from "@/types";
 
@@ -83,7 +86,9 @@ export default function TaskScheduleForm({
   const isScheduled = Boolean(task.scheduledStart && task.scheduledEnd);
 
   // The popover stays hidden until it has been positioned, so focus on the next frame.
+  // Not on phones: focusing would pop up the date picker right away.
   useEffect(() => {
+    if (isPhoneViewport()) return undefined;
     const frame = requestAnimationFrame(() => dateRef.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, []);

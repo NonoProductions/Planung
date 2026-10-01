@@ -74,6 +74,8 @@ final class WebViewStore: NSObject, ObservableObject, WKScriptMessageHandler, WK
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         switch message.body as? String {
         case "openSync": onOpenSync()
+        // A task card was picked up for dragging.
+        case "haptic": UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         default: onTaskChange()
         }
     }

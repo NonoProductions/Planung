@@ -160,8 +160,13 @@ export default function TaskList() {
       setSelectedDate(toLocalDateString(addDays(parseISO(selectedDate), direction))),
   });
 
+  // Phones show one day, but render yesterday and tomorrow beside it (off screen)
+  // so swiping already reveals the neighbouring day.
   const visibleDays = useMemo(
-    () => Array.from({ length: isCompactLayout ? 1 : 2 }, (_, index) => addDays(baseDate, index)),
+    () =>
+      isCompactLayout
+        ? [subDays(baseDate, 1), baseDate, addDays(baseDate, 1)]
+        : [baseDate, addDays(baseDate, 1)],
     [baseDate, isCompactLayout]
   );
 
@@ -267,7 +272,10 @@ export default function TaskList() {
       </div>
 
       <div ref={columnsRef} className="planning-columns">
-        <motion.div className="planning-columns__grid" style={{ x: swipeX }}>
+        <motion.div
+          className={`planning-columns__grid${isCompactLayout ? " planning-columns__grid--swipe" : ""}`}
+          style={{ x: swipeX }}
+        >
           {visibleDays.map((day, index) => {
             const dayDate = toLocalDateString(day);
             const dayTasks = tasksByDay.get(dayDate) || [];

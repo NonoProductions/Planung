@@ -38,6 +38,7 @@ export default function WeekGrid({ weekStart }: Props) {
   const [newChannelId, setNewChannelId] = useState("");
   const [newPlannedTime, setNewPlannedTime] = useState("");
   const addInputRef = useRef<HTMLInputElement>(null);
+  const todayRef = useRef<HTMLElement>(null);
 
   const addFormDate = quickAddRequest?.mode === "day" ? quickAddRequest.value : null;
 
@@ -50,8 +51,9 @@ export default function WeekGrid({ weekStart }: Props) {
   }, [addFormDate]);
 
   useEffect(() => {
-    fetchTasks(undefined);
-    fetch(`/api/tasks?weekStart=${weekStart}`)
+    let cancelled = false;
+    const loadAll = fetchTasks(undefined);
+    const loadWeek = fetch(`/api/tasks?weekStart=${weekStart}`)
       .then((response) => response.json())
       .then((data) => {
         useTaskStore.setState((state) => {
@@ -77,6 +79,22 @@ export default function WeekGrid({ weekStart }: Props) {
         });
       })
       .catch(() => {});
+
+    // Once the days above are filled, scroll to today (only in the current week).
+    void Promise.allSettled([loadAll, loadWeek]).then(() => {
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        const isPhone = window.matchMedia("(max-width: 767px)").matches;
+        todayRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: isPhone ? "start" : "nearest",
+          inline: "nearest",
+        });
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [weekStart, fetchTasks]);
 
   const weekDays = useMemo(() => {
@@ -162,7 +180,11 @@ export default function WeekGrid({ weekStart }: Props) {
               : "var(--accent-danger)";
 
         return (
-          <section key={dayDate} className={`week-day${past ? " week-day--past" : ""}`}>
+          <section
+            key={dayDate}
+            ref={today ? todayRef : undefined}
+            className={`week-day${past ? " week-day--past" : ""}`}
+          >
             <button
               type="button"
               onClick={() => navigateToDay(day)}

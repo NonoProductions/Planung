@@ -4,7 +4,9 @@ import { useCallback, useState } from "react";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
+  defaultDropAnimationSideEffects,
   useSensor,
   useSensors,
   closestCenter,
@@ -12,6 +14,7 @@ import {
   type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
+  type DropAnimation,
   type UniqueIdentifier,
 } from "@dnd-kit/core";
 import {
@@ -58,6 +61,23 @@ function getClientCoordinates(event: Event | null): ClientCoordinates | null {
   return null;
 }
 
+/** The lifted card settles back into its slot instead of vanishing. */
+const dropAnimation: DropAnimation = {
+  duration: 200,
+  easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: { active: { opacity: "0" } },
+  }),
+};
+
+/** In the iPhone app, a light haptic tap when a card is picked up. */
+function hapticTap() {
+  const bridge = (window as unknown as {
+    webkit?: { messageHandlers?: { planung?: { postMessage: (message: string) => void } } };
+  }).webkit?.messageHandlers?.planung;
+  bridge?.postMessage("haptic");
+}
+
 const customCollisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
   const calendarCollision = pointerCollisions.find(
@@ -73,14 +93,14 @@ const customCollisionDetection: CollisionDetection = (args) => {
 
 export default function DndWrapper({ children }: DndWrapperProps) {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  const [overlayWidth, setOverlayWidth] = useState<number | null>(null);
   const tasks = useTaskStore((state) => state.tasks);
 
+  // Mouse: drag the whole card after a few pixels, so plain clicks still work.
+  // Touch: press and hold briefly, so swiping and scrolling never pick up a card.
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } })
   );
 
   const activeTask = activeId
@@ -89,6 +109,8 @@ export default function DndWrapper({ children }: DndWrapperProps) {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id);
+    setOverlayWidth(event.active.rect.current.initial?.width ?? null);
+    hapticTap();
   }, []);
 
   const handleDragEnd = useCallback(
@@ -170,53 +192,44 @@ export default function DndWrapper({ children }: DndWrapperProps) {
       collisionDetection={customCollisionDetection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveId(null)}
     >
       {children}
 
-      <DragOverlay dropAnimation={null}>
-        {activeTask ? <DragOverlayCard task={activeTask} /> : null}
+      <DragOverlay dropAnimation={dropAnimation}>
+        {activeTask ? <DragOverlayCard task={activeTask} width={overlayWidth} /> : null}
       </DragOverlay>
     </DndContext>
   );
 }
 
-function DragOverlayCard({ task }: { task: Task }) {
+/** The card under the finger/cursor: the real card's look, lifted. */
+function DragOverlayCard({ task, width }: { task: Task; width: number | null }) {
+  const minutes = task.plannedTime && task.plannedTime > 0 ? task.plannedTime : 60;
+  const duration = `${Math.floor(minutes / 60)}:${(minutes % 60).toString().padStart(2, "0")}`;
+
   return (
-    <div
-      className="flex items-center gap-3 rounded-lg border px-3 py-2.5 shadow-lg"
-      style={{
-        backgroundColor: "var(--bg-card)",
-        borderColor: "var(--accent-primary)",
-        boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-        width: 300,
-        opacity: 0.9,
-      }}
-    >
-      <div
-        className="h-5 w-5 shrink-0 rounded-full border-2"
-        style={{
-          borderColor: task.channel?.color || "var(--border-color)",
-          backgroundColor:
-            task.status === "COMPLETED" ? "var(--accent-success)" : "transparent",
-        }}
-      />
-      <span
-        className="flex-1 truncate text-sm font-medium"
-        style={{ color: "var(--text-primary)" }}
-      >
-        {task.title}
-      </span>
-      {task.channel && (
-        <span
-          className="rounded px-1.5 py-0.5 text-[10px] font-medium"
-          style={{
-            backgroundColor: task.channel.color + "18",
-            color: task.channel.color,
-          }}
+    <div className="planning-card drag-overlay-card" style={{ width: width ?? 300 }}>
+      <div className="planning-card__meta">
+        <span className="planning-card__meta-spacer" aria-hidden="true" />
+        <span className="planning-card__duration">{duration}</span>
+      </div>
+      <div className="planning-card__body">
+        <p
+          className="planning-card__title"
+          style={task.status === "COMPLETED" ? { textDecoration: "line-through" } : undefined}
         >
-          #{task.channel.name}
-        </span>
-      )}
+          {task.title}
+        </p>
+      </div>
+      <div className="planning-card__footer">
+        <span className="planning-card__toggle" aria-hidden="true" />
+        {task.channel && (
+          <span className="planning-card__tag" style={{ color: task.channel.color }}>
+            #{task.channel.name}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

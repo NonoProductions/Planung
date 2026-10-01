@@ -155,8 +155,7 @@ html.theme-transition *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
+  scrollbar-width: none;
 }
 
 html,
@@ -1334,6 +1333,64 @@ textarea {
   border-radius: 8px;
   background: var(--surface);
   box-shadow: 0 1px 0 rgba(var(--shadow-rgb), 0.04);
+  /* The whole card is the drag handle: no text selection or iOS callout on hold. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+@media (hover: hover) {
+  .planning-card {
+    cursor: grab;
+  }
+}
+
+/* The slot a dragged card leaves behind. */
+.planning-card.is-drag-placeholder {
+  border: 1.5px dashed color-mix(in srgb, var(--accent-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+  box-shadow: none;
+}
+
+.planning-card.is-drag-placeholder > * {
+  visibility: hidden;
+}
+
+/* The card under the finger/cursor while dragging. */
+.drag-overlay-card {
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--line));
+  box-shadow:
+    0 2px 6px rgba(var(--shadow-rgb), 0.08),
+    0 18px 40px rgba(var(--shadow-rgb), 0.18);
+  cursor: grabbing;
+  transform: rotate(-1.5deg) scale(1.03);
+  animation: drag-overlay-lift 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes drag-overlay-lift {
+  from {
+    box-shadow: 0 1px 0 rgba(var(--shadow-rgb), 0.04);
+    transform: none;
+  }
+}
+
+/* Hint that the card can be dragged; touch uses press-and-hold instead. */
+.planning-card__grip {
+  display: inline-flex;
+  margin-left: 2px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.group:hover .planning-card__grip {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .planning-card__grip {
+    display: none;
+  }
 }
 
 .planning-card__meta {
@@ -1875,26 +1932,11 @@ textarea:focus-visible {
   box-shadow: var(--shadow-focus);
 }
 
+/* No scrollbars anywhere; scrolling still works with trackpad, wheel and touch. */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 999px;
-}
-
-*:hover::-webkit-scrollbar-thumb {
-  background: var(--line-strong);
-}
-
-*:hover {
-  scrollbar-color: var(--line-strong) transparent;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .grain-overlay::before {
@@ -2199,9 +2241,34 @@ input[type="number"] {
     padding-bottom: var(--mobile-dock-offset);
     scroll-padding-bottom: var(--mobile-dock-offset);
     overflow: visible;
-    /* The day slides sideways when swiping (useDaySwipe). */
-    overflow-x: clip;
+    /* The day slides sideways when swiping (useDaySwipe); the neighbouring
+       days are cut off at today's height so they never add scroll length. */
+    overflow: clip;
     touch-action: pan-y;
+  }
+
+  /* Yesterday | today | tomorrow: today sets the height, the neighbours sit
+     beside it at full width and are cut off by .planning-columns. */
+  .planning-columns__grid--swipe {
+    position: relative;
+  }
+
+  .planning-columns__grid--swipe > .planning-column {
+    border-bottom: 0;
+  }
+
+  .planning-columns__grid--swipe > .planning-column:not(:nth-child(2)) {
+    position: absolute;
+    top: 0;
+    width: 100%;
+  }
+
+  .planning-columns__grid--swipe > .planning-column:first-child {
+    left: -100%;
+  }
+
+  .planning-columns__grid--swipe > .planning-column:last-child {
+    left: 100%;
   }
 
   .planning-columns__grid {
@@ -3362,6 +3429,136 @@ input[type="number"] {
   }
 }
 
+/* Shutdown ("Feierabend"): on phones a bottom sheet with pinned actions */
+.shutdown-sheet__date {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.shutdown-sheet__footer {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .app-overlay--sheet {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .shutdown-sheet {
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px) !important;
+    border-bottom: 0;
+    border-radius: 22px 22px 0 0;
+    overscroll-behavior: contain;
+  }
+
+  .shutdown-sheet .ritual-modal__toolbar {
+    display: flex;
+    top: 0;
+    height: auto;
+    flex-wrap: nowrap;
+    padding: 14px 12px 12px 18px;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .shutdown-sheet .analytics-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .shutdown-sheet .analytics-stat {
+    padding: 14px 12px 12px 18px;
+    border-right: 1px solid var(--line-soft);
+    border-bottom: 0;
+  }
+
+  .shutdown-sheet .analytics-stat:last-child {
+    border-right: 0;
+  }
+
+  .shutdown-sheet .analytics-stat__label {
+    font-size: 12px;
+  }
+
+  .shutdown-sheet .analytics-stat__value {
+    margin-top: 6px;
+    font-size: 22px;
+  }
+
+  .shutdown-sheet .analytics-stat__detail {
+    margin-top: 6px;
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .shutdown-sheet .ritual-progress {
+    height: 5px;
+    margin-top: 10px;
+  }
+
+  .shutdown-sheet .ritual-modal__columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shutdown-sheet .analytics-section {
+    padding: 18px 18px 20px;
+    border-right: 0;
+  }
+
+  .shutdown-sheet .analytics-section:last-child {
+    border-bottom: 0;
+  }
+
+  .shutdown-sheet .planning-column__title {
+    font-size: 18px;
+    letter-spacing: -0.03em;
+  }
+
+  .shutdown-sheet .planning-column__date {
+    margin-top: 2px;
+    font-size: 13px;
+  }
+
+  .shutdown-sheet .analytics-section__body {
+    margin-top: 12px;
+  }
+
+  /* 16px keeps iOS from zooming in when the field gets focus. */
+  .shutdown-sheet .ritual-textarea {
+    min-height: 120px;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .shutdown-sheet__inline-actions {
+    display: none;
+  }
+
+  .shutdown-sheet__footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    flex-shrink: 0;
+    gap: 10px;
+    padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 12px);
+    border-top: 1px solid var(--line-soft);
+    background: var(--surface-board);
+  }
+
+  .shutdown-sheet__footer .workspace-button {
+    flex: 1;
+    justify-content: center;
+    min-height: 48px;
+    font-size: 15px;
+  }
+
+  .shutdown-sheet__footer .workspace-button--primary {
+    flex: 1.6;
+  }
+}
+
 .app-icon-tile {
   display: inline-flex;
   height: 36px;
@@ -3496,6 +3693,53 @@ input[type="number"] {
   border-radius: 12px;
   background: var(--surface-board);
   box-shadow: var(--shadow-md);
+}
+
+/* Phones: popovers (task planning, events) slide up as a bottom sheet. */
+.popover-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 139;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(4px);
+  animation: popover-sheet-fade 200ms ease;
+}
+
+/* !important beats the older floating-panel rules for [data-calendar-form]. */
+[data-calendar-form].popover-panel--sheet {
+  top: auto !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: auto !important;
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 24px) !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0 !important;
+  overscroll-behavior: contain;
+  animation: popover-sheet-in 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 16px keeps iOS from zooming in on focus. */
+.popover-panel.popover-panel--sheet .workspace-input {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.popover-panel.popover-panel--sheet .workspace-button {
+  min-height: 46px;
+}
+
+@keyframes popover-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes popover-sheet-fade {
+  from {
+    opacity: 0;
+  }
 }
 
 .popover-panel__header {
@@ -4260,5 +4504,52 @@ input[type="number"] {
 
   .daily-plan__icon-button {
     opacity: 1;
+  }
+}
+
+/* Desktop / Mac app: every day and backlog column scrolls on its own instead
+   of the whole board growing and scrolling all columns together. */
+@media (min-width: 768px) {
+  .planning-columns {
+    overflow-y: hidden;
+  }
+
+  .planning-columns__grid,
+  .backlog-columns {
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .planning-column {
+    min-height: 0;
+  }
+
+  .week-scroll {
+    overflow-y: hidden;
+  }
+
+  .week-objectives {
+    flex: 0 0 auto;
+    max-height: 45%;
+    overflow-y: auto;
+  }
+
+  .week-days {
+    min-height: 0;
+    flex: 1 1 0;
+  }
+
+  .week-day {
+    min-height: 0;
+  }
+
+  .week-day__cards {
+    min-height: 0;
+    flex: 1;
+    margin-right: -4px;
+    margin-left: -4px;
+    padding: 0 4px 24px;
+    overflow-y: auto;
   }
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { animate, useMotionValue } from "framer-motion";
+import { differenceInCalendarDays, parseISO } from "date-fns";
 import { useDndMonitor } from "@dnd-kit/core";
 
 /** How far (share of the width) or how fast (px/ms) a swipe must go to switch the day. */
@@ -10,10 +11,11 @@ const SWITCH_VELOCITY = 0.45;
 const SLIDE = { type: "tween", duration: 0.2, ease: [0.4, 0, 0.2, 1] } as const;
 
 /**
- * Horizontal swipe on touch screens to step through days: the content follows the
- * finger, slides out and the new day slides in from the other side. Day changes made
- * elsewhere (arrows, "Heute") slide in the same way. Must be used inside a DndContext,
- * so a task being dragged never also switches the day.
+ * Horizontal swipe on touch screens to step through days. The caller renders the
+ * previous, current and next day side by side and offsets the track by the returned
+ * x, so the neighbouring day (name and tasks) is already visible while swiping.
+ * Steps to an adjacent day made elsewhere (arrows) slide the same way. Must be used
+ * inside a DndContext, so a task being dragged never also switches the day.
  */
 export function useDaySwipe({
   containerRef,
@@ -28,6 +30,8 @@ export function useDaySwipe({
 }) {
   const x = useMotionValue(0);
   const isTaskDragging = useRef(false);
+  /** Set when a swipe already slid the track onto the new day. */
+  const finishedSwipe = useRef(false);
   const onStepRef = useRef(onStep);
   useEffect(() => {
     onStepRef.current = onStep;
@@ -42,14 +46,20 @@ export function useDaySwipe({
     onDragCancel: () => (isTaskDragging.current = false),
   });
 
-  // Slide the new day in from the side it comes from (later days from the right).
+  // The track is re-centred on the new day before paint. After a swipe it is already
+  // in place; a one-day step from elsewhere slides over from the old day.
   const previousDate = useRef(date);
   useLayoutEffect(() => {
     const previous = previousDate.current;
     previousDate.current = date;
-    if (!enabled || previous === date) return;
+    if (previous === date) return;
+    const wasSwipe = finishedSwipe.current;
+    finishedSwipe.current = false;
+    x.jump(0);
+    const step = differenceInCalendarDays(parseISO(date), parseISO(previous));
+    if (!enabled || wasSwipe || Math.abs(step) !== 1) return;
     const width = containerRef.current?.clientWidth ?? window.innerWidth;
-    x.jump((date > previous ? 1 : -1) * width);
+    x.jump(step * width);
     animate(x, 0, SLIDE);
   }, [date, enabled, containerRef, x]);
 
@@ -99,7 +109,8 @@ export function useDaySwipe({
 
       // Horizontal swipe: keep the page from scrolling and follow the finger.
       event.preventDefault();
-      x.set(dx);
+      const width = element.clientWidth;
+      x.set(Math.max(-width, Math.min(width, dx)));
     };
 
     const onTouchEnd = (event: TouchEvent) => {
@@ -123,9 +134,9 @@ export function useDaySwipe({
       isSwitching = true;
       animate(x, -direction * width, {
         ...SLIDE,
-        duration: 0.14,
         onComplete: () => {
           isSwitching = false;
+          finishedSwipe.current = true;
           onStepRef.current(direction);
         },
       });

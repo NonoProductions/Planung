@@ -11,7 +11,7 @@ import {
 } from "react";
 import { format, parseISO } from "date-fns";
 import { motion } from "framer-motion";
-import { Check, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, Check, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   DndContext,
   PointerSensor,
@@ -27,6 +27,8 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import TaskScheduleForm from "@/components/calendar/TaskScheduleForm";
+import type { PopoverAnchor } from "@/components/calendar/CalendarPopover";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
 import type { Channel, Task } from "@/types";
@@ -89,13 +91,14 @@ export default function TaskCard({ task }: TaskCardProps) {
   const sortableStyle: CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.45 : 1,
-    zIndex: isDragging ? 50 : undefined,
   };
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Edit/delete/drag only show after tapping the card; a tap anywhere else hides them.
   const [actionsRevealed, setActionsRevealed] = useState(false);
+  // "Einplanen": pick a day and time without dragging into the calendar (phones).
+  const [scheduleAnchor, setScheduleAnchor] = useState<PopoverAnchor | null>(null);
+  const selectedDate = useUIStore((state) => state.selectedDate);
   const cardRef = useRef<HTMLElement | null>(null);
   const editing = editingTaskId === task.id;
 
@@ -131,172 +134,204 @@ export default function TaskCard({ task }: TaskCardProps) {
   }
 
   return (
-    <motion.article
-      ref={(node) => {
-        setNodeRef(node);
-        cardRef.current = node;
-      }}
-      className={`group planning-card${actionsRevealed ? " is-revealed" : ""}`}
-      style={sortableStyle}
-      onClick={(event) => {
-        const target = event.target as HTMLElement;
-        if (!target.closest(".planning-card__toggle, .planning-card__subtask-toggle")) {
-          setActionsRevealed(true);
-        }
-      }}
-      whileHover={{ boxShadow: "0 4px 12px rgba(var(--shadow-rgb), 0.05)" }}
-      transition={{ duration: 0.2 }}
-    >
-      <div className="planning-card__meta">
-        {scheduledWindow ? (
-          <span
-            className="planning-card__time-chip"
-            style={{ backgroundColor: getTimeChipColor(task) }}
-          >
-            {scheduledWindow}
-          </span>
-        ) : (
-          <span className="planning-card__meta-spacer" aria-hidden="true" />
-        )}
-        <span className="planning-card__duration">
-          {formatPlannedTime(task.plannedTime)}
-        </span>
-      </div>
-
-      <div className="planning-card__body">
-        <div className="planning-card__header">
-          <div className="min-w-0 flex-1">
-            <h3
-              className="planning-card__title"
-              style={{
-                textDecoration: isCompleted ? "line-through" : "none",
-                opacity: isCompleted ? 0.72 : 1,
-              }}
+    <>
+      <motion.article
+        ref={(node) => {
+          setNodeRef(node);
+          cardRef.current = node;
+        }}
+        className={`group planning-card${actionsRevealed ? " is-revealed" : ""}${
+          isDragging ? " is-drag-placeholder" : ""
+        }`}
+        style={sortableStyle}
+        {...attributes}
+        {...listeners}
+        onClick={(event) => {
+          const target = event.target as HTMLElement;
+          if (!target.closest(".planning-card__toggle, .planning-card__subtask-toggle")) {
+            setActionsRevealed(true);
+          }
+        }}
+        whileHover={{ boxShadow: "0 4px 12px rgba(var(--shadow-rgb), 0.05)" }}
+        transition={{ duration: 0.2 }}
+      >
+        <div className="planning-card__meta">
+          {scheduledWindow ? (
+            <span
+              className="planning-card__time-chip"
+              style={{ backgroundColor: getTimeChipColor(task) }}
             >
-              {task.title}
-            </h3>
-          </div>
-        </div>
-
-        {hasSubtasks && (
-          <div className="planning-card__subtasks">
-            {task.subtasks?.map((subtask) => {
-              const subtaskDone = subtask.status === "COMPLETED";
-              return (
-                <div key={subtask.id} className="planning-card__subtask">
-                  <button
-                    type="button"
-                    className="planning-card__subtask-toggle"
-                    onClick={() => toggleSubtaskStatus(task.id, subtask.id)}
-                    style={{
-                      borderColor: subtaskDone
-                        ? "var(--accent-success)"
-                        : "var(--border-color)",
-                      backgroundColor: subtaskDone
-                        ? "var(--accent-success)"
-                        : "transparent",
-                      cursor: "pointer",
-                    }}
-                    aria-label={
-                      subtaskDone
-                        ? "Mark subtask as open"
-                        : "Mark subtask as completed"
-                    }
-                  >
-                    {subtaskDone && (
-                      <Check size={9} strokeWidth={3} color="#ffffff" />
-                    )}
-                  </button>
-                  <span
-                    className="planning-card__subtask-text"
-                    style={{
-                      color: subtaskDone
-                        ? "var(--text-muted)"
-                        : "var(--text-secondary)",
-                      textDecoration: subtaskDone ? "line-through" : "none",
-                    }}
-                  >
-                    {subtask.title}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="planning-card__footer">
-        <div className="planning-card__controls">
-          <button
-            className="planning-card__toggle"
-            style={{
-              borderColor: isCompleted
-                ? "var(--accent-success)"
-                : "var(--border-color)",
-              backgroundColor: isCompleted
-                ? "var(--accent-success-light)"
-                : "transparent",
-              color: isCompleted
-                ? "var(--accent-success)"
-                : "var(--text-secondary)",
-            }}
-            onClick={() => toggleTaskStatus(task.id)}
-            onDoubleClick={() => startEditingTask(task.id)}
-            aria-label={isCompleted ? "Mark as open" : "Mark as completed"}
-          >
-            {isCompleted && <Check size={14} strokeWidth={2.6} />}
-          </button>
-
-          <button
-            className="planning-card__ghost-action"
-            style={{ backgroundColor: "var(--surface-sunken)", color: "var(--text-secondary)" }}
-            onClick={() => startEditingTask(task.id)}
-            aria-label="Edit"
-          >
-            <Pencil size={12} strokeWidth={2} />
-          </button>
-
-          <button
-            className="planning-card__ghost-action"
-            style={{
-              backgroundColor: confirmDelete
-                ? "var(--accent-danger-light)"
-                : "var(--surface-sunken)",
-              color: confirmDelete
-                ? "var(--accent-danger)"
-                : "var(--text-secondary)",
-            }}
-            onClick={() => {
-              if (confirmDelete) {
-                void deleteTask(task.id);
-              } else {
-                setConfirmDelete(true);
-                window.setTimeout(() => setConfirmDelete(false), 2400);
-              }
-            }}
-            aria-label="Delete"
-          >
-            <Trash2 size={12} strokeWidth={2} />
-          </button>
-
-          <button
-            className="planning-card__ghost-action"
-            style={{ backgroundColor: "var(--surface-sunken)", color: "var(--text-secondary)" }}
-            {...attributes}
-            {...listeners}
-            aria-label="Drag"
-          >
-            <GripVertical size={12} />
-          </button>
-        </div>
-
-        {task.channel && (
-          <span className="planning-card__tag" style={{ color: channelColor }}>
-            #{task.channel.name}
+              {scheduledWindow}
+            </span>
+          ) : (
+            <span className="planning-card__meta-spacer" aria-hidden="true" />
+          )}
+          <span className="planning-card__duration">
+            {formatPlannedTime(task.plannedTime)}
           </span>
-        )}
-      </div>
-    </motion.article>
+        </div>
+
+        <div className="planning-card__body">
+          <div className="planning-card__header">
+            <div className="min-w-0 flex-1">
+              <h3
+                className="planning-card__title"
+                style={{
+                  textDecoration: isCompleted ? "line-through" : "none",
+                  opacity: isCompleted ? 0.72 : 1,
+                }}
+              >
+                {task.title}
+              </h3>
+            </div>
+          </div>
+
+          {hasSubtasks && (
+            <div className="planning-card__subtasks">
+              {task.subtasks?.map((subtask) => {
+                const subtaskDone = subtask.status === "COMPLETED";
+                return (
+                  <div key={subtask.id} className="planning-card__subtask">
+                    <button
+                      type="button"
+                      className="planning-card__subtask-toggle"
+                      onClick={() => toggleSubtaskStatus(task.id, subtask.id)}
+                      style={{
+                        borderColor: subtaskDone
+                          ? "var(--accent-success)"
+                          : "var(--border-color)",
+                        backgroundColor: subtaskDone
+                          ? "var(--accent-success)"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      aria-label={
+                        subtaskDone
+                          ? "Mark subtask as open"
+                          : "Mark subtask as completed"
+                      }
+                    >
+                      {subtaskDone && (
+                        <Check size={9} strokeWidth={3} color="#ffffff" />
+                      )}
+                    </button>
+                    <span
+                      className="planning-card__subtask-text"
+                      style={{
+                        color: subtaskDone
+                          ? "var(--text-muted)"
+                          : "var(--text-secondary)",
+                        textDecoration: subtaskDone ? "line-through" : "none",
+                      }}
+                    >
+                      {subtask.title}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="planning-card__footer">
+          <div className="planning-card__controls">
+            <button
+              className="planning-card__toggle"
+              style={{
+                borderColor: isCompleted
+                  ? "var(--accent-success)"
+                  : "var(--border-color)",
+                backgroundColor: isCompleted
+                  ? "var(--accent-success-light)"
+                  : "transparent",
+                color: isCompleted
+                  ? "var(--accent-success)"
+                  : "var(--text-secondary)",
+              }}
+              onClick={() => toggleTaskStatus(task.id)}
+              onDoubleClick={() => startEditingTask(task.id)}
+              aria-label={isCompleted ? "Mark as open" : "Mark as completed"}
+            >
+              {isCompleted && <Check size={14} strokeWidth={2.6} />}
+            </button>
+
+            <button
+              className="planning-card__ghost-action"
+              style={{ backgroundColor: "var(--surface-sunken)", color: "var(--text-secondary)" }}
+              onClick={() => startEditingTask(task.id)}
+              aria-label="Edit"
+            >
+              <Pencil size={12} strokeWidth={2} />
+            </button>
+
+            <button
+              className="planning-card__ghost-action"
+              style={{
+                backgroundColor: confirmDelete
+                  ? "var(--accent-danger-light)"
+                  : "var(--surface-sunken)",
+                color: confirmDelete
+                  ? "var(--accent-danger)"
+                  : "var(--text-secondary)",
+              }}
+              onClick={() => {
+                if (confirmDelete) {
+                  void deleteTask(task.id);
+                } else {
+                  setConfirmDelete(true);
+                  window.setTimeout(() => setConfirmDelete(false), 2400);
+                }
+              }}
+              aria-label="Delete"
+            >
+              <Trash2 size={12} strokeWidth={2} />
+            </button>
+
+            <button
+              className="planning-card__ghost-action"
+              style={{ backgroundColor: "var(--surface-sunken)", color: "var(--text-secondary)" }}
+              onClick={(event) => setScheduleAnchor({ x: event.clientX, y: event.clientY })}
+              aria-label="Einplanen"
+            >
+              <CalendarClock size={12} strokeWidth={2} />
+            </button>
+
+            <span className="planning-card__grip" aria-hidden="true">
+              <GripVertical size={12} />
+            </span>
+          </div>
+
+          {task.channel && (
+            <span className="planning-card__tag" style={{ color: channelColor }}>
+              #{task.channel.name}
+            </span>
+          )}
+        </div>
+      </motion.article>
+
+      {/* Outside the card, so taps in the form never start dragging the card. */}
+      {scheduleAnchor && (
+        <TaskScheduleForm
+          task={task}
+          selectedDate={selectedDate}
+          anchor={scheduleAnchor}
+          onClose={() => setScheduleAnchor(null)}
+          onSave={(data) => {
+            setScheduleAnchor(null);
+            void updateTask(task.id, {
+              ...data,
+              isBacklog: false,
+              backlogBucket: undefined,
+              backlogFolder: undefined,
+            });
+          }}
+          onUnschedule={() => {
+            setScheduleAnchor(null);
+            void updateTask(task.id, { scheduledStart: undefined, scheduledEnd: undefined });
+          }}
+        />
+      )}
+    </>
   );
 }
 

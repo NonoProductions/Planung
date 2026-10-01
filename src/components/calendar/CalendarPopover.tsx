@@ -27,10 +27,15 @@ interface CalendarPopoverProps {
   children: ReactNode;
 }
 
+/** Phones get a bottom sheet instead of a panel next to the tap. */
+export function isPhoneViewport() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+}
+
 /**
  * Fixed-position panel rendered into <body>, so the calendar's scroll area can
  * never clip it. It opens next to the anchor and is shifted until it fits
- * completely inside the viewport.
+ * completely inside the viewport. On phones it is a bottom sheet over a backdrop.
  */
 export default function CalendarPopover({
   anchor,
@@ -40,6 +45,7 @@ export default function CalendarPopover({
 }: CalendarPopoverProps) {
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const localRef = useRef<HTMLDivElement | null>(null);
+  const [isSheet] = useState(isPhoneViewport);
 
   const place = useCallback(() => {
     const panel = localRef.current;
@@ -69,6 +75,7 @@ export default function CalendarPopover({
   }, [anchor.x, anchor.y]);
 
   useLayoutEffect(() => {
+    if (isSheet) return undefined;
     place();
 
     const panel = localRef.current;
@@ -80,9 +87,30 @@ export default function CalendarPopover({
       observer?.disconnect();
       window.removeEventListener("resize", place);
     };
-  }, [place]);
+  }, [place, isSheet]);
 
   if (typeof document === "undefined") return null;
+
+  if (isSheet) {
+    return createPortal(
+      <>
+        <div className="popover-sheet-backdrop" aria-hidden="true" />
+        <div
+          ref={(node) => {
+            localRef.current = node;
+            panelRef.current = node;
+          }}
+          data-calendar-form
+          className="popover-panel popover-panel--sheet fixed z-[140] flex flex-col overflow-y-auto"
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          {children}
+        </div>
+      </>,
+      document.body
+    );
+  }
 
   return createPortal(
     <div

@@ -35,6 +35,18 @@ export default function DailyShutdownModal() {
   const [reflectionDrafts, setReflectionDrafts] = useState<
     Record<string, string>
   >({});
+  // On phones the dialog is a bottom sheet that slides up.
+  const [isPhone, setIsPhone] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsPhone(mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener("change", update);
+    return () => mediaQuery.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -104,7 +116,7 @@ export default function DailyShutdownModal() {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="app-overlay z-[110]"
+          className="app-overlay app-overlay--sheet z-[110]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -115,17 +127,18 @@ export default function DailyShutdownModal() {
           }}
         >
           <motion.div
-            className="ritual-modal ritual-modal--board flex w-full max-w-[1180px] min-h-0 max-h-[calc(100dvh-32px)] flex-col overflow-y-auto sm:max-h-[calc(100dvh-48px)]"
-            initial={{ opacity: 0, y: 22, scale: 0.97 }}
+            className="ritual-modal ritual-modal--board shutdown-sheet flex w-full max-w-[1180px] min-h-0 max-h-[calc(100dvh-32px)] flex-col overflow-y-auto sm:max-h-[calc(100dvh-48px)]"
+            initial={isPhone ? { opacity: 1, y: "100%", scale: 1 } : { opacity: 0, y: 22, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+            exit={isPhone ? { opacity: 1, y: "100%", scale: 1 } : { opacity: 0, y: 10, scale: 0.98 }}
+            transition={{ duration: isPhone ? 0.34 : 0.26, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="planning-toolbar ritual-modal__toolbar">
               <div className="flex min-w-0 items-center gap-2">
                 <MoonStar size={16} strokeWidth={2} style={{ color: "var(--accent-primary)" }} />
                 <span className="settings-toolbar__title truncate">
-                  Shutdown für {activeDateLabel}
+                  Feierabend
+                  <span className="shutdown-sheet__date"> · {activeDateLabel}</span>
                 </span>
                 {shutdownDone && (
                   <span className="workspace-badge workspace-badge--success">Abgeschlossen</span>
@@ -239,7 +252,7 @@ export default function DailyShutdownModal() {
                     placeholder="Was war heute gut? Was war schwer? Was soll morgen direkt wieder Klarheit haben?"
                     className="workspace-input workspace-input--textarea ritual-textarea"
                   />
-                  <div className="ritual-actions">
+                  <div className="ritual-actions shutdown-sheet__inline-actions">
                     <button
                       type="button"
                       onClick={() => completeShutdownRitual(activeDate, reflection)}
@@ -254,6 +267,21 @@ export default function DailyShutdownModal() {
                   </div>
                 </div>
               </section>
+            </div>
+
+            {/* Phones: the actions stay pinned to the bottom of the sheet. */}
+            <div className="shutdown-sheet__footer">
+              <button type="button" onClick={closeShutdownRitual} className="workspace-button">
+                Später
+              </button>
+              <button
+                type="button"
+                onClick={() => completeShutdownRitual(activeDate, reflection)}
+                className="workspace-button workspace-button--primary"
+              >
+                <MoonStar size={15} strokeWidth={2} />
+                Feierabend
+              </button>
             </div>
           </motion.div>
         </motion.div>
