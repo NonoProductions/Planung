@@ -8,6 +8,7 @@ import TaskList from "@/components/layout/TaskList";
 import CalendarView from "@/components/layout/CalendarView";
 import MobileDateNav from "@/components/layout/MobileDateNav";
 import DndWrapper from "@/components/dnd/DndWrapper";
+import MobileCalendarPeek, { useIsMobile } from "@/components/calendar/MobileCalendarPeek";
 import { toLocalDateString } from "@/lib/date";
 import { useUIStore } from "@/stores/uiStore";
 
@@ -30,6 +31,23 @@ function MobileDayNav() {
 
 export default function HomeApp() {
   const calendarVisible = useUIStore((s) => s.calendarVisible);
+  const isMobile = useIsMobile();
+  // Desktop: the panel slides in from the side. Phones: the sheet rises from
+  // the bottom, where the drag peek window sits.
+  const sheetMotion = isMobile
+    ? {
+        initial: { opacity: 0, y: 48, scale: 0.94 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: 32, scale: 0.96 },
+        transition: { duration: 0.34, ease: [0.32, 0.72, 0, 1] as const },
+        style: { transformOrigin: "50% 100%" },
+      }
+    : {
+        initial: { opacity: 0, x: 28, scale: 0.98 },
+        animate: { opacity: 1, x: 0, scale: 1 },
+        exit: { opacity: 0, x: 28, scale: 0.98 },
+        transition: { duration: 0.28, ease: [0.4, 0, 0.2, 1] as const },
+      };
 
   return (
     <DndWrapper>
@@ -42,16 +60,15 @@ export default function HomeApp() {
           {calendarVisible && (
             <motion.div
               key="calendar"
-              initial={{ opacity: 0, x: 28, scale: 0.98 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 28, scale: 0.98 }}
-              transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+              {...sheetMotion}
               className="app-side-surface"
             >
               <CalendarView />
             </motion.div>
           )}
         </AnimatePresence>
+
+        <MobileCalendarPeek />
       </AppShell>
     </DndWrapper>
   );

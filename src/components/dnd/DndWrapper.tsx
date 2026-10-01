@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -10,9 +10,11 @@ import {
   useSensor,
   useSensors,
   closestCenter,
+  useDndContext,
   pointerWithin,
   type CollisionDetection,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
   type DropAnimation,
   type UniqueIdentifier,
@@ -22,10 +24,12 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
 import type { Task } from "@/types";
 import { haptic } from "@/lib/haptics";
+import { CALENDAR_PEEK_ID } from "@/components/calendar/MobileCalendarPeek";
 
 interface DndWrapperProps {
   children: React.ReactNode;
@@ -62,19 +66,49 @@ function getClientCoordinates(event: Event | null): ClientCoordinates | null {
   return null;
 }
 
-/** The lifted card settles back into its slot instead of vanishing. */
+/**
+ * The lifted card glides into its slot and straightens out on the way, while
+ * the slot's dashed outline slowly fades underneath it.
+ */
 const dropAnimation: DropAnimation = {
-  duration: 200,
-  easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+  duration: 320,
+  easing: "cubic-bezier(0.32, 0.72, 0, 1)",
+  sideEffects: (args) => {
+    const overlayCleanup = defaultDropAnimationSideEffects({
+      className: { dragOverlay: "is-dropping" },
+    })(args);
+    // Show the dashed slot, then let it fade out while the card lands on it.
+    const slot = args.active.node;
+    slot.classList.add("is-drag-placeholder");
+    void slot.offsetWidth;
+    slot.classList.add("is-drop-settling");
+    return () => {
+      slot.classList.remove("is-drag-placeholder", "is-drop-settling");
+      overlayCleanup?.();
+    };
+  },
+};
+
+/** Dropped onto the calendar: the card melts away where it was let go. */
+const calendarDropAnimation: DropAnimation = {
+  duration: 180,
+  easing: "ease-out",
+  keyframes: ({ transform: { initial } }) => [
+    { transform: CSS.Transform.toString(initial), opacity: 1 },
+    {
+      transform: CSS.Transform.toString({ ...initial, scaleX: 0.92, scaleY: 0.92 }),
+      opacity: 0,
+    },
+  ],
   sideEffects: defaultDropAnimationSideEffects({
-    styles: { active: { opacity: "0" } },
+    className: { dragOverlay: "is-dropping" },
   }),
 };
 
 const customCollisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
   const calendarCollision = pointerCollisions.find(
-    (collision) => collision.id === "calendar-dropzone"
+    (collision) => collision.id === "calendar-dropzone" || collision.id === CALENDAR_PEEK_ID
   );
 
   if (calendarCollision) {
@@ -87,6 +121,8 @@ const customCollisionDetection: CollisionDetection = (args) => {
 export default function DndWrapper({ children }: DndWrapperProps) {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [overlayWidth, setOverlayWidth] = useState<number | null>(null);
+  const [overCalendar, setOverCalendar] = useState(false);
+  const lastPointerY = useRef<number | null>(null);
   const tasks = useTaskStore((state) => state.tasks);
 
   // Mouse: drag the whole card after a few pixels, so plain clicks still work.
@@ -100,10 +136,32 @@ export default function DndWrapper({ children }: DndWrapperProps) {
     ? tasks.find((task) => task.id === activeId) || null
     : null;
 
+  // Follow the pointer for the whole drag; the listeners go away with it.
+  useEffect(() => {
+    if (activeId === null) return undefined;
+    const track = (event: Event) => {
+      const point = getClientCoordinates(event);
+      if (point) lastPointerY.current = point.clientY;
+    };
+    window.addEventListener("pointermove", track, { passive: true });
+    window.addEventListener("touchmove", track, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", track);
+      window.removeEventListener("touchmove", track);
+    };
+  }, [activeId]);
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
+    lastPointerY.current = null;
     setActiveId(event.active.id);
     setOverlayWidth(event.active.rect.current.initial?.width ?? null);
+    setOverCalendar(false);
     haptic("medium");
+  }, []);
+
+  // Decided while hovering, so the drop animation is already chosen on release.
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    setOverCalendar(event.over?.id === "calendar-dropzone");
   }, []);
 
   const handleDragEnd = useCallback(
@@ -123,9 +181,12 @@ export default function DndWrapper({ children }: DndWrapperProps) {
             }
           | undefined;
         const startPoint = getClientCoordinates(event.activatorEvent);
+        // The finger's real position: dnd-kit's delta also counts scrolling,
+        // which is off once the calendar sheet opens mid-drag on phones.
+        const dropY =
+          lastPointerY.current ?? (startPoint ? startPoint.clientY + event.delta.y : null);
 
-        if (calendarData?.getTimeRangeFromClientY && startPoint) {
-          const dropY = startPoint.clientY + event.delta.y;
+        if (calendarData?.getTimeRangeFromClientY && dropY !== null) {
           const times = calendarData.getTimeRangeFromClientY(dropY);
 
           if (times) {
@@ -154,7 +215,12 @@ export default function DndWrapper({ children }: DndWrapperProps) {
         return;
       }
 
-      if (active.id !== over.id) {
+      // On phones the calendar sheet covers the list, so there is nothing to reorder.
+      const sheetCoversList =
+        useUIStore.getState().calendarVisible &&
+        window.matchMedia("(max-width: 767px)").matches;
+
+      if (active.id !== over.id && !sheetCoversList) {
         const sortableData = active.data?.current?.sortable;
         const overSortable = over.data?.current?.sortable;
 
@@ -185,20 +251,52 @@ export default function DndWrapper({ children }: DndWrapperProps) {
       sensors={sensors}
       collisionDetection={customCollisionDetection}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveId(null)}
     >
       {children}
 
-      <DragOverlay dropAnimation={dropAnimation}>
+      <DragOverlay dropAnimation={overCalendar ? calendarDropAnimation : dropAnimation}>
         {activeTask ? <DragOverlayCard task={activeTask} width={overlayWidth} /> : null}
       </DragOverlay>
     </DndContext>
   );
 }
 
-/** The card under the finger/cursor: the real card's look, lifted. */
+/**
+ * The card under the finger/cursor: an exact copy of the real card, lifted.
+ * Being identical (time chip, subtasks, height) is what lets the drop land
+ * without a visible swap at the end.
+ */
 function DragOverlayCard({ task, width }: { task: Task; width: number | null }) {
+  const { activeNode } = useDndContext();
+  const hostRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    if (!host || !activeNode) return undefined;
+
+    const copy = activeNode.cloneNode(true) as HTMLElement;
+    copy.classList.remove("is-drag-placeholder", "is-revealed");
+    copy.classList.add("drag-overlay-card");
+    copy.removeAttribute("style");
+    copy.removeAttribute("id");
+    copy.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
+    host.replaceChildren(copy);
+    return () => host.replaceChildren();
+    // Copy once per drag: the source turns into the dashed slot right after.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (activeNode) {
+    return <div ref={hostRef} style={{ width: width ?? undefined }} />;
+  }
+
+  return <FallbackOverlayCard task={task} width={width} />;
+}
+
+function FallbackOverlayCard({ task, width }: { task: Task; width: number | null }) {
   const minutes = task.plannedTime && task.plannedTime > 0 ? task.plannedTime : 60;
   const duration = `${Math.floor(minutes / 60)}:${(minutes % 60).toString().padStart(2, "0")}`;
 

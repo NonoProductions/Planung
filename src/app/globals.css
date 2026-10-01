@@ -1356,6 +1356,15 @@ textarea {
   visibility: hidden;
 }
 
+/* Released: the dashed slot fades out under the landing card. */
+.planning-card.is-drag-placeholder.is-drop-settling {
+  border-color: transparent;
+  background-color: transparent;
+  transition:
+    border-color 150ms ease-out,
+    background-color 150ms ease-out !important;
+}
+
 /* The card under the finger/cursor while dragging. */
 .drag-overlay-card {
   border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--line));
@@ -1367,11 +1376,192 @@ textarea {
   animation: drag-overlay-lift 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Released: straighten and settle back to the resting card look. */
+.is-dropping .drag-overlay-card {
+  border-color: var(--line);
+  box-shadow: 0 1px 0 rgba(var(--shadow-rgb), 0.04);
+  transform: none;
+  transition:
+    transform 320ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 320ms ease-out,
+    border-color 320ms ease-out;
+}
+
 @keyframes drag-overlay-lift {
   from {
     box-shadow: 0 1px 0 rgba(var(--shadow-rgb), 0.04);
     transform: none;
   }
+}
+
+/* Phones: the small calendar window that rises while a task is being dragged. */
+.calendar-peek-layer {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--mobile-dock-offset, 0px) + 12px);
+  z-index: 74;
+  transform-origin: 50% 100%;
+  pointer-events: none;
+}
+
+.calendar-peek {
+  position: relative;
+  overflow: hidden;
+  padding: 12px 14px 10px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(var(--surface-rgb), 0.9);
+  box-shadow:
+    0 2px 8px rgba(var(--shadow-rgb), 0.06),
+    0 20px 44px rgba(var(--shadow-rgb), 0.16);
+  backdrop-filter: saturate(1.4) blur(18px);
+  -webkit-backdrop-filter: saturate(1.4) blur(18px);
+  transition:
+    transform 260ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 200ms ease,
+    box-shadow 260ms ease;
+}
+
+.calendar-peek--over {
+  border-color: color-mix(in srgb, var(--accent-primary) 60%, var(--line));
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent-primary) 16%, transparent),
+    0 24px 52px rgba(var(--shadow-rgb), 0.22);
+  transform: scale(1.035) translateY(-4px);
+}
+
+.calendar-peek__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.calendar-peek__icon {
+  display: inline-flex;
+  height: 24px;
+  width: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--accent-primary-light);
+  color: var(--accent-primary);
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+}
+
+.calendar-peek--over .calendar-peek__icon {
+  background: var(--accent-primary);
+  color: #ffffff;
+}
+
+.calendar-peek__title {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.calendar-peek__date {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.calendar-peek__timeline {
+  position: relative;
+  height: 78px;
+}
+
+.calendar-peek__hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  border-top: 1px solid var(--line-soft);
+}
+
+.calendar-peek__hour span {
+  width: 44px;
+  padding-top: 2px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.calendar-peek__lane {
+  position: absolute;
+  inset: 0 0 0 44px;
+}
+
+.calendar-peek__block {
+  position: absolute;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  padding: 2px 8px;
+  border-left: 3px solid var(--block-color);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--block-color) 16%, var(--surface));
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.calendar-peek__now {
+  position: absolute;
+  left: -4px;
+  right: 0;
+  height: 0;
+  border-top: 1.5px solid #e5534b;
+}
+
+.calendar-peek__now::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: -3px;
+  height: 7px;
+  width: 7px;
+  border-radius: 999px;
+  background: #e5534b;
+}
+
+.calendar-peek__hint {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+  transition: color 200ms ease;
+}
+
+.calendar-peek--over .calendar-peek__hint {
+  color: var(--accent-primary);
+}
+
+/* Fills while the card rests on the window; full means the calendar opens. */
+.calendar-peek__progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: var(--accent-primary);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
+.calendar-peek--over .calendar-peek__progress {
+  transform: scaleX(1);
+  transition: transform var(--peek-open-delay, 380ms) linear;
 }
 
 /* Hint that the card can be dragged; touch uses press-and-hold instead. */

@@ -61,8 +61,6 @@ export default function BacklogTaskCard({ task }: BacklogTaskCardProps) {
   const sortableStyle: CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
-    zIndex: isDragging ? 50 : undefined,
   };
 
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -119,7 +117,7 @@ export default function BacklogTaskCard({ task }: BacklogTaskCardProps) {
   return (
     <motion.article
       ref={setNodeRef}
-      className="group planning-card"
+      className={`group planning-card${isDragging ? " is-drag-placeholder" : ""}`}
       style={sortableStyle}
       whileHover={{ boxShadow: "0 4px 12px rgba(var(--shadow-rgb), 0.05)" }}
       transition={{ duration: 0.2 }}
