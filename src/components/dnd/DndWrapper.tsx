@@ -153,6 +153,7 @@ export default function DndWrapper({ children }: DndWrapperProps) {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     lastPointerY.current = null;
+    overlayCopy = null;
     setActiveId(event.active.id);
     setOverlayWidth(event.active.rect.current.initial?.width ?? null);
     setOverCalendar(false);
@@ -264,6 +265,9 @@ export default function DndWrapper({ children }: DndWrapperProps) {
   );
 }
 
+/** Copy of the dragged card, made at pickup. Only one drag runs at a time. */
+let overlayCopy: HTMLElement | null = null;
+
 /**
  * The card under the finger/cursor: an exact copy of the real card, lifted.
  * Being identical (time chip, subtasks, height) is what lets the drop land
@@ -272,24 +276,30 @@ export default function DndWrapper({ children }: DndWrapperProps) {
 function DragOverlayCard({ task, width }: { task: Task; width: number | null }) {
   const { activeNode } = useDndContext();
   const hostRef = useRef<HTMLDivElement>(null);
+  // On release dnd-kit mounts this again without the drag context (no
+  // activeNode), so the copy made at pickup is kept and shown again.
+  const [copy] = useState(() => {
+    if (activeNode) {
+      const node = activeNode.cloneNode(true) as HTMLElement;
+      node.classList.remove("is-drag-placeholder", "is-revealed");
+      node.classList.add("drag-overlay-card");
+      node.removeAttribute("style");
+      node.removeAttribute("id");
+      node.querySelectorAll("[id]").forEach((child) => child.removeAttribute("id"));
+      overlayCopy = node;
+      return node;
+    }
+    return overlayCopy;
+  });
 
   useLayoutEffect(() => {
     const host = hostRef.current;
-    if (!host || !activeNode) return undefined;
-
-    const copy = activeNode.cloneNode(true) as HTMLElement;
-    copy.classList.remove("is-drag-placeholder", "is-revealed");
-    copy.classList.add("drag-overlay-card");
-    copy.removeAttribute("style");
-    copy.removeAttribute("id");
-    copy.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
+    if (!host || !copy) return undefined;
     host.replaceChildren(copy);
     return () => host.replaceChildren();
-    // Copy once per drag: the source turns into the dashed slot right after.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [copy]);
 
-  if (activeNode) {
+  if (copy) {
     return <div ref={hostRef} style={{ width: width ?? undefined }} />;
   }
 

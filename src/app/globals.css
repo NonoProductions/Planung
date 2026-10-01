@@ -1378,6 +1378,7 @@ textarea {
 
 /* Released: straighten and settle back to the resting card look. */
 .is-dropping .drag-overlay-card {
+  animation: none;
   border-color: var(--line);
   box-shadow: 0 1px 0 rgba(var(--shadow-rgb), 0.04);
   transform: none;
