@@ -26,8 +26,10 @@ private struct MainView: View {
     }
 
     var body: some View {
+        // Full screen: the web app pads itself with env(safe-area-inset-*), so its
+        // background continues behind the status bar instead of leaving a black strip.
         WebAppView(store: web)
-            .ignoresSafeArea(edges: .bottom)
+            .ignoresSafeArea()
             .sheet(isPresented: $showsSync) {
                 NavigationStack {
                     SyncView()

@@ -1,15 +1,17 @@
 // Renders the app icon (1024px PNG) — run via build.sh.
+// With `--ios` it renders the full-bleed square iOS masks itself (ios/…/AppIcon.appiconset).
 import AppKit
 
 let size: CGFloat = 1024
+let iOS = CommandLine.arguments.contains("--ios")
 let image = NSImage(size: NSSize(width: size, height: size))
 image.lockFocus()
-let inset: CGFloat = 100
+let inset: CGFloat = iOS ? 0 : 100
 let rect = NSRect(x: inset, y: inset, width: size - 2 * inset, height: size - 2 * inset)
-let path = NSBezierPath(roundedRect: rect, xRadius: 185, yRadius: 185)
+let path = iOS ? NSBezierPath(rect: rect) : NSBezierPath(roundedRect: rect, xRadius: 185, yRadius: 185)
 NSGradient(starting: NSColor(red: 0.36, green: 0.42, blue: 0.98, alpha: 1),
            ending: NSColor(red: 0.55, green: 0.30, blue: 0.93, alpha: 1))!.draw(in: path, angle: -90)
-let config = NSImage.SymbolConfiguration(pointSize: 480, weight: .semibold)
+let config = NSImage.SymbolConfiguration(pointSize: iOS ? 600 : 480, weight: .semibold)
     .applying(.init(paletteColors: [.white]))
 if let symbol = NSImage(systemSymbolName: "calendar.badge.checkmark", accessibilityDescription: nil)?
     .withSymbolConfiguration(config) {

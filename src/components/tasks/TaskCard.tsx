@@ -94,7 +94,19 @@ export default function TaskCard({ task }: TaskCardProps) {
   };
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Edit/delete/drag only show after tapping the card; a tap anywhere else hides them.
+  const [actionsRevealed, setActionsRevealed] = useState(false);
+  const cardRef = useRef<HTMLElement | null>(null);
   const editing = editingTaskId === task.id;
+
+  useEffect(() => {
+    if (!actionsRevealed) return undefined;
+    const hide = (event: PointerEvent) => {
+      if (!cardRef.current?.contains(event.target as Node)) setActionsRevealed(false);
+    };
+    document.addEventListener("pointerdown", hide);
+    return () => document.removeEventListener("pointerdown", hide);
+  }, [actionsRevealed]);
   const isCompleted = task.status === "COMPLETED";
   const channelColor = task.channel?.color || "var(--text-secondary)";
   const hasSubtasks = (task.subtasks?.length ?? 0) > 0;
@@ -120,9 +132,18 @@ export default function TaskCard({ task }: TaskCardProps) {
 
   return (
     <motion.article
-      ref={setNodeRef}
-      className="group planning-card"
+      ref={(node) => {
+        setNodeRef(node);
+        cardRef.current = node;
+      }}
+      className={`group planning-card${actionsRevealed ? " is-revealed" : ""}`}
       style={sortableStyle}
+      onClick={(event) => {
+        const target = event.target as HTMLElement;
+        if (!target.closest(".planning-card__toggle, .planning-card__subtask-toggle")) {
+          setActionsRevealed(true);
+        }
+      }}
       whileHover={{ boxShadow: "0 4px 12px rgba(var(--shadow-rgb), 0.05)" }}
       transition={{ duration: 0.2 }}
     >

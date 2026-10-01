@@ -1475,7 +1475,8 @@ textarea {
     visibility 0s linear 140ms;
 }
 
-.group:hover .planning-card__ghost-action {
+.group:hover .planning-card__ghost-action,
+.planning-card.is-revealed .planning-card__ghost-action {
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
@@ -2198,6 +2199,9 @@ input[type="number"] {
     padding-bottom: var(--mobile-dock-offset);
     scroll-padding-bottom: var(--mobile-dock-offset);
     overflow: visible;
+    /* The day slides sideways when swiping (useDaySwipe). */
+    overflow-x: clip;
+    touch-action: pan-y;
   }
 
   .planning-columns__grid {
@@ -2254,12 +2258,11 @@ input[type="number"] {
     flex-wrap: wrap;
   }
 
-  .planning-card__ghost-action {
-    visibility: visible;
-    opacity: 1;
-    pointer-events: auto;
-    transform: none;
-    transition: none;
+  /* Touch has no hover: the actions only show on a tapped card (.is-revealed). */
+  .group:hover:not(.is-revealed) .planning-card__ghost-action {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
   }
 
   .calendar-toolbar {

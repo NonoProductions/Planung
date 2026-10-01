@@ -25,3 +25,11 @@ Mit einer kostenlosen Apple-ID läuft die Signatur nach 7 Tagen ab. Die Daten bl
 
 - in Xcode erneut auf **Run** klicken, oder
 - die gebaute App mit **SideStore** installieren. SideStore erneuert sie direkt auf dem iPhone, und mit einer Kurzbefehle-Automation („SideStore → Apps aktualisieren“, täglich) läuft das automatisch.
+
+## Neue Version für SideStore bauen
+
+```
+./build-ipa.sh   # → iPhone-Versionen/PlanungSync-v<N>.ipa, zählt die Version jedes Mal um 1 hoch
+```
+
+Die Datei per AirDrop aufs iPhone schicken und in SideStore unter **My Apps → +** installieren. Sie ersetzt die alte Version, Login und Einstellungen bleiben erhalten.

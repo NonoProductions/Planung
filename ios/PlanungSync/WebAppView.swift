@@ -32,17 +32,34 @@ final class WebViewStore: NSObject, ObservableObject, WKScriptMessageHandler, WK
     })();
     """
 
+    /// No rubber-band scrolling past the edges and no scroll bars, neither for the
+    /// page nor for its scrollable lists, so the web app feels like a native app.
+    private static let appFeel = """
+    (function () {
+      const style = document.createElement('style');
+      style.textContent = 'html, body, * { overscroll-behavior: none; scrollbar-width: none; }'
+        + ' ::-webkit-scrollbar { display: none; }';
+      document.documentElement.appendChild(style);
+    })();
+    """
+
     init(url: URL) {
         host = url.host
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         let scripts = config.userContentController
         scripts.addUserScript(WKUserScript(source: Self.fetchHook, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        scripts.addUserScript(WKUserScript(source: Self.appFeel, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
 
         webView = WKWebView(frame: .zero, configuration: config)
-        webView.allowsBackForwardNavigationGestures = true
+        // Off: an edge swipe would navigate back instead of showing the previous day.
+        webView.allowsBackForwardNavigationGestures = false
         webView.isInspectable = true
         webView.isOpaque = false
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+        webView.scrollView.bounces = false
+        webView.scrollView.showsVerticalScrollIndicator = false
+        webView.scrollView.showsHorizontalScrollIndicator = false
         super.init()
 
         scripts.add(self, name: "planung")

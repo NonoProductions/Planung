@@ -8,6 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { addDays, format, parseISO, subDays } from "date-fns";
+import { motion } from "framer-motion";
 import { de } from "date-fns/locale";
 import {
   CalendarDays,
@@ -25,6 +26,7 @@ import { useTaskStore } from "@/stores/taskStore";
 import TaskCard from "@/components/tasks/TaskCard";
 import type { Task } from "@/types";
 import { toLocalDateString } from "@/lib/date";
+import { useDaySwipe } from "@/components/layout/useDaySwipe";
 
 const QUICK_ADD_DURATIONS = ["8:00", "4:30"];
 const DEFAULT_PROGRESS_WEIGHT_MINUTES = 30;
@@ -110,6 +112,7 @@ export default function TaskList() {
   const [newPlannedTime, setNewPlannedTime] = useState("");
   const [isCompactLayout, setIsCompactLayout] = useState(false);
   const addInputRef = useRef<HTMLInputElement>(null);
+  const columnsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchChannels();
@@ -147,6 +150,15 @@ export default function TaskList() {
   }, [showAddFormForDate]);
 
   const baseDate = parseISO(selectedDate);
+
+  // On phones (one day visible) swipe left/right for the next/previous day.
+  const swipeX = useDaySwipe({
+    containerRef: columnsRef,
+    enabled: isCompactLayout,
+    date: selectedDate,
+    onStep: (direction) =>
+      setSelectedDate(toLocalDateString(addDays(parseISO(selectedDate), direction))),
+  });
 
   const visibleDays = useMemo(
     () => Array.from({ length: isCompactLayout ? 1 : 2 }, (_, index) => addDays(baseDate, index)),
@@ -254,8 +266,8 @@ export default function TaskList() {
 
       </div>
 
-      <div className="planning-columns">
-        <div className="planning-columns__grid">
+      <div ref={columnsRef} className="planning-columns">
+        <motion.div className="planning-columns__grid" style={{ x: swipeX }}>
           {visibleDays.map((day, index) => {
             const dayDate = toLocalDateString(day);
             const dayTasks = tasksByDay.get(dayDate) || [];
@@ -389,7 +401,7 @@ export default function TaskList() {
               </section>
             );
           })}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
