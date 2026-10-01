@@ -30,6 +30,7 @@ import { CSS } from "@dnd-kit/utilities";
 import TaskScheduleForm from "@/components/calendar/TaskScheduleForm";
 import type { PopoverAnchor } from "@/components/calendar/CalendarPopover";
 import { useTaskStore } from "@/stores/taskStore";
+import { haptic } from "@/lib/haptics";
 import { useUIStore } from "@/stores/uiStore";
 import type { Channel, Task } from "@/types";
 
@@ -148,7 +149,11 @@ export default function TaskCard({ task }: TaskCardProps) {
         {...listeners}
         onClick={(event) => {
           const target = event.target as HTMLElement;
-          if (!target.closest(".planning-card__toggle, .planning-card__subtask-toggle")) {
+          if (
+            !actionsRevealed &&
+            !target.closest(".planning-card__toggle, .planning-card__subtask-toggle")
+          ) {
+            haptic("select");
             setActionsRevealed(true);
           }
         }}
@@ -278,6 +283,7 @@ export default function TaskCard({ task }: TaskCardProps) {
                 if (confirmDelete) {
                   void deleteTask(task.id);
                 } else {
+                  haptic("light");
                   setConfirmDelete(true);
                   window.setTimeout(() => setConfirmDelete(false), 2400);
                 }
@@ -317,6 +323,7 @@ export default function TaskCard({ task }: TaskCardProps) {
           anchor={scheduleAnchor}
           onClose={() => setScheduleAnchor(null)}
           onSave={(data) => {
+            haptic("success");
             setScheduleAnchor(null);
             void updateTask(task.id, {
               ...data,

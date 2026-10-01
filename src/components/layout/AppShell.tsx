@@ -207,7 +207,8 @@ export default function AppShell({
         !pathname.startsWith("/planning") &&
         now.getHours() >= AUTO_SHUTDOWN_HOUR &&
         today !== quietModeDate &&
-        today !== autoPromptedDate
+        today !== autoPromptedDate &&
+        !useUIStore.getState().shutdownRitualCompletedDates.includes(today)
       ) {
         openShutdownRitual(today);
         setAutoPromptedDate(today);

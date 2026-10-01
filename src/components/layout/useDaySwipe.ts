@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { animate, useMotionValue } from "framer-motion";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { useDndMonitor } from "@dnd-kit/core";
+import { haptic } from "@/lib/haptics";
 
 /** How far (share of the width) or how fast (px/ms) a swipe must go to switch the day. */
 const SWITCH_DISTANCE = 0.22;
@@ -53,6 +54,7 @@ export function useDaySwipe({
     const previous = previousDate.current;
     previousDate.current = date;
     if (previous === date) return;
+    if (enabled) haptic("select");
     const wasSwipe = finishedSwipe.current;
     finishedSwipe.current = false;
     x.jump(0);

@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -51,9 +52,8 @@ export default function WeekGrid({ weekStart }: Props) {
   }, [addFormDate]);
 
   useEffect(() => {
-    let cancelled = false;
-    const loadAll = fetchTasks(undefined);
-    const loadWeek = fetch(`/api/tasks?weekStart=${weekStart}`)
+    fetchTasks(undefined);
+    fetch(`/api/tasks?weekStart=${weekStart}`)
       .then((response) => response.json())
       .then((data) => {
         useTaskStore.setState((state) => {
@@ -79,23 +79,44 @@ export default function WeekGrid({ weekStart }: Props) {
         });
       })
       .catch(() => {});
-
-    // Once the days above are filled, scroll to today (only in the current week).
-    void Promise.allSettled([loadAll, loadWeek]).then(() => {
-      requestAnimationFrame(() => {
-        if (cancelled) return;
-        const isPhone = window.matchMedia("(max-width: 767px)").matches;
-        todayRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: isPhone ? "start" : "nearest",
-          inline: "nearest",
-        });
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
   }, [weekStart, fetchTasks]);
+
+  // Open the current week at today before the first paint, and keep today in place
+  // while tasks load and the days above grow, until the user scrolls or taps.
+  useLayoutEffect(() => {
+    const today = todayRef.current;
+    const days = today?.parentElement;
+    if (!today || !days) return undefined;
+
+    const isPhone = window.matchMedia("(max-width: 767px)").matches;
+    let pinned = true;
+    const pin = () => {
+      if (!pinned) return;
+      today.scrollIntoView({
+        behavior: "instant",
+        block: isPhone ? "start" : "nearest",
+        inline: "nearest",
+      });
+    };
+    const release = () => {
+      pinned = false;
+    };
+
+    pin();
+    const observer = new ResizeObserver(pin);
+    observer.observe(days);
+    const timer = window.setTimeout(release, 2500);
+    const userEvents = ["touchstart", "wheel", "mousedown", "keydown"] as const;
+    userEvents.forEach((type) =>
+      window.addEventListener(type, release, { capture: true, passive: true })
+    );
+
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(timer);
+      userEvents.forEach((type) => window.removeEventListener(type, release, { capture: true }));
+    };
+  }, [weekStart]);
 
   const weekDays = useMemo(() => {
     const start = parseISO(weekStart);

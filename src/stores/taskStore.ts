@@ -6,6 +6,7 @@ import { de } from "date-fns/locale";
 import type { Task, CalendarEvent, Channel, CalendarCategory, RecurringRule } from "@/types";
 import { extractDateOnly } from "@/lib/date";
 import { useUIStore } from "@/stores/uiStore";
+import { haptic } from "@/lib/haptics";
 
 // Placeholder channels (used as fallback when API unavailable)
 const FALLBACK_CHANNELS: Channel[] = [
@@ -405,6 +406,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   addTask: async (taskData) => {
+    haptic("medium");
     try {
       const res = await fetch("/api/tasks", {
         method: "POST",
@@ -526,6 +528,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   deleteTask: async (taskId) => {
     const state = get();
 
+    haptic("warning");
     // Optimistic delete from both lists
     set((s) => ({
       tasks: s.tasks.filter((t) => t.id !== taskId),
@@ -553,6 +556,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     if (!task) return;
 
     const newStatus = task.status === "COMPLETED" ? "OPEN" : "COMPLETED";
+    haptic(newStatus === "COMPLETED" ? "success" : "light");
     get().updateTask(taskId, { status: newStatus });
   },
 
@@ -586,6 +590,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   addSubtask: async (parentId: string, title: string) => {
+    haptic("medium");
     try {
       const res = await fetch("/api/tasks", {
         method: "POST",
@@ -614,6 +619,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     if (!subtask) return;
 
     const newStatus: Task["status"] = subtask.status === "COMPLETED" ? "OPEN" : "COMPLETED";
+    haptic(newStatus === "COMPLETED" ? "success" : "light");
 
     set((s) => ({
       tasks: s.tasks.map((t) =>

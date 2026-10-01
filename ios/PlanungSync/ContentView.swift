@@ -20,6 +20,8 @@ private struct MainView: View {
     @EnvironmentObject var model: SyncModel
     @StateObject private var web: WebViewStore
     @State private var showsSync = false
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var backgroundedAt: Date?
 
     init(url: URL) {
         _web = StateObject(wrappedValue: WebViewStore(url: url))
@@ -48,6 +50,21 @@ private struct MainView: View {
                 web.onOpenSync = { showsSync = true }
             }
             .onChange(of: model.webReloadCount) { web.reload() }
+            // After a longer break, reload so a newly deployed web app version shows up
+            // (iOS keeps the old page in memory otherwise).
+            .onChange(of: scenePhase) { _, phase in
+                switch phase {
+                case .background:
+                    backgroundedAt = Date()
+                case .active:
+                    if let since = backgroundedAt, Date().timeIntervalSince(since) > 5 * 60 {
+                        web.reload()
+                    }
+                    backgroundedAt = nil
+                default:
+                    break
+                }
+            }
     }
 }
 

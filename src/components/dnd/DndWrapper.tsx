@@ -25,6 +25,7 @@ import {
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
 import type { Task } from "@/types";
+import { haptic } from "@/lib/haptics";
 
 interface DndWrapperProps {
   children: React.ReactNode;
@@ -70,14 +71,6 @@ const dropAnimation: DropAnimation = {
   }),
 };
 
-/** In the iPhone app, a light haptic tap when a card is picked up. */
-function hapticTap() {
-  const bridge = (window as unknown as {
-    webkit?: { messageHandlers?: { planung?: { postMessage: (message: string) => void } } };
-  }).webkit?.messageHandlers?.planung;
-  bridge?.postMessage("haptic");
-}
-
 const customCollisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
   const calendarCollision = pointerCollisions.find(
@@ -110,7 +103,7 @@ export default function DndWrapper({ children }: DndWrapperProps) {
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id);
     setOverlayWidth(event.active.rect.current.initial?.width ?? null);
-    hapticTap();
+    haptic("medium");
   }, []);
 
   const handleDragEnd = useCallback(
@@ -119,6 +112,7 @@ export default function DndWrapper({ children }: DndWrapperProps) {
       setActiveId(null);
 
       if (!over) return;
+      haptic("light");
 
       if (over.id === "calendar-dropzone") {
         const calendarData = over.data?.current as

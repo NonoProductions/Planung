@@ -18,6 +18,7 @@ import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUIStore } from "@/stores/uiStore";
+import { haptic } from "@/lib/haptics";
 
 const mainNav = [
   { label: "Home", href: "/", icon: House },
@@ -214,6 +215,9 @@ export default function Sidebar({ collapsed = false, onClose }: SidebarProps) {
               href={item.href}
               className={active ? "sidebar-mobile-dock__item sidebar-mobile-dock__item--active" : "sidebar-mobile-dock__item"}
               aria-current={active ? "page" : undefined}
+              onClick={() => {
+                if (!active) haptic("select");
+              }}
             >
               <Icon size={18} strokeWidth={2} />
               <span>{"shortLabel" in item ? item.shortLabel : item.label}</span>

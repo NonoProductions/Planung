@@ -72,11 +72,25 @@ final class WebViewStore: NSObject, ObservableObject, WKScriptMessageHandler, WK
     }
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-        switch message.body as? String {
+        let body = message.body as? String ?? ""
+        if body.hasPrefix("haptic") {
+            Self.playHaptic(body.split(separator: ":").last.map(String.init) ?? "medium")
+            return
+        }
+        switch body {
         case "openSync": onOpenSync()
-        // A task card was picked up for dragging.
-        case "haptic": UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         default: onTaskChange()
+        }
+    }
+
+    /// Feedback for "haptic:<kind>" from the web app (src/lib/haptics.ts).
+    private static func playHaptic(_ kind: String) {
+        switch kind {
+        case "select": UISelectionFeedbackGenerator().selectionChanged()
+        case "light": UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        case "success": UINotificationFeedbackGenerator().notificationOccurred(.success)
+        case "warning": UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        default: UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         }
     }
 

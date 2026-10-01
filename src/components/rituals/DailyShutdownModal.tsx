@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MoonStar, X } from "lucide-react";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
+import { haptic } from "@/lib/haptics";
 
 function formatMinutes(minutes: number) {
   const hours = Math.floor(minutes / 60);
@@ -255,7 +256,10 @@ export default function DailyShutdownModal() {
                   <div className="ritual-actions shutdown-sheet__inline-actions">
                     <button
                       type="button"
-                      onClick={() => completeShutdownRitual(activeDate, reflection)}
+                      onClick={() => {
+                        haptic("success");
+                        completeShutdownRitual(activeDate, reflection);
+                      }}
                       className="workspace-button workspace-button--primary"
                     >
                       <MoonStar size={15} strokeWidth={2} />
@@ -276,7 +280,10 @@ export default function DailyShutdownModal() {
               </button>
               <button
                 type="button"
-                onClick={() => completeShutdownRitual(activeDate, reflection)}
+                onClick={() => {
+                  haptic("success");
+                  completeShutdownRitual(activeDate, reflection);
+                }}
                 className="workspace-button workspace-button--primary"
               >
                 <MoonStar size={15} strokeWidth={2} />

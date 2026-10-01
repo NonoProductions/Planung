@@ -338,6 +338,10 @@ export const useUIStore = create<UIState>()(
         planningRitualCompletedDates: state.planningRitualCompletedDates,
         shutdownRitualCompletedDates: state.shutdownRitualCompletedDates,
         dailyShutdownNotes: state.dailyShutdownNotes,
+        // Kept across reloads, so each automatic prompt shows only once a day
+        // (the iPhone app reloads the page when it comes back to the foreground).
+        autoPlanningPromptedDate: state.autoPlanningPromptedDate,
+        autoShutdownPromptedDate: state.autoShutdownPromptedDate,
       }),
     }
   )
