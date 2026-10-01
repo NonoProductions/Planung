@@ -2241,14 +2241,16 @@ input[type="number"] {
     padding-bottom: var(--mobile-dock-offset);
     scroll-padding-bottom: var(--mobile-dock-offset);
     overflow: visible;
-    /* The day slides sideways when swiping (useDaySwipe); the neighbouring
-       days are cut off at today's height so they never add scroll length. */
-    overflow: clip;
+    /* The day slides sideways when swiping (useDaySwipe); vertically the
+       page itself scrolls. */
+    overflow: visible;
+    overflow-x: clip;
     touch-action: pan-y;
   }
 
   /* Yesterday | today | tomorrow: today sets the height, the neighbours sit
-     beside it at full width and are cut off by .planning-columns. */
+     beside it at full width and are cut off at today's height so they never
+     add scroll length. */
   .planning-columns__grid--swipe {
     position: relative;
   }
@@ -2260,7 +2262,9 @@ input[type="number"] {
   .planning-columns__grid--swipe > .planning-column:not(:nth-child(2)) {
     position: absolute;
     top: 0;
+    bottom: 0;
     width: 100%;
+    overflow: hidden;
   }
 
   .planning-columns__grid--swipe > .planning-column:first-child {
@@ -4525,6 +4529,21 @@ input[type="number"] {
     min-height: 0;
   }
 
+  /* The gap below "Add task" lies inside the scroll area, so cards scroll
+     right up to the button's lower edge. */
+  .planning-cards {
+    margin-top: 0;
+    padding-top: 12px;
+  }
+
+  /* Cards fade out softly where the list cuts them off. The fade covers only
+     the list's padding, so nothing is faded while scrolled to either end. */
+  .planning-cards,
+  .week-day__cards {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 28px), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 28px), transparent 100%);
+  }
+
   .week-scroll {
     overflow-y: hidden;
   }
@@ -4547,9 +4566,90 @@ input[type="number"] {
   .week-day__cards {
     min-height: 0;
     flex: 1;
-    margin-right: -4px;
-    margin-left: -4px;
-    padding: 0 4px 24px;
+    margin: 0 -4px;
+    padding: 12px 4px 24px;
     overflow-y: auto;
+  }
+}
+
+/* Mobile: the top bar never moves. The shell is exactly one screen tall and
+   only the content below the bar scrolls (bouncing stays inside it). */
+@media (max-width: 767px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .app-shell {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .mobile-topbar {
+    position: relative;
+    flex: none;
+  }
+
+  .app-shell__body {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* The board grows with its tasks, so the space reserved for the tab bar
+     stays below the last card instead of overlapping it. */
+  .planning-board,
+  .planning-columns {
+    min-height: auto;
+    flex: 0 0 auto;
+  }
+
+  /* Sticky toolbars now stick to the top of the scroll area, right under the bar. */
+  .planning-toolbar {
+    top: 0;
+  }
+
+  /* Home (swipeable day): like on desktop, the day heading and "Add task" stay
+     put and only the task list scrolls, ending above the tab bar. */
+  .app-main-surface:has(.planning-columns__grid--swipe) {
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .planning-board:has(.planning-columns__grid--swipe),
+  .planning-columns:has(.planning-columns__grid--swipe) {
+    min-height: 0;
+    flex: 1 1 0;
+  }
+
+  .planning-columns:has(.planning-columns__grid--swipe) {
+    padding-bottom: 0;
+    overflow: hidden;
+  }
+
+  .planning-columns__grid--swipe {
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .planning-columns__grid--swipe > .planning-column {
+    min-height: 0;
+    padding-bottom: 0;
+  }
+
+  .planning-columns__grid--swipe .planning-cards {
+    margin-top: 0;
+    padding-top: 12px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 28px), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 28px), transparent 100%);
   }
 }

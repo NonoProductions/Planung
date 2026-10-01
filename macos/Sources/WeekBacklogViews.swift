@@ -22,7 +22,7 @@ struct WeekView: View {
                             if day != days.last { Rectangle().fill(Theme.lineSoft).frame(width: 1) }
                         }
                     }
-                    .frame(minHeight: geo.size.height)
+                    .frame(height: geo.size.height)
                 }
             }
             .background(Theme.board)
@@ -187,7 +187,7 @@ struct BacklogView: View {
                     }
                 }
                 .padding(18)
-                .frame(minHeight: geo.size.height, alignment: .top)
+                .frame(height: geo.size.height, alignment: .top)
             }
         }
         .background(Theme.board)

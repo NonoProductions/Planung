@@ -127,6 +127,7 @@ struct MainView: View {
             }
             .background(Theme.background)
         }
+        .scrollIndicators(.hidden)
         .sheet(item: Binding(get: { store.editingTaskId.map { TaskRef(id: $0) } },
                              set: { store.editingTaskId = $0?.id })) { ref in
             TaskDetailView(taskId: ref.id)
