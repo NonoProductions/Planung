@@ -18,6 +18,7 @@ import DailyShutdownModal from "@/components/rituals/DailyShutdownModal";
 import ShortcutOverlay from "@/components/ui/ShortcutOverlay";
 import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
 import { toLocalDateString } from "@/lib/date";
+import { claimDailyRitual, SHUTDOWN_PROMPT_RITUAL } from "@/lib/rituals";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useUIStore } from "@/stores/uiStore";
 
@@ -210,8 +211,12 @@ export default function AppShell({
         today !== autoPromptedDate &&
         !useUIStore.getState().shutdownRitualCompletedDates.includes(today)
       ) {
-        openShutdownRitual(today);
+        // Marked locally first so this device asks only once, then the
+        // account-wide claim decides: only the first device of the day shows it.
         setAutoPromptedDate(today);
+        void claimDailyRitual(today, SHUTDOWN_PROMPT_RITUAL).then((claimed) => {
+          if (claimed) openShutdownRitual(today);
+        });
       }
     };
 

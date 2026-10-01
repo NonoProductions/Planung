@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { toLocalDateString } from "@/lib/date";
+import { claimDailyRitual, SHUTDOWN_PROMPT_RITUAL } from "@/lib/rituals";
 import type { CelebrationTrigger, CelebrationType } from "@/types";
 
 const MAX_RITUAL_HISTORY = 45;
@@ -293,6 +294,8 @@ export const useUIStore = create<UIState>()(
           ),
         }));
         get().triggerCelebration({ trigger: "shutdown_ritual" });
+        // A day closed by hand needs no automatic prompt on other devices.
+        void claimDailyRitual(date, SHUTDOWN_PROMPT_RITUAL);
       },
 
       clearQuietMode: () => set({ quietMode: false }),
