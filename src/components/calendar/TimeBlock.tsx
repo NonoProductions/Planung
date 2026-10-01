@@ -1,12 +1,25 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addMinutes, parseISO, startOfDay } from "date-fns";
 import { motion } from "framer-motion";
 
 const SNAP_MINUTES = 5;
 const DAY_MINUTES = 24 * 60;
 const DRAG_THRESHOLD_PX = 4;
+/** Distance from the calendar's top/bottom edge where dragging starts to scroll. */
+const EDGE_ZONE_PX = 72;
+const MAX_SCROLL_PX_PER_FRAME = 16;
+
+/** Scroll step for a finger at `y`: negative near the top, positive near the bottom. */
+function edgeScrollStep(rect: DOMRect, y: number) {
+  const fromTop = y - rect.top;
+  const fromBottom = rect.bottom - y;
+  const zone = Math.min(EDGE_ZONE_PX, rect.height / 4);
+  if (fromTop < zone) return -MAX_SCROLL_PX_PER_FRAME * (1 - Math.max(fromTop, 0) / zone) ** 2;
+  if (fromBottom < zone) return MAX_SCROLL_PX_PER_FRAME * (1 - Math.max(fromBottom, 0) / zone) ** 2;
+  return 0;
+}
 
 interface TimeBlockProps {
   id?: string;
@@ -26,9 +39,14 @@ interface DragState {
   mode: "move" | "resize";
   pointerId: number;
   originY: number;
+  /** Latest finger position, re-applied while the calendar auto-scrolls. */
+  clientY: number;
+  scroller: HTMLElement | null;
+  originScroll: number;
   startMinutes: number;
   endMinutes: number;
   moved: boolean;
+  preview: { start: number; end: number } | null;
 }
 
 function snap(minutes: number) {
@@ -55,6 +73,7 @@ export default function TimeBlock({
   const dragRef = useRef<DragState | null>(null);
   const blockRef = useRef<HTMLDivElement>(null);
   const suppressClickRef = useRef(false);
+  const scrollFrameRef = useRef<number | null>(null);
   const [preview, setPreview] = useState<{ start: number; end: number } | null>(null);
 
   const original = useMemo(() => {
@@ -78,30 +97,37 @@ export default function TimeBlock({
   const draggable = Boolean(onTimeChange);
   const dragging = preview !== null;
 
+  const stopAutoScroll = () => {
+    if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = null;
+  };
+
+  useEffect(() => stopAutoScroll, []);
+
   const beginDrag = (mode: DragState["mode"]) => (event: React.PointerEvent<HTMLElement>) => {
     if (!draggable || event.button !== 0) return;
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
 
+    const scroller = blockRef.current?.closest<HTMLElement>(".calendar-scroll") ?? null;
     dragRef.current = {
       mode,
       pointerId: event.pointerId,
       originY: event.clientY,
+      clientY: event.clientY,
+      scroller,
+      originScroll: scroller?.scrollTop ?? 0,
       startMinutes: original.start,
       endMinutes: original.end,
       moved: false,
+      preview: null,
     };
   };
 
-  const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-
-    const deltaY = event.clientY - drag.originY;
-    if (!drag.moved && Math.abs(deltaY) < DRAG_THRESHOLD_PX) return;
-    drag.moved = true;
-
-    const deltaMinutes = (deltaY / hourHeight) * 60;
+  /** Places the block for the finger position, counting what has been scrolled since. */
+  const applyDrag = (drag: DragState) => {
+    const scrolled = (drag.scroller?.scrollTop ?? 0) - drag.originScroll;
+    const deltaMinutes = ((drag.clientY - drag.originY + scrolled) / hourHeight) * 60;
 
     if (drag.mode === "move") {
       const duration = drag.endMinutes - drag.startMinutes;
@@ -113,17 +139,55 @@ export default function TimeBlock({
       if (blockRef.current) blockRef.current.style.transform = `translate3d(0, ${offset}px, 0)`;
 
       const start = Math.min(Math.max(snap(rawStart), 0), DAY_MINUTES - duration);
-      setPreview((value) =>
-        value?.start === start ? value : { start, end: start + duration }
-      );
+      if (drag.preview?.start !== start) {
+        drag.preview = { start, end: start + duration };
+        setPreview(drag.preview);
+      }
     } else {
       const end = Math.min(
         Math.max(snap(drag.endMinutes + deltaMinutes), drag.startMinutes + SNAP_MINUTES),
         DAY_MINUTES
       );
-      setPreview((value) =>
-        value?.end === end ? value : { start: drag.startMinutes, end }
-      );
+      if (drag.preview?.end !== end) {
+        drag.preview = { start: drag.startMinutes, end };
+        setPreview(drag.preview);
+      }
+    }
+  };
+
+  // Near the top or bottom edge the calendar scrolls on its own, faster the
+  // closer the finger gets, and the block keeps following the finger.
+  const runAutoScroll = () => {
+    const drag = dragRef.current;
+    const scroller = drag?.scroller;
+    if (!drag || !scroller) {
+      scrollFrameRef.current = null;
+      return;
+    }
+
+    const step = edgeScrollStep(scroller.getBoundingClientRect(), drag.clientY);
+    const before = scroller.scrollTop;
+    if (step !== 0) scroller.scrollTop = before + step;
+    if (scroller.scrollTop === before) {
+      scrollFrameRef.current = null;
+      return;
+    }
+
+    applyDrag(drag);
+    scrollFrameRef.current = requestAnimationFrame(runAutoScroll);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    drag.clientY = event.clientY;
+    if (!drag.moved && Math.abs(event.clientY - drag.originY) < DRAG_THRESHOLD_PX) return;
+    drag.moved = true;
+
+    applyDrag(drag);
+    if (scrollFrameRef.current === null) {
+      scrollFrameRef.current = requestAnimationFrame(runAutoScroll);
     }
   };
 
@@ -131,21 +195,23 @@ export default function TimeBlock({
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
+    stopAutoScroll();
     // Cleared in the same frame the new time is committed, so nothing jumps.
     if (blockRef.current) blockRef.current.style.transform = "";
 
-    if (!drag.moved || !preview) {
+    const result = drag.preview;
+    if (!drag.moved || !result) {
       setPreview(null);
       return;
     }
 
     suppressClickRef.current = true;
-    const unchanged = preview.start === drag.startMinutes && preview.end === drag.endMinutes;
+    const unchanged = result.start === drag.startMinutes && result.end === drag.endMinutes;
     if (!unchanged) {
       const day = startOfDay(parseISO(startTime));
       onTimeChange?.(
-        addMinutes(day, preview.start).toISOString(),
-        addMinutes(day, preview.end).toISOString()
+        addMinutes(day, result.start).toISOString(),
+        addMinutes(day, result.end).toISOString()
       );
     }
     setPreview(null);
