@@ -53,6 +53,7 @@ export default function TimeBlock({
   onTimeChange,
 }: TimeBlockProps) {
   const dragRef = useRef<DragState | null>(null);
+  const blockRef = useRef<HTMLDivElement>(null);
   const suppressClickRef = useRef(false);
   const [preview, setPreview] = useState<{ start: number; end: number } | null>(null);
 
@@ -66,7 +67,10 @@ export default function TimeBlock({
   }, [startTime, endTime]);
 
   const current = preview ?? original;
-  const top = ((current.start - startHour * 60) / 60) * hourHeight;
+  // While moving, the block stays at its original top and follows the finger
+  // with a transform (no layout, no re-render per move); only the time label
+  // re-renders, once per 5-minute step.
+  const top = ((original.start - startHour * 60) / 60) * hourHeight;
   const height = Math.max(((current.end - current.start) / 60) * hourHeight, 28);
 
   const timeLabel = `${minutesToLabel(current.start)} - ${minutesToLabel(current.end)}`;
@@ -101,17 +105,25 @@ export default function TimeBlock({
 
     if (drag.mode === "move") {
       const duration = drag.endMinutes - drag.startMinutes;
-      const start = Math.min(
-        Math.max(snap(drag.startMinutes + deltaMinutes), 0),
+      const rawStart = Math.min(
+        Math.max(drag.startMinutes + deltaMinutes, 0),
         DAY_MINUTES - duration
       );
-      setPreview({ start, end: start + duration });
+      const offset = ((rawStart - drag.startMinutes) / 60) * hourHeight;
+      if (blockRef.current) blockRef.current.style.transform = `translate3d(0, ${offset}px, 0)`;
+
+      const start = Math.min(Math.max(snap(rawStart), 0), DAY_MINUTES - duration);
+      setPreview((value) =>
+        value?.start === start ? value : { start, end: start + duration }
+      );
     } else {
       const end = Math.min(
         Math.max(snap(drag.endMinutes + deltaMinutes), drag.startMinutes + SNAP_MINUTES),
         DAY_MINUTES
       );
-      setPreview({ start: drag.startMinutes, end });
+      setPreview((value) =>
+        value?.end === end ? value : { start: drag.startMinutes, end }
+      );
     }
   };
 
@@ -119,6 +131,8 @@ export default function TimeBlock({
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
+    // Cleared in the same frame the new time is committed, so nothing jumps.
+    if (blockRef.current) blockRef.current.style.transform = "";
 
     if (!drag.moved || !preview) {
       setPreview(null);
@@ -147,67 +161,75 @@ export default function TimeBlock({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+    <div
+      ref={blockRef}
       onClick={handleClick}
       onPointerDown={beginDrag("move")}
       onPointerMove={handlePointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
-      className={`group absolute left-0 right-0 overflow-hidden rounded-[8px] border border-white/30 transition-all duration-200 ${
+      className={`group absolute left-0 right-0 ${
         draggable ? "cursor-grab touch-none select-none active:cursor-grabbing" : "cursor-pointer"
       } ${dragging ? "z-30" : "z-10"}`}
       style={{
         top,
         height,
-        backgroundColor: color,
-        boxShadow: dragging
-          ? "0 16px 28px rgba(var(--shadow-rgb), 0.18)"
-          : "0 1px 0 rgba(var(--shadow-rgb), 0.05), 0 8px 14px rgba(var(--shadow-rgb), 0.07)",
-        opacity: isEvent ? 1 : 0.94,
-        transitionDuration: dragging ? "90ms" : undefined,
-      }}
-      whileHover={{
-        boxShadow: "0 12px 20px rgba(var(--shadow-rgb), 0.1)",
+        willChange: dragging ? "transform" : undefined,
+        WebkitTouchCallout: "none",
       }}
     >
-      <div
-        className={isCompact ? "calendar-block calendar-block--compact" : "calendar-block"}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+        className="relative h-full overflow-hidden rounded-[8px] border border-white/30 transition-shadow duration-200"
         style={{
-          background: "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 100%)",
+          backgroundColor: color,
+          boxShadow: dragging
+            ? "0 16px 28px rgba(var(--shadow-rgb), 0.18)"
+            : "0 1px 0 rgba(var(--shadow-rgb), 0.05), 0 8px 14px rgba(var(--shadow-rgb), 0.07)",
+          opacity: isEvent ? 1 : 0.94,
+        }}
+        whileHover={{
+          boxShadow: "0 12px 20px rgba(var(--shadow-rgb), 0.1)",
         }}
       >
-        <p
-          className="calendar-block__title"
-          style={{ color: "#ffffff", WebkitLineClamp: isCompact ? 1 : 2 }}
-        >
-          {title}
-        </p>
-        {(height > 40 || dragging) && (
-          <p
-            className="calendar-block__time"
-            style={{
-              color: "rgba(255,255,255,0.92)",
-            }}
-          >
-            {timeLabel}
-          </p>
-        )}
-      </div>
-
-      {!isEvent && (
         <div
-          onPointerDown={beginDrag("resize")}
-          className="absolute bottom-0 left-0 right-0 flex h-2.5 cursor-s-resize items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+          className={isCompact ? "calendar-block calendar-block--compact" : "calendar-block"}
+          style={{
+            background: "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 100%)",
+          }}
         >
-          <div
-            className="h-[2px] w-8 rounded-full"
-            style={{ backgroundColor: "rgba(255,255,255,0.82)", opacity: 0.82 }}
-          />
+          <p
+            className="calendar-block__title"
+            style={{ color: "#ffffff", WebkitLineClamp: isCompact ? 1 : 2 }}
+          >
+            {title}
+          </p>
+          {(height > 40 || dragging) && (
+            <p
+              className="calendar-block__time"
+              style={{
+                color: "rgba(255,255,255,0.92)",
+              }}
+            >
+              {timeLabel}
+            </p>
+          )}
         </div>
-      )}
-    </motion.div>
+
+        {!isEvent && (
+          <div
+            onPointerDown={beginDrag("resize")}
+            className="absolute bottom-0 left-0 right-0 flex h-2.5 cursor-s-resize items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+          >
+            <div
+              className="h-[2px] w-8 rounded-full"
+              style={{ backgroundColor: "rgba(255,255,255,0.82)", opacity: 0.82 }}
+            />
+          </div>
+        )}
+      </motion.div>
+    </div>
   );
 }
