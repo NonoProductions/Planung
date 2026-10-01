@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import Network
 import Observation
 
@@ -113,8 +114,15 @@ final class AppStore {
             }
         }
         monitor.start(queue: .main)
+        // Every 30 s while the app is in front, every 5 min in the background (menu bar,
+        // Apple mirroring) to keep database load low. Becoming active syncs right away.
         timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.sync() }
+            Task { @MainActor in
+                guard let self else { return }
+                if NSApp.isActive || Date().timeIntervalSince(self.lastSync ?? .distantPast) >= 5 * 60 {
+                    self.sync()
+                }
+            }
         }
         sync()
     }
