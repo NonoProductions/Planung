@@ -4,6 +4,7 @@ import SwiftUI
 struct NoesPlanerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var store = AppDelegate.store
+    @State private var appleSync = AppDelegate.appleSync
 
     var body: some Scene {
         Window("Noes Planer", id: "main") {
@@ -15,13 +16,19 @@ struct NoesPlanerApp: App {
         .defaultSize(width: 1440, height: 900)
         .commands { PlannerCommands(store: store) }
 
+        Settings {
+            SettingsView()
+                .environment(store)
+                .environment(appleSync)
+                .tint(Theme.accent)
+        }
+
         MenuBarExtra {
             MenuBarTodayView()
                 .environment(store)
                 .tint(Theme.accent)
         } label: {
-            let open = store.isLoggedIn ? store.tasks(on: DateCoding.today()).filter { !$0.isCompleted }.count : 0
-            Image(systemName: open == 0 ? "checkmark.circle" : "circle.dotted")
+            MenuBarLabel(store: store)
         }
         .menuBarExtraStyle(.window)
     }
@@ -29,6 +36,15 @@ struct NoesPlanerApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor static let store = AppStore()
+    @MainActor static let appleSync: AppleSync = {
+        let sync = AppleSync(appStore: store)
+        store.afterSync = { [weak sync] in sync?.run(reason: "Automatisch") }
+        return sync
+    }()
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        MainActor.assumeIsolated { _ = Self.appleSync }
+    }
 
     func applicationDidBecomeActive(_ notification: Notification) {
         MainActor.assumeIsolated { Self.store.sync() }
@@ -266,5 +282,23 @@ enum ServerPrompt {
         while value.hasSuffix("/") { value.removeLast() }
         guard URL(string: value)?.host != nil else { return }
         store.serverURL = value
+    }
+}
+
+/// Menu bar icon with today's open task count. A view of its own, so it observes the store
+/// and updates as soon as tasks change (in the scene body it would not be tracked).
+struct MenuBarLabel: View {
+    let store: AppStore
+
+    var body: some View {
+        let open = store.tasks(on: DateCoding.today()).filter { !$0.isCompleted }.count
+        if open == 0 {
+            Image(systemName: "checkmark.circle")
+        } else {
+            HStack(spacing: 3) {
+                Image(systemName: "circle.dotted")
+                Text("\(open)")
+            }
+        }
     }
 }

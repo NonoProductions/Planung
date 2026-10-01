@@ -84,6 +84,8 @@ final class AppStore {
     }
 
     @ObservationIgnored let api: APIClient
+    /// Called after every sync attempt (also offline), e.g. to mirror the tasks into Apple Reminders.
+    @ObservationIgnored var afterSync: (() -> Void)?
     @ObservationIgnored private var inFlightChangeId: UUID?
     @ObservationIgnored private var saveWork: Task<Void, Never>?
     @ObservationIgnored private var syncSoonWork: Task<Void, Never>?
@@ -111,7 +113,7 @@ final class AppStore {
             }
         }
         monitor.start(queue: .main)
-        timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.sync() }
         }
         sync()
@@ -183,10 +185,13 @@ final class AppStore {
     }
 
     func syncNow() async {
-        guard isLoggedIn, !isSyncing else { return }
+        guard !isSyncing else { return }
         isSyncing = true
-        syncState = .syncing
         defer { isSyncing = false }
+        // The web app's login is enough; it also revives a sync whose token login expired.
+        if await api.hasWebSession() { isLoggedIn = true }
+        guard isLoggedIn else { return }
+        syncState = .syncing
         do {
             try await flush()
             let snapshot = try await api.fetchSnapshot()
@@ -199,9 +204,11 @@ final class AppStore {
         } catch APIError.unauthorized, APIError.notLoggedIn {
             isLoggedIn = false
             syncState = .error("Bitte online neu anmelden")
+            return
         } catch {
             syncState = .error(error.localizedDescription)
         }
+        afterSync?()
     }
 
     /// Back online: send offline changes first, then reload the (hidden) web app.
@@ -391,6 +398,7 @@ final class AppStore {
             task.backlogFolder = folder
             task.position = (backlogTasks.map(\.position).max() ?? -1) + 1
         }
+        task.updatedAt = Date()
         tasks.append(task)
         enqueue(PendingChange(entity: .task, kind: .create, recordId: task.id, fields: Self.fields(of: task)))
         return task
@@ -405,6 +413,7 @@ final class AppStore {
         if new.status != old.status {
             new.completedAt = new.isCompleted ? Date() : nil
         }
+        if new != old { new.updatedAt = Date() }
         tasks[index] = new
 
         let before = Self.fields(of: old), after = Self.fields(of: new)

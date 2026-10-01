@@ -20,6 +20,8 @@ struct PlanTask: Codable, Identifiable, Hashable {
     var backlogBucket: String?
     var backlogFolder: String?
     var completedAt: Date?
+    /// Last change on the server or locally; decides conflicts with Apple Reminders/Calendar.
+    var updatedAt: Date?
 
     var isCompleted: Bool { status == "COMPLETED" }
     var hasTimeBlock: Bool { scheduledStart != nil && scheduledEnd != nil }
@@ -31,7 +33,7 @@ struct PlanTask: Codable, Identifiable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case id, title, description, status, plannedTime, actualTime, scheduledDate, scheduledStart,
-             scheduledEnd, position, channelId, parentId, isBacklog, backlogBucket, backlogFolder, completedAt
+             scheduledEnd, position, channelId, parentId, isBacklog, backlogBucket, backlogFolder, completedAt, updatedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -52,6 +54,7 @@ struct PlanTask: Codable, Identifiable, Hashable {
         backlogBucket = try c.decodeIfPresent(String.self, forKey: .backlogBucket)
         backlogFolder = try c.decodeIfPresent(String.self, forKey: .backlogFolder)
         completedAt = try c.decodeFlexibleDate(.completedAt)
+        updatedAt = try c.decodeFlexibleDate(.updatedAt)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -72,6 +75,7 @@ struct PlanTask: Codable, Identifiable, Hashable {
         try c.encodeIfPresent(backlogBucket, forKey: .backlogBucket)
         try c.encodeIfPresent(backlogFolder, forKey: .backlogFolder)
         try c.encodeIfPresent(completedAt.map(DateCoding.iso), forKey: .completedAt)
+        try c.encodeIfPresent(updatedAt.map(DateCoding.iso), forKey: .updatedAt)
     }
 }
 
@@ -266,6 +270,16 @@ enum DateCoding {
     }
 
     static func today() -> String { day(Date()) }
+
+    /// Local date for a day plus minutes since midnight.
+    static func date(day: String, minutes: Int) -> Date? {
+        date(fromDay: day).map { $0.addingTimeInterval(TimeInterval(minutes * 60)) }
+    }
+
+    static func minutesOfDay(_ date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
+    }
 
     /// Monday of the week containing `day`.
     static func weekStart(_ day: String) -> String {

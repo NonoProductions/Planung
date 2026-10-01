@@ -13,6 +13,10 @@ Jede Änderung wird sofort lokal gespeichert (`~/Library/Application Support/Noe
 
 Die App braucht auf dem Server `/api/mobile/snapshot` und dass die Erstell-Routen eine vom Client erzeugte `id` annehmen. Beides steckt in diesem Repo und muss deployed sein.
 
+## Apple Erinnerungen & Kalender
+
+In den Einstellungen (⌘,) lässt sich ein Abgleich einschalten: offene Tasks landen in der Erinnerungen-Liste „Planung“, Tasks mit Uhrzeit zusätzlich im Kalender „Planung“. Änderungen gehen in beide Richtungen, neue Einträge in der Liste/dem Kalender werden zu Tasks. Die Logik entspricht der iPhone-App (gleiche `planung://task/<id>`-Verknüpfung), arbeitet aber auf der lokalen Kopie und funktioniert deshalb auch offline. Da die App nur ad-hoc signiert ist, fragt macOS nach einem Neubau erneut nach dem Zugriff.
+
 ## Bauen
 
 ```

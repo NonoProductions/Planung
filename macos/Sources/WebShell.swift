@@ -16,7 +16,7 @@ struct WebShell: View {
                 .allowsHitTesting(!store.showOfflineUI)
 
             if store.showOfflineUI {
-                if store.email != nil {
+                if store.email != nil || store.lastSync != nil {
                     VStack(spacing: 0) {
                         OfflineBanner()
                         MainView()
@@ -113,6 +113,26 @@ struct WebContainer: NSViewRepresentable {
     }, true);
     """
 
+    /// Reports every successful non-GET API call (task created, moved, completed …), like the iOS app.
+    private static let fetchHook = """
+    (function () {
+      const originalFetch = window.fetch;
+      window.fetch = function (input, init) {
+        const promise = originalFetch.apply(this, arguments);
+        try {
+          const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+          const url = typeof input === 'string' ? input : (input && input.url) || '';
+          if (method !== 'GET' && url.includes('/api/') && !url.includes('/api/auth/')) {
+            promise.then(function (response) {
+              if (response.ok) window.webkit.messageHandlers.planerChanged.postMessage('changed');
+            }).catch(function () {});
+          }
+        } catch (e) {}
+        return promise;
+      };
+    })();
+    """
+
     func makeCoordinator() -> Coordinator { Coordinator(store: store, origin: url.origin) }
 
     func makeNSView(context: Context) -> WKWebView {
@@ -122,6 +142,9 @@ struct WebContainer: NSViewRepresentable {
         config.userContentController.addUserScript(
             WKUserScript(source: Self.loginCaptureScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         config.userContentController.add(context.coordinator, name: "planerLogin")
+        config.userContentController.addUserScript(
+            WKUserScript(source: Self.fetchHook, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        config.userContentController.add(context.coordinator, name: "planerChanged")
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -149,6 +172,7 @@ struct WebContainer: NSViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         let store: AppStore
         var origin: String
+        private var changeSync: Task<Void, Never>?
 
         init(store: AppStore, origin: String) {
             self.store = store
@@ -156,6 +180,16 @@ struct WebContainer: NSViewRepresentable {
         }
 
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+            if message.name == "planerChanged" {
+                // Pull the change into the local copy soon, which then also updates Apple Reminders/Calendar.
+                changeSync?.cancel()
+                changeSync = Task { @MainActor [store] in
+                    try? await Task.sleep(for: .seconds(2))
+                    guard !Task.isCancelled else { return }
+                    store.sync()
+                }
+                return
+            }
             guard let body = message.body as? [String: Any],
                   let email = body["email"] as? String, let password = body["password"] as? String else { return }
             let server = store.serverURL.isEmpty ? defaultServerURL : store.serverURL

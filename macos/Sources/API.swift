@@ -1,4 +1,5 @@
 import Foundation
+import WebKit
 
 enum APIError: LocalizedError {
     case invalidServerURL
@@ -25,7 +26,9 @@ struct MobileSession: Codable {
     var email: String?
 }
 
-/// Talks to the Planung web app (Next.js API) with a Bearer token.
+/// Talks to the Planung web app (Next.js API). Uses the login cookie of the embedded web app when
+/// there is one (the API routes accept the NextAuth session), otherwise a Bearer token. The cookie
+/// path needs no token refresh, which used to fail after sleep and silently stop the sync.
 @MainActor
 final class APIClient {
     var baseURL: URL?
@@ -55,27 +58,40 @@ final class APIClient {
         return try JSONDecoder().decode(Snapshot.self, from: data)
     }
 
+    /// Whether the embedded web app is logged in for the current server.
+    func hasWebSession() async -> Bool {
+        guard let baseURL else { return false }
+        return await webCookieHeader(for: baseURL) != nil
+    }
+
     @discardableResult
     func send(_ method: String, _ path: String, body: JSONValue? = nil, auth: Bool = true, retried: Bool = false) async throws -> Data {
         guard let baseURL, let url = URL(string: path, relativeTo: baseURL) else { throw APIError.invalidServerURL }
-
-        if auth {
-            guard let session else { throw APIError.notLoggedIn }
-            if session.expiresAt - 60 < Date().timeIntervalSince1970 {
-                try await refresh()
-            }
-        }
 
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.timeoutInterval = 20
         request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.httpShouldHandleCookies = false
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder().encode(body)
         }
-        if auth, let token = session?.accessToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        var usesWebSession = false
+        if auth {
+            if let cookies = await webCookieHeader(for: url) {
+                request.setValue(cookies, forHTTPHeaderField: "Cookie")
+                usesWebSession = true
+            } else {
+                guard let session else { throw APIError.notLoggedIn }
+                if session.expiresAt - 60 < Date().timeIntervalSince1970 {
+                    try await refresh()
+                }
+                if let token = self.session?.accessToken {
+                    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                }
+            }
         }
 
         let data: Data
@@ -86,16 +102,47 @@ final class APIClient {
             throw APIError.offline
         }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if usesWebSession, let http = response as? HTTPURLResponse { await keepCookies(from: http, url: url) }
 
-        if status == 401 && auth && !retried {
-            try await refresh()
-            return try await send(method, path, body: body, auth: auth, retried: true)
+        if status == 401 && auth {
+            if usesWebSession { throw APIError.unauthorized }
+            if !retried {
+                try await refresh()
+                return try await send(method, path, body: body, auth: auth, retried: true)
+            }
         }
         guard (200..<300).contains(status) else {
             let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
             throw APIError.server(status, message ?? HTTPURLResponse.localizedString(forStatusCode: status))
         }
         return data
+    }
+
+    // MARK: Web session cookies
+
+    private var cookieStore: WKHTTPCookieStore { WKWebsiteDataStore.default().httpCookieStore }
+
+    /// `Cookie` header with the web app's cookies for `url`, or nil when it holds no NextAuth session.
+    private func webCookieHeader(for url: URL) async -> String? {
+        guard let host = url.host else { return nil }
+        let now = Date()
+        let cookies = await cookieStore.allCookies().filter { cookie in
+            let domain = cookie.domain.hasPrefix(".") ? String(cookie.domain.dropFirst()) : cookie.domain
+            let matches = host == domain || host.hasSuffix("." + domain)
+            return matches && (cookie.expiresDate ?? .distantFuture) > now && (!cookie.isSecure || url.scheme == "https")
+        }
+        guard cookies.contains(where: { $0.name.contains("session-token") }) else { return nil }
+        return cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+    }
+
+    /// NextAuth re-issues the session cookie to extend it; keep the web view's copy current.
+    private func keepCookies(from response: HTTPURLResponse, url: URL) async {
+        let fields = response.allHeaderFields.reduce(into: [String: String]()) { result, pair in
+            if let key = pair.key as? String, let value = pair.value as? String { result[key] = value }
+        }
+        for cookie in HTTPCookie.cookies(withResponseHeaderFields: fields, for: url) {
+            await cookieStore.setCookie(cookie)
+        }
     }
 
     private func store(_ newSession: MobileSession) {

@@ -15,5 +15,7 @@
 	<key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<key>NSRemindersFullAccessUsageDescription</key><string>Noes Planer gleicht deine Tasks mit der Erinnerungen-Liste „Planung“ ab.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key><string>Noes Planer trägt Tasks mit Uhrzeit in den Kalender „Planung“ ein und übernimmt Änderungen von dort.</string>
 </dict>
 </plist>
