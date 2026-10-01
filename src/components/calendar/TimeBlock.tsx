@@ -3,24 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addMinutes, parseISO, startOfDay } from "date-fns";
 import { motion } from "framer-motion";
+import { edgeScrollStep } from "@/lib/edgeScroll";
 
 const SNAP_MINUTES = 5;
 const DAY_MINUTES = 24 * 60;
 const DRAG_THRESHOLD_PX = 4;
-/** Distance from the calendar's top/bottom edge where dragging starts to scroll. */
-const EDGE_ZONE_PX = 72;
-const MAX_SCROLL_PX_PER_FRAME = 16;
-
-/** Scroll step for a finger at `y`: negative near the top, positive near the bottom. */
-function edgeScrollStep(rect: DOMRect, y: number) {
-  const fromTop = y - rect.top;
-  const fromBottom = rect.bottom - y;
-  const zone = Math.min(EDGE_ZONE_PX, rect.height / 4);
-  if (fromTop < zone) return -MAX_SCROLL_PX_PER_FRAME * (1 - Math.max(fromTop, 0) / zone) ** 2;
-  if (fromBottom < zone) return MAX_SCROLL_PX_PER_FRAME * (1 - Math.max(fromBottom, 0) / zone) ** 2;
-  return 0;
-}
-
 interface TimeBlockProps {
   id?: string;
   title: string;
@@ -165,14 +152,15 @@ export default function TimeBlock({
       return;
     }
 
-    const step = edgeScrollStep(scroller.getBoundingClientRect(), drag.clientY);
-    const before = scroller.scrollTop;
-    if (step !== 0) scroller.scrollTop = before + step;
-    if (scroller.scrollTop === before) {
+    // Keeps running while the finger rests near an edge; it only stops once
+    // the finger leaves the edge zone or the day has no more room to scroll.
+    const step = edgeScrollStep(scroller, drag.clientY);
+    if (step === 0) {
       scrollFrameRef.current = null;
       return;
     }
 
+    scroller.scrollTop += step;
     applyDrag(drag);
     scrollFrameRef.current = requestAnimationFrame(runAutoScroll);
   };

@@ -29,6 +29,7 @@ import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
 import type { Task } from "@/types";
 import { haptic } from "@/lib/haptics";
+import { edgeScrollStep, isInsideScrollerBody } from "@/lib/edgeScroll";
 import { CALENDAR_PEEK_ID } from "@/components/calendar/MobileCalendarPeek";
 
 interface DndWrapperProps {
@@ -123,24 +124,11 @@ export default function DndWrapper({ children }: DndWrapperProps) {
   const [overlayWidth, setOverlayWidth] = useState<number | null>(null);
   const [overCalendar, setOverCalendar] = useState(false);
   const lastPointerY = useRef<number | null>(null);
-  const calendarScrollArmed = useRef(false);
 
-  // The phone calendar sheet opens under a finger resting on its header, which
-  // dnd-kit reads as "scroll up". Only let it auto-scroll once the finger has
-  // been inside the time grid, so the day stays near the current time.
+  // The calendar scrolls itself near its edges (CalendarEdgeScroll), so
+  // dnd-kit's own auto-scroll stays out of it.
   const autoScroll = useMemo(
-    () => ({
-      canScroll: (element: Element) => {
-        if (!element.classList.contains("calendar-scroll")) return true;
-        if (calendarScrollArmed.current) return true;
-        const y = lastPointerY.current;
-        const rect = element.getBoundingClientRect();
-        if (y !== null && y > rect.top + 48 && y < rect.bottom - 48) {
-          calendarScrollArmed.current = true;
-        }
-        return calendarScrollArmed.current;
-      },
-    }),
+    () => ({ canScroll: (element: Element) => !element.classList.contains("calendar-scroll") }),
     []
   );
   const tasks = useTaskStore((state) => state.tasks);
@@ -173,7 +161,6 @@ export default function DndWrapper({ children }: DndWrapperProps) {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     lastPointerY.current = null;
-    calendarScrollArmed.current = false;
     overlayCopy = null;
     setActiveId(event.active.id);
     setOverlayWidth(event.active.rect.current.initial?.width ?? null);
@@ -279,12 +266,56 @@ export default function DndWrapper({ children }: DndWrapperProps) {
       onDragCancel={() => setActiveId(null)}
     >
       {children}
+      <CalendarEdgeScroll pointerY={lastPointerY} />
 
       <DragOverlay dropAnimation={overCalendar ? calendarDropAnimation : dropAnimation}>
         {activeTask ? <DragOverlayCard task={activeTask} width={overlayWidth} /> : null}
       </DragOverlay>
     </DndContext>
   );
+}
+
+/**
+ * While a task is dragged, scrolls the calendar when the finger nears its
+ * visible top or bottom edge. On phones the sheet opens under a finger resting
+ * on its header, so this only starts once the finger has been in the grid.
+ */
+function CalendarEdgeScroll({ pointerY }: { pointerY: { readonly current: number | null } }) {
+  const { active, measureDroppableContainers } = useDndContext();
+  const dragging = active !== null;
+
+  useEffect(() => {
+    if (!dragging) return undefined;
+    let armed = false;
+    let frame = 0;
+    let lastMeasure = 0;
+    let needsMeasure = false;
+
+    const tick = (now: number) => {
+      const scroller = document.querySelector<HTMLElement>(".calendar-scroll");
+      const y = pointerY.current;
+      if (scroller && y !== null) {
+        if (!armed) armed = isInsideScrollerBody(scroller, y);
+        const step = armed ? edgeScrollStep(scroller, y) : 0;
+        if (step !== 0) {
+          scroller.scrollTop += step;
+          needsMeasure = true;
+        }
+        // Keep the drop zone's rect in step with the scrolled grid.
+        if (needsMeasure && (step === 0 || now - lastMeasure > 120)) {
+          measureDroppableContainers(["calendar-dropzone"]);
+          lastMeasure = now;
+          needsMeasure = step !== 0;
+        }
+      }
+      frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [dragging, measureDroppableContainers, pointerY]);
+
+  return null;
 }
 
 /** Copy of the dragged card, made at pickup. Only one drag runs at a time. */
