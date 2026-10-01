@@ -1395,14 +1395,15 @@ textarea {
   }
 }
 
-/* Phones: the small calendar window that rises while a task is being dragged. */
+/* Phones: the small calendar window that drops in while a task is being dragged. */
 .calendar-peek-layer {
   position: fixed;
+  /* Right below the top bar, covering the day title and "Add task". */
+  top: calc(env(safe-area-inset-top, 0px) + 64px);
   left: 12px;
   right: 12px;
-  bottom: calc(var(--mobile-dock-offset, 0px) + 12px);
   z-index: 74;
-  transform-origin: 50% 100%;
+  transform-origin: 50% 0%;
   pointer-events: none;
 }
 
@@ -1412,12 +1413,10 @@ textarea {
   padding: 12px 14px 10px;
   border: 1px solid var(--line);
   border-radius: 20px;
-  background: rgba(var(--surface-rgb), 0.9);
+  background: var(--surface);
   box-shadow:
     0 2px 8px rgba(var(--shadow-rgb), 0.06),
     0 20px 44px rgba(var(--shadow-rgb), 0.16);
-  backdrop-filter: saturate(1.4) blur(18px);
-  -webkit-backdrop-filter: saturate(1.4) blur(18px);
   transition:
     transform 260ms cubic-bezier(0.32, 0.72, 0, 1),
     border-color 200ms ease,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -123,6 +123,26 @@ export default function DndWrapper({ children }: DndWrapperProps) {
   const [overlayWidth, setOverlayWidth] = useState<number | null>(null);
   const [overCalendar, setOverCalendar] = useState(false);
   const lastPointerY = useRef<number | null>(null);
+  const calendarScrollArmed = useRef(false);
+
+  // The phone calendar sheet opens under a finger resting on its header, which
+  // dnd-kit reads as "scroll up". Only let it auto-scroll once the finger has
+  // been inside the time grid, so the day stays near the current time.
+  const autoScroll = useMemo(
+    () => ({
+      canScroll: (element: Element) => {
+        if (!element.classList.contains("calendar-scroll")) return true;
+        if (calendarScrollArmed.current) return true;
+        const y = lastPointerY.current;
+        const rect = element.getBoundingClientRect();
+        if (y !== null && y > rect.top + 48 && y < rect.bottom - 48) {
+          calendarScrollArmed.current = true;
+        }
+        return calendarScrollArmed.current;
+      },
+    }),
+    []
+  );
   const tasks = useTaskStore((state) => state.tasks);
 
   // Mouse: drag the whole card after a few pixels, so plain clicks still work.
@@ -153,6 +173,7 @@ export default function DndWrapper({ children }: DndWrapperProps) {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     lastPointerY.current = null;
+    calendarScrollArmed.current = false;
     overlayCopy = null;
     setActiveId(event.active.id);
     setOverlayWidth(event.active.rect.current.initial?.width ?? null);
@@ -251,6 +272,7 @@ export default function DndWrapper({ children }: DndWrapperProps) {
     <DndContext
       sensors={sensors}
       collisionDetection={customCollisionDetection}
+      autoScroll={autoScroll}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}

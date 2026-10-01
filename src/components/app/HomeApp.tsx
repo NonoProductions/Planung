@@ -32,15 +32,15 @@ function MobileDayNav() {
 export default function HomeApp() {
   const calendarVisible = useUIStore((s) => s.calendarVisible);
   const isMobile = useIsMobile();
-  // Desktop: the panel slides in from the side. Phones: the sheet rises from
-  // the bottom, where the drag peek window sits.
+  // Desktop: the panel slides in from the side. Phones: the sheet unfolds
+  // from the top, where the drag peek window sits.
   const sheetMotion = isMobile
     ? {
-        initial: { opacity: 0, y: 48, scale: 0.94 },
+        initial: { opacity: 0, y: -32, scale: 0.94 },
         animate: { opacity: 1, y: 0, scale: 1 },
-        exit: { opacity: 0, y: 32, scale: 0.96 },
+        exit: { opacity: 0, y: -24, scale: 0.96 },
         transition: { duration: 0.34, ease: [0.32, 0.72, 0, 1] as const },
-        style: { transformOrigin: "50% 100%" },
+        style: { transformOrigin: "50% 0%" },
       }
     : {
         initial: { opacity: 0, x: 28, scale: 0.98 },

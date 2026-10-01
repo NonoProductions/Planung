@@ -34,8 +34,8 @@ export function useIsMobile() {
 }
 
 /**
- * Phones only: while a task is dragged, a small calendar window rises from the
- * bottom. Resting the card on it opens the full calendar sheet, where the card
+ * Phones only: while a task is dragged, a small calendar window drops in at the
+ * top. Resting the card on it opens the full calendar sheet, where the card
  * can then be dropped at a time. Letting go anywhere else closes it again.
  */
 export default function MobileCalendarPeek() {
@@ -85,13 +85,13 @@ export default function MobileCalendarPeek() {
 }
 
 const peekVariants: Variants = {
-  hidden: { opacity: 0, y: 36, scale: 0.94 },
+  hidden: { opacity: 0, y: -36, scale: 0.94 },
   shown: { opacity: 1, y: 0, scale: 1 },
-  // Opening grows into the sheet; a plain drop just sinks away.
+  // Opening grows into the sheet; a plain drop just slides back up.
   exit: (opening: boolean) =>
     opening
-      ? { opacity: 0, scale: 1.06, y: -12, transition: { duration: 0.22, ease: [0.4, 0, 0.2, 1] } }
-      : { opacity: 0, y: 28, scale: 0.96, transition: { duration: 0.18, ease: "easeIn" } },
+      ? { opacity: 0, scale: 1.06, y: 12, transition: { duration: 0.22, ease: [0.4, 0, 0.2, 1] } }
+      : { opacity: 0, y: -28, scale: 0.96, transition: { duration: 0.18, ease: "easeIn" } },
 };
 
 function PeekWindow({ onOpen }: { onOpen: () => void }) {
