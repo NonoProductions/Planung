@@ -206,7 +206,9 @@ final class SyncEngine {
 
         let pairedCount = state.entries.values.filter { $0.reminderBase != nil }.count
         let vanished = tasks.values.filter { !$0.isCompleted && byTask[$0.id] == nil && state.entries[$0.id]?.reminderBase != nil }
-        let orphaned = byTask.filter { tasks[$0.key] == nil && !$0.value.isCompleted }
+        // Only items paired on this device count as deleted: an item pointing to a task we
+        // have never seen comes from another device whose task hasn't reached us yet.
+        let orphaned = byTask.filter { tasks[$0.key] == nil && !$0.value.isCompleted && state.entries[$0.key]?.reminderBase != nil }
         let allowTaskDeletes = isSafeToDelete(vanished.count, of: pairedCount)
         let allowReminderDeletes = isSafeToDelete(orphaned.count, of: pairedCount)
         if !allowTaskDeletes { log("⚠️ \(vanished.count) Erinnerungen fehlen – Tasks werden vorsichtshalber nicht gelöscht") }
@@ -268,7 +270,7 @@ final class SyncEngine {
         }
 
         // Tasks deleted in the web app.
-        for (id, reminder) in byTask where tasks[id] == nil {
+        for (id, reminder) in byTask where tasks[id] == nil && state.entries[id]?.reminderBase != nil {
             if !reminder.isCompleted {
                 guard allowReminderDeletes else { summary.skippedDeletes += 1; continue }
                 try store.remove(reminder, commit: false)
@@ -362,7 +364,7 @@ final class SyncEngine {
         }
 
         let pairedCount = state.entries.values.filter { $0.eventBase != nil }.count
-        let orphaned = byTask.filter { tasks[$0.key] == nil }
+        let orphaned = byTask.filter { tasks[$0.key] == nil && state.entries[$0.key]?.eventBase != nil }
         let allowEventDeletes = isSafeToDelete(orphaned.count, of: pairedCount)
         if !allowEventDeletes { log("⚠️ \(orphaned.count) Tasks fehlen – Termine werden vorsichtshalber nicht gelöscht") }
 
