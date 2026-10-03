@@ -1667,6 +1667,8 @@ textarea {
 }
 
 .planning-card__subtask-text {
+  /* First line centred on the 22px toggle (1px offset + 22px height) */
+  padding-top: 3px;
   color: var(--text-primary);
   font-size: 13px;
   line-height: 1.4;

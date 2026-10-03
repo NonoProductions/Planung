@@ -562,6 +562,9 @@ function EditableTaskCard({
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
+                            height: 22,
+                            marginTop: 1,
+                            flexShrink: 0,
                             color: "var(--text-muted)",
                             cursor: "grab",
                             padding: "0 2px",
@@ -614,6 +617,8 @@ function EditableTaskCard({
                             }}
                             style={{
                               flex: 1,
+                              marginTop: 1,
+                              height: 22,
                               border: "1px solid var(--border-color)",
                               borderRadius: 4,
                               padding: "2px 6px",
@@ -647,7 +652,7 @@ function EditableTaskCard({
                 );
               })}
 
-            <div className="planning-card__subtask" style={{ marginTop: 4 }}>
+            <div className="planning-card__subtask" style={{ marginTop: 4, alignItems: "stretch" }}>
               <input
                 ref={subtaskInputRef}
                 type="text"
@@ -675,6 +680,7 @@ function EditableTaskCard({
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: 2,
                   padding: "4px 8px",
                   border: "1px solid var(--border-color)",
