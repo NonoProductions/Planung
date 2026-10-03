@@ -18,6 +18,7 @@ import { useUIStore } from "@/stores/uiStore";
 import TaskCard from "@/components/tasks/TaskCard";
 import type { Task } from "@/types";
 import { extractDateOnly, toLocalDateString } from "@/lib/date";
+import { useDismissAddForm } from "@/hooks/useDismissAddForm";
 
 interface Props {
   weekStart: string;
@@ -151,6 +152,8 @@ export default function WeekGrid({ weekStart }: Props) {
     setNewPlannedTime("");
     clearQuickAddRequest();
   }
+
+  useDismissAddForm(Boolean(addFormDate), resetAddForm);
 
   async function handleAddTask(date: string, position: number) {
     if (!newTitle.trim()) return;

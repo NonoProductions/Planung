@@ -27,6 +27,7 @@ import TaskCard from "@/components/tasks/TaskCard";
 import type { Task } from "@/types";
 import { toLocalDateString } from "@/lib/date";
 import { useDaySwipe } from "@/components/layout/useDaySwipe";
+import { useDismissAddForm } from "@/hooks/useDismissAddForm";
 
 const QUICK_ADD_DURATIONS = ["8:00", "4:30"];
 const DEFAULT_PROGRESS_WEIGHT_MINUTES = 30;
@@ -141,6 +142,8 @@ export default function TaskList() {
 
   const showAddFormForDate =
     quickAddRequest?.mode === "day" ? quickAddRequest.value : null;
+
+  useDismissAddForm(Boolean(showAddFormForDate), clearQuickAddRequest);
 
   useEffect(() => {
     if (showAddFormForDate) {

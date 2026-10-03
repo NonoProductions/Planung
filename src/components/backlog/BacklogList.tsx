@@ -19,6 +19,7 @@ import { useUIStore } from "@/stores/uiStore";
 import { FolderPlus, Plus, Search, Sparkles, X } from "lucide-react";
 import BacklogTaskCard from "@/components/backlog/BacklogTaskCard";
 import type { Task } from "@/types";
+import { useDismissAddForm } from "@/hooks/useDismissAddForm";
 
 type BucketKey = "this_week" | "next_weeks" | "someday";
 
@@ -218,6 +219,12 @@ export default function BacklogList() {
     setNewChannelId("");
     setNewPlannedTime("");
   };
+
+  useDismissAddForm(Boolean(backlogQuickAddTarget), resetInlineForm);
+  useDismissAddForm(showNewFolder, () => {
+    setShowNewFolder(false);
+    setNewFolderName("");
+  });
 
   const handleAddTask = async (bucket: string) => {
     if (!newTitle.trim()) return;
