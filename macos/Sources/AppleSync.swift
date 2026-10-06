@@ -269,6 +269,7 @@ final class AppleSyncEngine {
 
         var byTask: [String: EKReminder] = [:]
         var unpaired: [EKReminder] = []
+        var duplicated = Set<String>()
         for reminder in reminders {
             if let id = Self.taskId(of: reminder) ?? pairedTaskId(reminderId: reminder.calendarItemIdentifier) {
                 if byTask[id] == nil {
@@ -281,6 +282,7 @@ final class AppleSyncEngine {
                     // Mac and iPhone both created a reminder for the same new task before
                     // iCloud had passed the other one on: drop the extra one.
                     try store.remove(reminder, commit: false)
+                    duplicated.insert(id)
                     log("Doppelte Erinnerung entfernt: \(reminder.title ?? "")")
                 }
             } else {
@@ -322,7 +324,10 @@ final class AppleSyncEngine {
                 var synced = taskFields
 
                 if taskFields != reminderFields {
-                    let reminderChanged = reminderFields != entry.reminderBase
+                    // A kept duplicate that this device hadn't paired says nothing about edits
+                    // in Reminders (it may still be open while the task is done): the task wins.
+                    let adopted = duplicated.contains(task.id) && entry.reminderId != reminder.calendarItemIdentifier
+                    let reminderChanged = !adopted && reminderFields != entry.reminderBase
                     let taskChanged = taskFields != entry.reminderBase
                     let reminderWins = reminderChanged
                         && (!taskChanged || (reminder.lastModifiedDate ?? .distantPast) > (task.updatedAt ?? .distantPast))
