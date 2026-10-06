@@ -263,7 +263,8 @@ final class AppleSyncEngine {
 
     private func syncReminders(summary: inout AppleSyncSummary) async throws {
         let list = try collection(for: .reminder)
-        let reminders = await fetchReminders(in: list)
+        // Oldest first, so every device keeps the same reminder when there are duplicates.
+        let reminders = Self.oldestFirst(await fetchReminders(in: list))
         var tasks = currentTasks()
 
         var byTask: [String: EKReminder] = [:]
@@ -276,6 +277,11 @@ final class AppleSyncEngine {
                         reminder.url = Self.url(for: id)
                         try store.save(reminder, commit: false)
                     }
+                } else {
+                    // Mac and iPhone both created a reminder for the same new task before
+                    // iCloud had passed the other one on: drop the extra one.
+                    try store.remove(reminder, commit: false)
+                    log("Doppelte Erinnerung entfernt: \(reminder.title ?? "")")
                 }
             } else {
                 unpaired.append(reminder)
@@ -405,6 +411,13 @@ final class AppleSyncEngine {
         let predicate = store.predicateForReminders(in: [list])
         return await withCheckedContinuation { continuation in
             store.fetchReminders(matching: predicate) { continuation.resume(returning: $0 ?? []) }
+        }
+    }
+
+    private static func oldestFirst(_ reminders: [EKReminder]) -> [EKReminder] {
+        reminders.sorted {
+            let a = $0.creationDate ?? .distantPast, b = $1.creationDate ?? .distantPast
+            return a != b ? a < b : $0.calendarItemIdentifier < $1.calendarItemIdentifier
         }
     }
 
