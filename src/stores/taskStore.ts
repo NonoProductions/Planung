@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import type { Task, CalendarEvent, Channel, CalendarCategory, RecurringRule } from "@/types";
@@ -259,7 +260,12 @@ interface TaskState {
   deleteEvent: (eventId: string) => Promise<void>;
 }
 
-export const useTaskStore = create<TaskState>((set, get) => ({
+/** localStorage key of the last loaded tasks, shown right away on the next start. */
+export const TASK_CACHE_KEY = "planung-task-cache";
+
+export const useTaskStore = create<TaskState>()(
+  persist(
+  (set, get) => ({
   tasks: [],
   backlogTasks: [],
   events: [],
@@ -784,4 +790,19 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
     }
   },
-}));
+}),
+  {
+    name: TASK_CACHE_KEY,
+    storage: createJSONStorage(() => localStorage),
+    // Loaded by AppShell after mounting (see there).
+    skipHydration: true,
+    // Only the loaded data: it shows instantly on start while the fresh copy loads.
+    partialize: (state) => ({
+      tasks: state.tasks,
+      backlogTasks: state.backlogTasks,
+      channels: state.channels,
+      calendarCategories: state.calendarCategories,
+    }),
+  }
+  )
+);

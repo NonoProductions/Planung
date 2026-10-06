@@ -119,9 +119,10 @@ export default function TaskList() {
     fetchChannels();
   }, [fetchChannels]);
 
+  // Loads all tasks at once, so switching days needs no new request.
   useEffect(() => {
     fetchTasks();
-  }, [selectedDate, fetchTasks]);
+  }, [fetchTasks]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;

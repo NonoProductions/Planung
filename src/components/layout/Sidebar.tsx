@@ -18,6 +18,7 @@ import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUIStore } from "@/stores/uiStore";
+import { useTaskStore } from "@/stores/taskStore";
 import { haptic } from "@/lib/haptics";
 
 const mainNav = [
@@ -197,7 +198,11 @@ export default function Sidebar({ collapsed = false, onClose }: SidebarProps) {
           <button
             type="button"
             className="sidebar-item sidebar-item--button"
-            onClick={() => void signOut({ callbackUrl: "/login" })}
+            onClick={() => {
+              // The next account must not see this one's cached tasks.
+              useTaskStore.persist.clearStorage();
+              void signOut({ callbackUrl: "/login" });
+            }}
           >
             <SidebarRow label="Abmelden" icon={LogOut} />
           </button>

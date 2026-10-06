@@ -20,6 +20,7 @@ import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
 import { toLocalDateString } from "@/lib/date";
 import { claimDailyRitual, SHUTDOWN_PROMPT_RITUAL } from "@/lib/rituals";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
 
 interface AppShellProps {
@@ -139,6 +140,12 @@ export default function AppShell({
   const setAutoPlanningPromptedDate = useUIStore((state) => state.setAutoPlanningPromptedDate);
   const autoPromptedDate = useUIStore((state) => state.autoShutdownPromptedDate);
   const setAutoPromptedDate = useUIStore((state) => state.setAutoShutdownPromptedDate);
+
+  // Show the tasks cached from the last visit until the fresh ones arrive. Done after
+  // mounting, so the server-rendered page and the first client render still match.
+  useEffect(() => {
+    if (!useTaskStore.persist.hasHydrated()) void useTaskStore.persist.rehydrate();
+  }, []);
 
   useEffect(() => {
     setSidebarExpanded(false);
