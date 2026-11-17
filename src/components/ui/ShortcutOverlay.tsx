@@ -17,6 +17,7 @@ const SHORTCUTS = [
   { keys: ["?"], label: "Shortcut-Hilfe", detail: "Öffnet diese Übersicht." },
   { keys: ["Ctrl", "?"], label: "Shortcut-Hilfe", detail: "Alternative für Systeme mit anderem Layout." },
   { keys: ["Esc"], label: "Schließen", detail: "Schließt Panels, Modal-Ansichten oder Quick Add." },
+  { keys: ["Ctrl", "Tab"], label: "Seite wechseln", detail: "Zur zuletzt offenen Seite; Ctrl halten und Tab für weiter zurück." },
   { keys: ["B"], label: "Backlog", detail: "Wechselt direkt in den Backlog." },
   { keys: ["1-9"], label: "Zeitschätzung", detail: "Setzt 1 bis 9 Stunden für die Auswahl." },
   { keys: ["Shift", "C"], label: "Kalender", detail: "Blendet das Kalenderpanel ein oder aus." },

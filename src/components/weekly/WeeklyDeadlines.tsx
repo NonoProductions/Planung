@@ -120,11 +120,11 @@ export default function WeeklyDeadlines({ weekStart }: Props) {
   const [newTitle, setNewTitle] = useState("");
   const [newDue, setNewDue] = useState(() => defaultDueDate(weekStart, today));
   const titleRef = useRef<HTMLInputElement>(null);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    setCollapsed(readCollapsed());
-  }, []);
+  // Read before the first paint: loading it in an effect showed cards open and then
+  // folded them shut with an animation every time the page was opened.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() =>
+    typeof window === "undefined" ? {} : readCollapsed()
+  );
 
   function setCardCollapsed(id: string, value: boolean) {
     setCollapsed((current) => {
@@ -178,7 +178,13 @@ export default function WeeklyDeadlines({ weekStart }: Props) {
     // Close right away; the card appears as soon as the server has saved it.
     setNewTitle("");
     setShowAdd(false);
+    const known = new Set(useTaskStore.getState().tasks.map((task) => task.id));
     await addTask({ title, dueDate: newDue, position: 0 });
+    // Cards start folded, but a brand-new one opens so its work days can be picked right away.
+    const created = useTaskStore
+      .getState()
+      .tasks.find((task) => !known.has(task.id) && isDeadlineTask(task) && task.title === title);
+    if (created) setCardCollapsed(created.id, false);
   }
 
   const total = thisWeek.length + upcoming.length;
@@ -195,8 +201,8 @@ export default function WeeklyDeadlines({ weekStart }: Props) {
         addTask={addTask}
         updateTask={updateTask}
         deleteTask={deleteTask}
-        // Finished cards fold away on their own unless opened again by hand.
-        collapsed={collapsed[deadline.id] ?? deadline.status === "COMPLETED"}
+        // Folded unless opened by hand.
+        collapsed={collapsed[deadline.id] ?? true}
         onCollapsedChange={(value) => setCardCollapsed(deadline.id, value)}
       />
     );
@@ -364,8 +370,8 @@ function DeadlineCard({
 
   function toggleDone() {
     haptic(done ? "select" : "success");
-    // Fold the weekdays away when ticking off; reopening brings them back.
-    onCollapsedChange(!done);
+    // Fold the weekdays away when ticking off.
+    if (!done) onCollapsedChange(true);
     void updateTask(deadline.id, { status: done ? "OPEN" : "COMPLETED" });
   }
 
@@ -381,8 +387,22 @@ function DeadlineCard({
     void updateTask(deadline.id, { title });
   }
 
+  // Two taps instead of window.confirm, which the iPhone app's web view silently answers with "no".
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    if (!confirmDelete) return;
+    const timer = window.setTimeout(() => setConfirmDelete(false), 3500);
+    return () => window.clearTimeout(timer);
+  }, [confirmDelete]);
+
   function handleDelete() {
-    if (!window.confirm(`„${deadline.title}“ löschen? Offene Arbeitstage werden mit entfernt.`)) return;
+    if (!confirmDelete) {
+      haptic("select");
+      setConfirmDelete(true);
+      return;
+    }
+    haptic("success");
     for (const session of sessions) {
       if (session.status !== "COMPLETED") void deleteTask(session.id);
     }
@@ -487,14 +507,32 @@ function DeadlineCard({
               <ChevronDown size={15} strokeWidth={2.2} />
             </motion.span>
           </button>
-          <button
+          <motion.button
             type="button"
+            layout
             onClick={handleDelete}
-            className="deadline-card__icon-button deadline-card__delete"
-            aria-label="Abgabe löschen"
+            onBlur={() => setConfirmDelete(false)}
+            className={`deadline-card__icon-button deadline-card__delete${confirmDelete ? " is-armed" : ""}`}
+            aria-label={confirmDelete ? "Wirklich löschen" : "Abgabe löschen"}
+            title={confirmDelete ? "Nochmal tippen zum Löschen" : "Abgabe löschen"}
+            transition={{ duration: 0.2, ease: EASE }}
           >
             <Trash2 size={13} strokeWidth={2} />
-          </button>
+            <AnimatePresence initial={false}>
+              {confirmDelete && (
+                <motion.span
+                  key="confirm"
+                  className="deadline-card__delete-label"
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.2, ease: EASE }}
+                >
+                  Löschen
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.button>
         </div>
       </div>
 

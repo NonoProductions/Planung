@@ -10,6 +10,7 @@ import { Menu, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { usePathname } from "next/navigation";
 import ConfettiCelebration from "@/components/celebrations/ConfettiCelebration";
 import FocusModeModal from "@/components/focus/FocusModeModal";
+import PageSwitcher from "@/components/layout/PageSwitcher";
 import Sidebar from "@/components/layout/Sidebar";
 import DailyShutdownModal from "@/components/rituals/DailyShutdownModal";
 import ShortcutOverlay from "@/components/ui/ShortcutOverlay";
@@ -198,6 +199,7 @@ export default function AppShell({
 
       <ConfettiCelebration />
       <ShortcutOverlay />
+      <PageSwitcher />
       <FocusModeModal />
       <DailyShutdownModal />
     </div>
