@@ -4436,7 +4436,9 @@ input[type="number"] {
 .deadline-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
-  gap: 12px;
+  /* Each card only as tall as itself, so a folded card next to an open one stays small. */
+  align-items: start;
+  gap: 10px;
   margin-top: 14px;
 }
 
@@ -5740,4 +5742,109 @@ input[type="number"] {
   .deadline-card__fold {
     width: 34px;
   }
+}
+
+/* Folded deadline: one compact row (check, title, countdown, date, buttons). */
+.deadline-card {
+  transition: padding 280ms cubic-bezier(0.32, 0.72, 0, 1), opacity 240ms ease, background-color 240ms ease;
+}
+
+.deadline-card.is-collapsed {
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+.deadline-card.is-collapsed .deadline-card__top {
+  align-items: center;
+}
+
+.deadline-card.is-collapsed .deadline-card__check {
+  margin-top: 0;
+}
+
+.deadline-card.is-collapsed .deadline-card__text {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.deadline-card.is-collapsed .deadline-card__title {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deadline-card.is-collapsed .deadline-card__meta {
+  min-width: 0;
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+  margin-top: 0;
+}
+
+.deadline-card.is-collapsed .deadline-card__due {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deadline-card.is-collapsed .deadline-card__side {
+  margin-top: 0;
+}
+
+@media (max-width: 767px) {
+  /* Phones: the date is in the countdown already; keep the row to title + countdown. */
+  .deadline-card.is-collapsed .deadline-card__due {
+    display: none;
+  }
+}
+
+/* A task just created here slides in. Uses the separate translate/scale properties
+   because drag & drop owns `transform` on the card. */
+@keyframes planning-card-in {
+  from {
+    opacity: 0;
+    translate: 0 -10px;
+    scale: 0.97;
+  }
+}
+
+.planning-card.is-fresh {
+  animation: planning-card-in 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Delete asks once more on the button itself: it widens into a red "Löschen". */
+.planning-card__delete {
+  width: auto;
+  min-width: 22px;
+  gap: 4px;
+  padding: 0 5px;
+  overflow: hidden;
+  white-space: nowrap;
+  background-color: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+
+.planning-card__delete.is-armed {
+  background-color: var(--accent-danger);
+  color: #ffffff;
+}
+
+.planning-card__delete-label {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .planning-card.is-fresh {
+    animation: none;
+  }
+}
+
+/* Height-animated shell around the add form, so it can fold to nothing. */
+.planning-add-form-wrap {
+  overflow: hidden;
 }

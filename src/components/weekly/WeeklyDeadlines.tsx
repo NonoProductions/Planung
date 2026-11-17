@@ -416,7 +416,9 @@ function DeadlineCard({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.18 } }}
       transition={{ duration: 0.28, ease: EASE }}
-      className={`planning-card deadline-card deadline-card--${countdown.tone}${done ? " is-done" : ""}`}
+      className={`planning-card deadline-card deadline-card--${countdown.tone}${done ? " is-done" : ""}${
+        collapsed ? " is-collapsed" : ""
+      }`}
     >
       <div className="deadline-card__top">
         <motion.button

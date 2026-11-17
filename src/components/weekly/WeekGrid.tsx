@@ -158,15 +158,16 @@ export default function WeekGrid({ weekStart }: Props) {
   async function handleAddTask(date: string, position: number) {
     if (!newTitle.trim()) return;
 
-    await addTask({
+    const task = {
       title: newTitle.trim(),
       scheduledDate: date,
       channelId: newChannelId || undefined,
       plannedTime: newPlannedTime ? parseInt(newPlannedTime, 10) : undefined,
       position,
-    });
-
+    };
+    // Close at once; the card shows immediately and is saved in the background.
     resetAddForm();
+    await addTask(task);
   }
 
   function handleAddKeyDown(

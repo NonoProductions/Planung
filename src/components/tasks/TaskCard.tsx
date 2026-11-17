@@ -11,7 +11,7 @@ import {
 } from "react";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { CalendarClock, Check, Flag, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   DndContext,
@@ -30,7 +30,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import TaskScheduleForm from "@/components/calendar/TaskScheduleForm";
 import type { PopoverAnchor } from "@/components/calendar/CalendarPopover";
-import { useTaskStore } from "@/stores/taskStore";
+import { freshTaskIds, useTaskStore } from "@/stores/taskStore";
 import { haptic } from "@/lib/haptics";
 import { useUIStore } from "@/stores/uiStore";
 import type { Channel, Task } from "@/types";
@@ -96,6 +96,14 @@ export default function TaskCard({ task }: TaskCardProps) {
   };
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Slide in once if this card was just created here (not on page load or refetch).
+  const [fresh] = useState(() => freshTaskIds.delete(task.id));
+
+  useEffect(() => {
+    if (!confirmDelete) return undefined;
+    const timer = window.setTimeout(() => setConfirmDelete(false), 3500);
+    return () => window.clearTimeout(timer);
+  }, [confirmDelete]);
   // Edit/delete/drag only show after tapping the card; a tap anywhere else hides them.
   const [actionsRevealed, setActionsRevealed] = useState(false);
   // "Einplanen": pick a day and time without dragging into the calendar (phones).
@@ -145,7 +153,7 @@ export default function TaskCard({ task }: TaskCardProps) {
         }}
         className={`group planning-card${actionsRevealed ? " is-revealed" : ""}${
           isDragging ? " is-drag-placeholder" : ""
-        }`}
+        }${fresh ? " is-fresh" : ""}`}
         style={sortableStyle}
         {...attributes}
         {...listeners}
@@ -281,29 +289,38 @@ export default function TaskCard({ task }: TaskCardProps) {
               <Pencil size={12} strokeWidth={2} />
             </button>
 
-            <button
-              className="planning-card__ghost-action"
-              style={{
-                backgroundColor: confirmDelete
-                  ? "var(--accent-danger-light)"
-                  : "var(--surface-sunken)",
-                color: confirmDelete
-                  ? "var(--accent-danger)"
-                  : "var(--text-secondary)",
-              }}
+            <motion.button
+              layout
+              transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+              className={`planning-card__ghost-action planning-card__delete${confirmDelete ? " is-armed" : ""}`}
               onClick={() => {
                 if (confirmDelete) {
+                  haptic("success");
                   void deleteTask(task.id);
                 } else {
                   haptic("light");
                   setConfirmDelete(true);
-                  window.setTimeout(() => setConfirmDelete(false), 2400);
                 }
               }}
-              aria-label="Delete"
+              aria-label={confirmDelete ? "Wirklich löschen" : "Löschen"}
+              title={confirmDelete ? "Nochmal tippen zum Löschen" : "Löschen"}
             >
               <Trash2 size={12} strokeWidth={2} />
-            </button>
+              <AnimatePresence initial={false}>
+                {confirmDelete && (
+                  <motion.span
+                    key="confirm"
+                    className="planning-card__delete-label"
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: "auto" }}
+                    exit={{ opacity: 0, width: 0 }}
+                    transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+                  >
+                    Löschen
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.button>
 
             <button
               className="planning-card__ghost-action"

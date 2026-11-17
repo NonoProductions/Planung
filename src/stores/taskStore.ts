@@ -9,6 +9,17 @@ import { extractDateOnly } from "@/lib/date";
 import { useUIStore } from "@/stores/uiStore";
 import { haptic } from "@/lib/haptics";
 
+/** Ids of tasks just created on this device; their cards slide in once when they first appear. */
+export const freshTaskIds = new Set<string>();
+
+function newClientId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  // RFC 4122 v4 fallback for older web views.
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (char) =>
+    (Number(char) ^ (Math.random() * 16) >> (Number(char) / 4)).toString(16)
+  );
+}
+
 // Placeholder channels (used as fallback when API unavailable)
 const FALLBACK_CHANNELS: Channel[] = [
   { id: "ch1", name: "Arbeit", color: "#4F46E5" },
@@ -420,23 +431,54 @@ export const useTaskStore = create<TaskState>()(
 
   addTask: async (taskData) => {
     haptic("medium");
+    // Shown right away and saved in the background; the server keeps the id we pick,
+    // so the card does not jump or remount when the response arrives.
+    const id = newClientId();
+    const state = get();
+    const optimistic: Task = {
+      id,
+      title: taskData.title,
+      description: taskData.description,
+      status: "OPEN",
+      plannedTime: taskData.plannedTime,
+      scheduledDate: taskData.scheduledDate,
+      scheduledStart: taskData.scheduledStart,
+      scheduledEnd: taskData.scheduledEnd,
+      dueDate: taskData.dueDate,
+      position: taskData.position ?? 0,
+      channelId: taskData.channelId,
+      channel: taskData.channelId
+        ? state.channels.find((channel) => channel.id === taskData.channelId)
+        : undefined,
+      subtasks: [],
+      isRecurring: false,
+      isBacklog: Boolean(taskData.isBacklog),
+      backlogBucket: taskData.backlogBucket,
+      backlogFolder: taskData.backlogFolder,
+    };
+    freshTaskIds.add(id);
+    const listKey = taskData.isBacklog ? "backlogTasks" : "tasks";
+    set((s) => ({ [listKey]: [...s[listKey], optimistic] }) as Partial<TaskState>);
+
     try {
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(taskData),
+        body: JSON.stringify({ ...taskData, id }),
       });
       assertApiResponse(res);
-      const data = await res.json();
-      const newTask = mapApiTask(data as Record<string, unknown>);
-      set({ apiAvailable: true });
-      if (taskData.isBacklog) {
-        set((s) => ({ backlogTasks: [...s.backlogTasks, newTask] }));
-      } else {
-        set((s) => ({ tasks: [...s.tasks, newTask] }));
-      }
+      const saved = mapApiTask((await res.json()) as Record<string, unknown>);
+      set((s) => ({
+        apiAvailable: true,
+        [listKey]: s[listKey].map((task) => (task.id === id ? { ...saved, id } : task)),
+      }) as Partial<TaskState>);
     } catch {
-      set({ apiAvailable: false });
+      // Not saved: take the card back out rather than show something that is not stored.
+      freshTaskIds.delete(id);
+      set((s) => ({
+        apiAvailable: false,
+        [listKey]: s[listKey].filter((task) => task.id !== id),
+      }) as Partial<TaskState>);
     }
   },
 

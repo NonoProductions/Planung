@@ -8,7 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { addDays, format, parseISO, subDays } from "date-fns";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { de } from "date-fns/locale";
 import {
   CalendarDays,
@@ -210,19 +210,20 @@ export default function TaskList() {
     if (!newTitle.trim()) return;
 
     const dayTasks = tasksByDay.get(date) || [];
-
-    await addTask({
+    const task = {
       title: newTitle.trim(),
       scheduledDate: date,
       channelId: newChannelId || undefined,
       plannedTime: newPlannedTime ? parseInt(newPlannedTime, 10) : undefined,
       position: dayTasks.length,
-    });
+    };
 
+    // Close the form at once; the card appears immediately and is saved in the background.
     setNewTitle("");
     setNewChannelId("");
     setNewPlannedTime("");
     clearQuickAddRequest();
+    await addTask(task);
   };
 
   const handleAddFormKeyDown = (
@@ -336,7 +337,16 @@ export default function TaskList() {
                       )}
                     </button>
 
+                    <AnimatePresence initial={false}>
                     {showAddFormForDate === dayDate && (
+                      <motion.div
+                        key="add-form"
+                        className="planning-add-form-wrap"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                      >
                       <div className="planning-add-form">
                         <input
                           ref={addInputRef}
@@ -395,7 +405,9 @@ export default function TaskList() {
                           </button>
                         </div>
                       </div>
+                      </motion.div>
                     )}
+                    </AnimatePresence>
 
                     <div className="planning-cards">
                       {dayTasks.length > 0 ? (
