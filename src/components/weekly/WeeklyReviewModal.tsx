@@ -1,102 +1,96 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { addDays, parseISO, isSameDay, format } from "date-fns";
+import { addDays, format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
-import { X, CheckCircle2, Target, Clock, TrendingUp } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { CheckCircle2, Clock, Flag, TrendingUp, X } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useTaskStore } from "@/stores/taskStore";
-import { useObjectiveStore } from "@/stores/objectiveStore";
+import { toLocalDateString } from "@/lib/date";
+import { isDeadlineTask } from "@/components/weekly/WeeklyDeadlines";
 
 interface Props {
   weekStart: string;
   onClose: () => void;
 }
 
+function fmtMins(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest}m`;
+  if (rest === 0) return `${hours}h`;
+  return `${hours}h ${rest}m`;
+}
+
 export default function WeeklyReviewModal({ weekStart, onClose }: Props) {
-  const { tasks } = useTaskStore();
-  const { objectives, fetchObjectives } = useObjectiveStore();
+  const tasks = useTaskStore((state) => state.tasks);
 
   useEffect(() => {
-    fetchObjectives(weekStart);
-  }, [weekStart, fetchObjectives]);
-
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const weekDays = useMemo(() => {
-    const start = parseISO(weekStart);
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  }, [weekStart]);
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => toLocalDateString(addDays(parseISO(weekStart), index))),
+    [weekStart]
+  );
+  const weekEnd = weekDays[6];
 
-  // Tasks belonging to this week
-  const weekTasks = useMemo(() => {
-    return tasks.filter((t) => {
-      if (!t.scheduledDate) return false;
-      const d = parseISO(t.scheduledDate);
-      return weekDays.some((day) => isSameDay(d, day));
-    });
-  }, [tasks, weekDays]);
+  const weekTasks = useMemo(
+    () => tasks.filter((task) => task.scheduledDate && task.scheduledDate >= weekStart && task.scheduledDate <= weekEnd),
+    [tasks, weekStart, weekEnd]
+  );
 
-  const completedTasks = weekTasks.filter((t) => t.status === "COMPLETED");
-  const totalPlanned = weekTasks.reduce((s, t) => s + (t.plannedTime || 0), 0);
-  const completedPlanned = completedTasks.reduce((s, t) => s + (t.plannedTime || 0), 0);
-  const completionRate =
-    weekTasks.length > 0 ? Math.round((completedTasks.length / weekTasks.length) * 100) : 0;
+  const completedTasks = weekTasks.filter((task) => task.status === "COMPLETED");
+  const totalPlanned = weekTasks.reduce((sum, task) => sum + (task.plannedTime || 0), 0);
+  const completedPlanned = completedTasks.reduce((sum, task) => sum + (task.plannedTime || 0), 0);
+  const completionRate = weekTasks.length > 0 ? Math.round((completedTasks.length / weekTasks.length) * 100) : 0;
 
-  // Time by channel
-  const byChannel = useMemo(() => {
-    const map: Record<string, { name: string; color: string; total: number; done: number }> = {};
-    for (const t of weekTasks) {
-      const key = t.channelId || "none";
-      if (!map[key]) {
-        map[key] = {
-          name: t.channel?.name ?? "Ohne Channel",
-          color: t.channel?.color ?? "var(--text-muted)",
-          total: 0,
-          done: 0,
+  const deadlines = tasks.filter(
+    (task) => isDeadlineTask(task) && task.dueDate! >= weekStart && task.dueDate! <= weekEnd
+  );
+  const deadlinesDone = deadlines.filter((task) => task.status === "COMPLETED").length;
+
+  const byDay = useMemo(
+    () =>
+      weekDays.map((day) => {
+        const dayTasks = weekTasks.filter((task) => task.scheduledDate === day);
+        const done = dayTasks.filter((task) => task.status === "COMPLETED");
+        return {
+          day,
+          total: dayTasks.length,
+          done: done.length,
+          planned: dayTasks.reduce((sum, task) => sum + (task.plannedTime || 0), 0),
+          donePlanned: done.reduce((sum, task) => sum + (task.plannedTime || 0), 0),
         };
-      }
-      map[key].total += t.plannedTime || 0;
-      if (t.status === "COMPLETED") map[key].done += t.plannedTime || 0;
+      }),
+    [weekTasks, weekDays]
+  );
+  const maxDayPlanned = Math.max(...byDay.map((day) => day.planned), 1);
+
+  const byChannel = useMemo(() => {
+    const map: Record<string, { name: string; color: string; total: number }> = {};
+    for (const task of weekTasks) {
+      const key = task.channelId || "none";
+      map[key] ??= {
+        name: task.channel?.name ?? "Ohne Channel",
+        color: task.channel?.color ?? "var(--text-muted)",
+        total: 0,
+      };
+      map[key].total += task.plannedTime || 0;
     }
-    return Object.values(map).sort((a, b) => b.total - a.total);
+    return Object.values(map)
+      .filter((channel) => channel.total > 0)
+      .sort((first, second) => second.total - first.total);
   }, [weekTasks]);
 
-  // Tasks per day
-  const byDay = useMemo(() => {
-    return weekDays.map((day) => {
-      const dayTasks = weekTasks.filter((t) => {
-        if (!t.scheduledDate) return false;
-        return isSameDay(parseISO(t.scheduledDate), day);
-      });
-      return {
-        day,
-        total: dayTasks.length,
-        done: dayTasks.filter((t) => t.status === "COMPLETED").length,
-        planned: dayTasks.reduce((s, t) => s + (t.plannedTime || 0), 0),
-      };
-    });
-  }, [weekTasks, weekDays]);
+  // A breakdown with only "Ohne Channel" says nothing, so it is shown once channels are used.
+  const showChannels = weekTasks.some((task) => task.channelId) && byChannel.length > 0;
 
-  const weekObjectives = objectives.filter((o) => o.weekStart === weekStart);
-  const completedObjectives = weekObjectives.filter((o) => o.progress >= 100);
-
-  function fmtMins(m: number) {
-    const h = Math.floor(m / 60);
-    const min = m % 60;
-    if (h === 0) return `${min}m`;
-    if (min === 0) return `${h}h`;
-    return `${h}h ${min}m`;
-  }
-
-  const maxDayPlanned = Math.max(...byDay.map((d) => d.planned), 1);
+  const isEmpty = weekTasks.length === 0 && deadlines.length === 0;
 
   return (
     <AnimatePresence>
@@ -107,281 +101,141 @@ export default function WeeklyReviewModal({ weekStart, onClose }: Props) {
         exit={{ opacity: 0 }}
         transition={{ duration: 0.18 }}
         className="app-overlay z-50"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
+        onClick={(event) => {
+          if (event.target === event.currentTarget) onClose();
         }}
       >
         <motion.div
           key="review-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="week-review-title"
           initial={{ opacity: 0, scale: 0.97, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.97, y: 8 }}
           transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-          className="ritual-modal ritual-modal--board flex w-full max-w-2xl flex-col overflow-hidden"
-          style={{ maxHeight: "88vh" }}
+          className="ritual-modal ritual-modal--board week-review"
         >
-          {/* Header */}
-          <div
-            className="flex shrink-0 items-center gap-3 px-4 py-4 sm:px-6 sm:py-5"
-            style={{ borderBottom: "1px solid var(--border-subtle)" }}
-          >
-            <TrendingUp size={18} strokeWidth={1.8} style={{ color: "var(--accent-primary)" }} />
-            <div>
-              <h2
-                className="text-[15px] font-semibold"
-                style={{ color: "var(--text-primary)" }}
-              >
+          <header className="week-review__header">
+            <TrendingUp size={18} strokeWidth={1.8} className="week-review__icon" />
+            <div className="min-w-0">
+              <h2 id="week-review-title" className="week-review__title">
                 Wochenrückblick
               </h2>
-              <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
+              <p className="week-review__range">
                 {format(parseISO(weekStart), "d. MMMM", { locale: de })} –{" "}
-                {format(addDays(parseISO(weekStart), 6), "d. MMMM yyyy", { locale: de })}
+                {format(parseISO(weekEnd), "d. MMMM yyyy", { locale: de })}
               </p>
             </div>
-            <button
-              onClick={onClose}
-              className="ml-auto flex h-8 w-8 items-center justify-center rounded-[8px] transition-all duration-150"
-              style={{ color: "var(--text-muted)" }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--bg-hover)";
-                (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-                (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
-              }}
-              aria-label="Schließen"
-            >
+            <button type="button" onClick={onClose} className="week-review__close" aria-label="Schließen">
               <X size={16} strokeWidth={1.8} />
             </button>
-          </div>
+          </header>
 
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
-            {/* KPI row */}
-            <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <KpiCard
-                icon={<CheckCircle2 size={16} strokeWidth={1.8} />}
-                label="Erledigt"
-                value={`${completedTasks.length} / ${weekTasks.length}`}
-                sub={`${completionRate}% Erledigungsrate`}
-                color="var(--accent-success)"
-              />
-              <KpiCard
-                icon={<Clock size={16} strokeWidth={1.8} />}
-                label="Geplante Zeit"
-                value={fmtMins(totalPlanned)}
-                sub={`${fmtMins(completedPlanned)} erledigt`}
-                color="var(--accent-primary)"
-              />
-              <KpiCard
-                icon={<Target size={16} strokeWidth={1.8} />}
-                label="Wochenziele"
-                value={`${completedObjectives.length} / ${weekObjectives.length}`}
-                sub={
-                  weekObjectives.length === 0
-                    ? "Keine Ziele gesetzt"
-                    : completedObjectives.length === weekObjectives.length
-                      ? "Alle erreicht!"
-                      : "In Arbeit"
-                }
-                color="var(--accent-warning)"
-              />
-            </div>
-
-            {/* Daily breakdown */}
-            <section className="mb-6">
-              <h3
-                className="mb-3 text-[12px] font-semibold uppercase tracking-wider"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Tagesübersicht
-              </h3>
-              <div className="space-y-2">
-                {byDay.map(({ day, total, done, planned }) => (
-                  <div key={day.toISOString()} className="flex items-center gap-3">
-                    <span
-                      className="w-8 shrink-0 text-[12px] font-medium"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {format(day, "EEE", { locale: de })}
-                    </span>
-
-                    <div className="flex-1">
-                      <div
-                        className="h-2 overflow-hidden rounded-full"
-                        style={{ backgroundColor: "var(--bg-hover)" }}
-                      >
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(planned / maxDayPlanned) * 100}%` }}
-                          transition={{ duration: 0.5, delay: 0.05 }}
-                          className="h-full rounded-full"
-                          style={{ backgroundColor: "var(--accent-primary)", opacity: 0.35 }}
-                        />
-                      </div>
-                      <div
-                        className="h-2 -mt-2 overflow-hidden rounded-full"
-                        style={{ backgroundColor: "transparent" }}
-                      >
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{
-                            width: total > 0 ? `${(done / total) * (planned / maxDayPlanned) * 100}%` : "0%",
-                          }}
-                          transition={{ duration: 0.5, delay: 0.1 }}
-                          className="h-full rounded-full"
-                          style={{ backgroundColor: "var(--accent-success)" }}
-                        />
-                      </div>
-                    </div>
-
-                    <span
-                      className="w-16 shrink-0 text-right text-[11px] sm:w-20 sm:text-[11.5px]"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      {done}/{total} · {fmtMins(planned)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* Channel breakdown */}
-            {byChannel.length > 0 && (
-              <section className="mb-6">
-                <h3
-                  className="mb-3 text-[12px] font-semibold uppercase tracking-wider"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Zeitverteilung nach Channel
-                </h3>
-                <div className="space-y-2.5">
-                  {byChannel.map((ch) => (
-                    <div key={ch.name} className="flex items-center gap-3">
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: ch.color }}
-                      />
-                      <span
-                        className="w-24 shrink-0 truncate text-[12px] font-medium sm:w-32 sm:text-[12.5px]"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        {ch.name}
-                      </span>
-                      <div
-                        className="flex-1 overflow-hidden rounded-full"
-                        style={{ height: 6, backgroundColor: "var(--bg-hover)" }}
-                      >
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(ch.total / totalPlanned) * 100}%` }}
-                          transition={{ duration: 0.5 }}
-                          className="h-full rounded-full"
-                          style={{ backgroundColor: ch.color, opacity: 0.7 }}
-                        />
-                      </div>
-                      <span
-                        className="w-12 shrink-0 text-right text-[11px] sm:text-[11.5px]"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        {fmtMins(ch.total)}
-                      </span>
-                    </div>
-                  ))}
+          <div className="week-review__body">
+            {isEmpty ? (
+              <p className="week-review__empty">Für diese Woche ist noch nichts eingetragen.</p>
+            ) : (
+              <>
+                <div className="week-review__kpis">
+                  <KpiCard
+                    icon={<CheckCircle2 size={15} strokeWidth={1.9} />}
+                    color="var(--accent-success)"
+                    label="Erledigt"
+                    value={`${completedTasks.length} / ${weekTasks.length}`}
+                    sub={weekTasks.length > 0 ? `${completionRate} % der Tasks` : "Keine Tasks geplant"}
+                  />
+                  <KpiCard
+                    icon={<Clock size={15} strokeWidth={1.9} />}
+                    color="var(--accent-primary)"
+                    label="Geplante Zeit"
+                    value={totalPlanned > 0 ? fmtMins(totalPlanned) : "–"}
+                    sub={totalPlanned > 0 ? `davon ${fmtMins(completedPlanned)} erledigt` : "Keine Zeiten eingetragen"}
+                  />
+                  <KpiCard
+                    icon={<Flag size={15} strokeWidth={1.9} />}
+                    color="var(--accent-warning)"
+                    label="Abgaben"
+                    value={deadlines.length > 0 ? `${deadlinesDone} / ${deadlines.length}` : "–"}
+                    sub={
+                      deadlines.length === 0
+                        ? "Diese Woche nichts fällig"
+                        : deadlinesDone === deadlines.length
+                          ? "Alles abgegeben"
+                          : `${deadlines.length - deadlinesDone} noch offen`
+                    }
+                  />
                 </div>
-              </section>
-            )}
 
-            {/* Objectives */}
-            {weekObjectives.length > 0 && (
-              <section>
-                <h3
-                  className="mb-3 text-[12px] font-semibold uppercase tracking-wider"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Wochenziele
-                </h3>
-                <div className="space-y-2">
-                  {weekObjectives.map((obj) => (
-                    <div key={obj.id} className="flex items-center gap-3">
-                      <div
-                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-                        style={{
-                          backgroundColor:
-                            obj.progress >= 100
-                              ? "var(--accent-success)"
-                              : "var(--bg-hover)",
-                          border:
-                            obj.progress >= 100
-                              ? "none"
-                              : "1.5px solid var(--border-color)",
-                        }}
-                      >
-                        {obj.progress >= 100 && (
-                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                            <path
-                              d="M2 5l2.5 2.5L8 3"
-                              stroke="white"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
+                <section className="week-review__section">
+                  <h3 className="week-review__heading">Tage</h3>
+                  <ul className="week-review__days">
+                    {byDay.map(({ day, total, done, planned, donePlanned }) => (
+                      <li key={day} className={`week-review__day${total === 0 ? " is-empty" : ""}`}>
+                        <span className="week-review__day-name">
+                          {format(parseISO(day), "EEEEEE", { locale: de })}
+                        </span>
+                        <div className="week-review__track">
+                          {planned > 0 && (
+                            <motion.div
+                              className="week-review__bar"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${(planned / maxDayPlanned) * 100}%` }}
+                              transition={{ duration: 0.45 }}
+                            >
+                              <div
+                                className="week-review__bar-done"
+                                style={{ width: `${(donePlanned / planned) * 100}%` }}
+                              />
+                            </motion.div>
+                          )}
+                        </div>
+                        <span className="week-review__day-value">
+                          {total === 0 ? "–" : `${done}/${total}${planned > 0 ? ` · ${fmtMins(planned)}` : ""}`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="week-review__legend">
+                    <span className="week-review__swatch is-done" /> erledigt
+                    <span className="week-review__swatch" /> geplant
+                  </p>
+                </section>
+
+                {showChannels && (
+                  <section className="week-review__section">
+                    <h3 className="week-review__heading">Zeit nach Channel</h3>
+                    <ul className="week-review__days">
+                      {byChannel.map((channel) => (
+                        <li key={channel.name} className="week-review__channel">
+                          <span className="week-review__channel-name">
+                            <span className="week-review__dot" style={{ backgroundColor: channel.color }} />
+                            <span className="truncate">{channel.name}</span>
+                          </span>
+                          <div className="week-review__track">
+                            <motion.div
+                              className="week-review__bar"
+                              style={{ backgroundColor: channel.color }}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${(channel.total / totalPlanned) * 100}%` }}
+                              transition={{ duration: 0.45 }}
                             />
-                          </svg>
-                        )}
-                      </div>
-                      <span
-                        className="flex-1 text-[13px] font-medium"
-                        style={{
-                          color:
-                            obj.progress >= 100
-                              ? "var(--text-muted)"
-                              : "var(--text-primary)",
-                          textDecoration:
-                            obj.progress >= 100 ? "line-through" : "none",
-                        }}
-                      >
-                        {obj.title}
-                      </span>
-                      <span
-                        className="shrink-0 text-[11.5px] font-medium"
-                        style={{
-                          color:
-                            obj.progress >= 100
-                              ? "var(--accent-success)"
-                              : "var(--text-muted)",
-                        }}
-                      >
-                        {obj.progress}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {weekTasks.length === 0 && weekObjectives.length === 0 && (
-              <div
-                className="py-12 text-center text-[14px]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Keine Daten für diese Woche vorhanden.
-              </div>
+                          </div>
+                          <span className="week-review__day-value">{fmtMins(channel.total)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </>
             )}
           </div>
 
-          {/* Footer */}
-          <div
-            className="flex shrink-0 justify-end px-4 py-4 sm:px-6"
-            style={{ borderTop: "1px solid var(--border-subtle)" }}
-          >
-            <button
-              onClick={onClose}
-              className="workspace-button workspace-button--primary"
-            >
+          <footer className="week-review__footer">
+            <button type="button" onClick={onClose} className="workspace-button workspace-button--primary">
               Schließen
             </button>
-          </div>
+          </footer>
         </motion.div>
       </motion.div>
     </AnimatePresence>
@@ -390,37 +244,25 @@ export default function WeeklyReviewModal({ weekStart, onClose }: Props) {
 
 function KpiCard({
   icon,
+  color,
   label,
   value,
   sub,
-  color,
 }: {
   icon: React.ReactNode;
+  color: string;
   label: string;
   value: string;
   sub: string;
-  color: string;
 }) {
   return (
-    <div
-      className="flex flex-col gap-1.5 rounded-[8px] p-4"
-      style={{
-        backgroundColor: "var(--bg-card)",
-        border: "1px solid var(--border-subtle)",
-      }}
-    >
-      <div className="flex items-center gap-1.5" style={{ color }}>
-        {icon}
-        <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-          {label}
-        </span>
-      </div>
-      <span className="text-[22px] font-bold leading-none" style={{ color: "var(--text-primary)" }}>
-        {value}
+    <div className="week-review__kpi">
+      <span className="week-review__kpi-label">
+        <span style={{ color }}>{icon}</span>
+        {label}
       </span>
-      <span className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>
-        {sub}
-      </span>
+      <span className="week-review__kpi-value">{value}</span>
+      <span className="week-review__kpi-sub">{sub}</span>
     </div>
   );
 }

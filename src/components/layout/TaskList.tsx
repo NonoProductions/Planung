@@ -29,7 +29,6 @@ import { toLocalDateString } from "@/lib/date";
 import { useDaySwipe } from "@/components/layout/useDaySwipe";
 import { useDismissAddForm } from "@/hooks/useDismissAddForm";
 
-const QUICK_ADD_DURATIONS = ["8:00", "4:30"];
 const DEFAULT_PROGRESS_WEIGHT_MINUTES = 30;
 
 function formatMinutes(minutes: number) {
@@ -330,11 +329,11 @@ export default function TaskList() {
                         <Plus size={16} strokeWidth={2} />
                         Add task
                       </span>
-                      <span className="planning-card__duration">
-                        {dayPlannedTotal > 0
-                          ? formatMinutes(dayPlannedTotal)
-                          : QUICK_ADD_DURATIONS[index % QUICK_ADD_DURATIONS.length] || "0:30"}
-                      </span>
+                      {dayPlannedTotal > 0 && (
+                        <span className="planning-card__duration">
+                          {formatMinutes(dayPlannedTotal)}
+                        </span>
+                      )}
                     </button>
 
                     {showAddFormForDate === dayDate && (

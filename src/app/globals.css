@@ -151,11 +151,15 @@ html.theme-transition *::after {
     color 240ms ease !important;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  scrollbar-width: none;
+/* In the base layer, so Tailwind spacing utilities (px-4, mt-2, ml-auto, …) can override it.
+   Outside a layer it would beat every utility and silently zero their margins and paddings. */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    scrollbar-width: none;
+  }
 }
 
 html,
@@ -5265,5 +5269,296 @@ input[type="number"] {
     overscroll-behavior-y: contain;
     -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 28px), transparent 100%);
     mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 28px), transparent 100%);
+  }
+}
+
+/* While a new deadline is being entered, the form (with its calendar) gets the
+   room it needs instead of being cut off by the week grid below. */
+@media (min-width: 768px) {
+  .week-objectives:has(.week-objectives__form) {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/* Weekly review ("Wochenrückblick") */
+/* Above the mobile top bar and bottom navigation, like any dialog. */
+.app-overlay:has(> .week-review) {
+  z-index: 90;
+}
+
+.week-review {
+  display: flex;
+  max-width: 640px;
+  max-height: 88vh;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.week-review__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.week-review__icon {
+  flex-shrink: 0;
+  color: var(--accent-primary);
+}
+
+.week-review__title {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.week-review__range {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.week-review__close {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  border-radius: 8px;
+  color: var(--text-muted);
+  transition: background-color 150ms, color 150ms;
+}
+
+.week-review__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.week-review__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 22px 22px;
+}
+
+.week-review__empty {
+  padding: 40px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.week-review__kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.week-review__kpi {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 14px 13px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.week-review__kpi-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.week-review__kpi-label > span {
+  display: flex;
+}
+
+.week-review__kpi-value {
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.week-review__kpi-sub {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.week-review__section {
+  margin-top: 24px;
+}
+
+.week-review__heading {
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.week-review__days {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  list-style: none;
+}
+
+.week-review__day,
+.week-review__channel {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 92px;
+  align-items: center;
+  gap: 12px;
+}
+
+.week-review__channel {
+  grid-template-columns: 120px minmax(0, 1fr) 64px;
+}
+
+.week-review__day-name,
+.week-review__channel-name {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.week-review__channel-name {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.week-review__dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 999px;
+}
+
+.week-review__day.is-empty .week-review__day-name,
+.week-review__day.is-empty .week-review__day-value {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.week-review__track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg-hover);
+}
+
+.week-review__bar {
+  height: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+.week-review__bar-done {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-success);
+}
+
+.week-review__day-value {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.week-review__legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.week-review__swatch {
+  width: 10px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+.week-review__swatch:first-child {
+  margin-left: 0;
+}
+
+.week-review__swatch.is-done {
+  background: var(--accent-success);
+}
+
+.week-review__footer {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  padding: 14px 22px;
+  border-top: 1px solid var(--line-soft);
+}
+
+@media (max-width: 600px) {
+  .week-review__header,
+  .week-review__body,
+  .week-review__footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .week-review {
+    max-height: calc(100dvh - 32px);
+  }
+
+  .week-review__kpis {
+    gap: 8px;
+  }
+
+  .week-review__kpi {
+    gap: 4px;
+    padding: 10px 10px 9px;
+  }
+
+  .week-review__kpi-label {
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
+  }
+
+  .week-review__kpi-label > span {
+    display: none;
+  }
+
+  .week-review__kpi-value {
+    font-size: 18px;
+  }
+
+  .week-review__kpi-sub {
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  .week-review__channel {
+    grid-template-columns: 96px minmax(0, 1fr) 56px;
   }
 }

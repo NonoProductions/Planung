@@ -40,7 +40,7 @@ interface TaskCardProps {
 }
 
 function formatPlannedTime(minutes?: number) {
-  if (!minutes || minutes <= 0) return "1:00";
+  if (!minutes || minutes <= 0) return null;
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
   return `${hours}:${remainingMinutes.toString().padStart(2, "0")}`;
@@ -116,6 +116,7 @@ export default function TaskCard({ task }: TaskCardProps) {
   const channelColor = task.channel?.color || "var(--text-secondary)";
   const hasSubtasks = (task.subtasks?.length ?? 0) > 0;
   const scheduledWindow = formatScheduledWindow(task);
+  const plannedTimeLabel = formatPlannedTime(task.plannedTime);
 
   if (editing) {
     return (
@@ -161,6 +162,7 @@ export default function TaskCard({ task }: TaskCardProps) {
         whileHover={{ boxShadow: "0 4px 12px rgba(var(--shadow-rgb), 0.05)" }}
         transition={{ duration: 0.2 }}
       >
+        {(scheduledWindow || task.dueDate || plannedTimeLabel) && (
         <div className="planning-card__meta">
           {scheduledWindow ? (
             <span
@@ -180,10 +182,11 @@ export default function TaskCard({ task }: TaskCardProps) {
             </span>
           )}
           <span className="planning-card__meta-spacer" aria-hidden="true" />
-          <span className="planning-card__duration">
-            {formatPlannedTime(task.plannedTime)}
-          </span>
+          {plannedTimeLabel && (
+            <span className="planning-card__duration">{plannedTimeLabel}</span>
+          )}
         </div>
+        )}
 
         <div className="planning-card__body">
           <div className="planning-card__header">

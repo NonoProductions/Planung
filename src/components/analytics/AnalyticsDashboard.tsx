@@ -32,7 +32,18 @@ function formatMinutes(minutes: number) {
 
 function axisTick(minutes: number) {
   if (minutes <= 0) return "0h";
-  return `${Math.round(minutes / 60)}h`;
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours}h` : `${hours}:${rest.toString().padStart(2, "0")}`;
+}
+
+/** Y-axis ticks on round durations (15m, 30m, 1h, 2h, …), at most five steps. */
+function minuteTicks(rows: { plannedMinutes?: number; actualMinutes?: number }[]) {
+  const max = Math.max(0, ...rows.flatMap((row) => [row.plannedMinutes ?? 0, row.actualMinutes ?? 0]));
+  const step = [15, 30, 60, 120, 180, 240, 360, 480, 720, 1440].find((value) => value * 4 >= max) ?? 2880;
+  const top = Math.max(step, Math.ceil(max / step) * step);
+  return Array.from({ length: top / step + 1 }, (_, index) => index * step);
 }
 
 function ChartTooltip({
@@ -273,7 +284,7 @@ export default function AnalyticsDashboard() {
                     <BarChart data={snapshot.channels} barGap={6}>
                       <CartesianGrid stroke={chartGrid} vertical={false} />
                       <XAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 12 }} {...axisProps} />
-                      <YAxis tickFormatter={axisTick} tick={{ fill: "var(--text-muted)", fontSize: 11 }} width={36} {...axisProps} />
+                      <YAxis tickFormatter={axisTick} ticks={minuteTicks(snapshot.channels)} domain={[0, minuteTicks(snapshot.channels).at(-1) ?? 60]} interval={0} tick={{ fill: "var(--text-muted)", fontSize: 11 }} width={36} {...axisProps} />
                       <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(var(--hover-rgb), 0.6)" }} />
                       <Bar dataKey="plannedMinutes" name="Geplant" radius={[4, 4, 0, 0]} fill="var(--track-fill)" />
                       <Bar dataKey="actualMinutes" name="Getrackt" radius={[4, 4, 0, 0]}>
@@ -303,7 +314,7 @@ export default function AnalyticsDashboard() {
                     <LineChart data={snapshot.daily}>
                       <CartesianGrid stroke={chartGrid} vertical={false} />
                       <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 12 }} {...axisProps} />
-                      <YAxis tickFormatter={axisTick} tick={{ fill: "var(--text-muted)", fontSize: 11 }} width={36} {...axisProps} />
+                      <YAxis tickFormatter={axisTick} ticks={minuteTicks(snapshot.daily)} domain={[0, minuteTicks(snapshot.daily).at(-1) ?? 60]} interval={0} tick={{ fill: "var(--text-muted)", fontSize: 11 }} width={36} {...axisProps} />
                       <Tooltip content={<ChartTooltip />} />
                       <Line
                         type="monotone"
@@ -325,7 +336,7 @@ export default function AnalyticsDashboard() {
                     <BarChart data={snapshot.daily} barGap={4}>
                       <CartesianGrid stroke={chartGrid} vertical={false} />
                       <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 12 }} {...axisProps} />
-                      <YAxis tickFormatter={axisTick} tick={{ fill: "var(--text-muted)", fontSize: 11 }} width={36} {...axisProps} />
+                      <YAxis tickFormatter={axisTick} ticks={minuteTicks(snapshot.daily)} domain={[0, minuteTicks(snapshot.daily).at(-1) ?? 60]} interval={0} tick={{ fill: "var(--text-muted)", fontSize: 11 }} width={36} {...axisProps} />
                       <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(var(--hover-rgb), 0.6)" }} />
                       <Bar dataKey="plannedMinutes" name="Geplant" radius={[4, 4, 0, 0]} fill="var(--track-fill)" />
                       <Bar dataKey="actualMinutes" name="Getrackt" radius={[4, 4, 0, 0]} fill="#8d7cf6" />
