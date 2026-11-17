@@ -10,8 +10,9 @@ import {
   type ReactNode,
 } from "react";
 import { format, parseISO } from "date-fns";
+import { de } from "date-fns/locale";
 import { motion } from "framer-motion";
-import { CalendarClock, Check, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, Check, Flag, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   DndContext,
   PointerSensor,
@@ -168,9 +169,17 @@ export default function TaskCard({ task }: TaskCardProps) {
             >
               {scheduledWindow}
             </span>
-          ) : (
-            <span className="planning-card__meta-spacer" aria-hidden="true" />
+          ) : null}
+          {task.dueDate && (
+            <span
+              className="planning-card__due-chip"
+              title={`Abgabe ${format(parseISO(task.dueDate), "EEEE, d. MMMM", { locale: de })}`}
+            >
+              <Flag size={10} strokeWidth={2.4} />
+              {format(parseISO(task.dueDate), "EEE d.M.", { locale: de })}
+            </span>
           )}
+          <span className="planning-card__meta-spacer" aria-hidden="true" />
           <span className="planning-card__duration">
             {formatPlannedTime(task.plannedTime)}
           </span>

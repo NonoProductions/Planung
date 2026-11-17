@@ -103,6 +103,7 @@ export default function TaskList() {
   const requestDayQuickAdd = useUIStore((s) => s.requestDayQuickAdd);
   const clearQuickAddRequest = useUIStore((s) => s.clearQuickAddRequest);
   const tasks = useTaskStore((s) => s.tasks);
+  const tasksFresh = useTaskStore((s) => s.tasksFresh);
   const channels = useTaskStore((s) => s.channels);
   const fetchTasks = useTaskStore((s) => s.fetchTasks);
   const fetchChannels = useTaskStore((s) => s.fetchChannels);
@@ -122,6 +123,16 @@ export default function TaskList() {
   // Loads all tasks at once, so switching days needs no new request.
   useEffect(() => {
     fetchTasks();
+  }, [fetchTasks]);
+
+  // Coming back to the app (e.g. reopening it on the phone) quietly refreshes the
+  // tasks in the background; the ones on screen stay until the new ones arrive.
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void fetchTasks();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => document.removeEventListener("visibilitychange", refreshWhenVisible);
   }, [fetchTasks]);
 
   useEffect(() => {
@@ -399,12 +410,22 @@ export default function TaskList() {
                             ))}
                           </SortableContext>
                         </div>
+                      ) : !tasksFresh ? (
+                        // Nothing cached for this day yet: placeholder cards until the tasks arrive.
+                        <div className="planning-cards__stack" aria-busy="true" aria-label="Tasks werden geladen">
+                          {[0, 1, 2].map((item) => (
+                            <div key={item} className="planning-card planning-card--skeleton">
+                              <span className="skeleton-line" style={{ width: `${[72, 54, 64][item]}%` }} />
+                              <span className="skeleton-line skeleton-line--short" />
+                            </div>
+                          ))}
+                        </div>
                       ) : (
                         <div
                           className="planning-cards__stack"
                           style={{ color: "var(--text-muted)" }}
                         >
-                          Keine in Supabase gespeicherten Tasks
+                          Keine Tasks
                         </div>
                       )}
                     </div>

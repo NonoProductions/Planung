@@ -6,7 +6,7 @@ import { de } from "date-fns/locale";
 import { BarChart2, ChevronLeft, ChevronRight } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import MobileDateNav from "@/components/layout/MobileDateNav";
-import WeeklyObjectives from "@/components/weekly/WeeklyObjectives";
+import WeeklyDeadlines from "@/components/weekly/WeeklyDeadlines";
 import WeekGrid from "@/components/weekly/WeekGrid";
 import WeeklyReviewModal from "@/components/weekly/WeeklyReviewModal";
 import DndWrapper from "@/components/dnd/DndWrapper";
@@ -107,7 +107,7 @@ export default function WeekPage() {
             </div>
 
             <div className="week-scroll">
-              <WeeklyObjectives weekStart={weekStartStr} />
+              <WeeklyDeadlines weekStart={weekStartStr} />
               <WeekGrid weekStart={weekStartStr} />
             </div>
           </section>

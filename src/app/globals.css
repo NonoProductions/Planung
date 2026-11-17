@@ -1339,6 +1339,44 @@ textarea {
   -webkit-touch-callout: none;
 }
 
+/* Loading placeholder shown until the first tasks arrive. */
+.planning-card--skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.skeleton-line {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--line-soft) 0%,
+    var(--line) 50%,
+    var(--line-soft) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-line--short {
+  width: 28%;
+  height: 10px;
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line {
+    animation: none;
+  }
+}
+
 @media (hover: hover) {
   .planning-card {
     cursor: grab;
@@ -1592,8 +1630,24 @@ textarea {
 
 .planning-card__meta-spacer {
   display: block;
+  flex: 1;
   min-width: 1px;
   min-height: 1px;
+}
+
+/* Task that works toward a deadline: shows when it is due. */
+.planning-card__due-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent-danger) 12%, transparent);
+  color: var(--accent-danger);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .planning-card__time-chip {
@@ -4208,6 +4262,227 @@ input[type="number"] {
   max-width: 480px;
 }
 
+/* Deadlines ("Abgaben") at the top of the week */
+.deadline-add {
+  margin-left: auto;
+}
+
+.deadline-form__date {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.deadline-form__date input {
+  min-height: 36px;
+  flex: 1 1 auto;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.deadline-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.deadline-list__label {
+  margin-top: 18px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.deadline-list--upcoming {
+  margin-top: 8px;
+}
+
+.deadline-list--upcoming .deadline-card {
+  background: transparent;
+  box-shadow: none;
+}
+
+.deadline-card {
+  --deadline-tone: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-left: 3px solid var(--deadline-tone);
+  cursor: default;
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+
+.deadline-card--soon {
+  --deadline-tone: var(--accent-warning);
+}
+
+.deadline-card--urgent {
+  --deadline-tone: var(--accent-danger);
+}
+
+.deadline-card--done {
+  --deadline-tone: var(--accent-success);
+}
+
+.deadline-card.is-done .deadline-card__title {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.deadline-card__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.deadline-card__check {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 999px;
+  color: #ffffff;
+}
+
+.deadline-card.is-done .deadline-card__check {
+  border-color: var(--accent-success);
+  background: var(--accent-success);
+}
+
+.deadline-card__text {
+  min-width: 0;
+  flex: 1;
+}
+
+.deadline-card__title {
+  cursor: text;
+}
+
+.deadline-card__edit {
+  width: 100%;
+}
+
+.deadline-card__due {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.deadline-card__side {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.deadline-card__countdown {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--deadline-tone) 14%, transparent);
+  color: var(--deadline-tone);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.deadline-card--calm .deadline-card__countdown {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+
+.deadline-card__delete {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+
+.deadline-card__delete:hover {
+  background: var(--surface-sunken);
+  color: var(--accent-danger);
+}
+
+.deadline-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.deadline-day {
+  position: relative;
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 100ms ease;
+}
+
+.deadline-day:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.deadline-day:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.deadline-day.is-today {
+  border-color: var(--accent-primary);
+}
+
+.deadline-day.is-due {
+  color: var(--accent-danger);
+}
+
+.deadline-day.is-planned {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: #ffffff;
+}
+
+.deadline-day.is-planned.is-due {
+  color: #ffffff;
+}
+
+.deadline-day.is-done {
+  border-color: var(--accent-success);
+  background: var(--accent-success);
+  color: #ffffff;
+  opacity: 1;
+}
+
+.deadline-day.is-pending {
+  opacity: 0.6;
+}
+
 .week-objectives__cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -4273,6 +4548,33 @@ input[type="number"] {
   font-size: 14px;
   line-height: 1;
   letter-spacing: -0.02em;
+}
+
+/* Deadline due on this day */
+.week-day__deadline {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  color: var(--accent-danger);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.week-day__deadline span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.week-day__deadline svg {
+  flex: 0 0 auto;
+}
+
+.week-day__deadline.is-done {
+  color: var(--accent-success);
+  text-decoration: line-through;
 }
 
 .week-day__progress {

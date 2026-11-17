@@ -38,6 +38,8 @@ export async function PATCH(
     data.scheduledDate = body.scheduledDate
       ? new Date(body.scheduledDate).toISOString()
       : null;
+  if (body.dueDate !== undefined)
+    data.dueDate = body.dueDate ? new Date(body.dueDate).toISOString() : null;
   if (body.position !== undefined) data.position = body.position;
   if (body.channelId !== undefined) data.channelId = body.channelId || null;
   if (body.isBacklog !== undefined) data.isBacklog = body.isBacklog;

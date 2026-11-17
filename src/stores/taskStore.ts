@@ -67,7 +67,7 @@ function mapApiTask(t: Record<string, unknown>): Task {
     scheduledDate: extractDateOnly(t.scheduledDate as string | undefined),
     scheduledStart: asUtcTimestamp(t.scheduledStart),
     scheduledEnd: asUtcTimestamp(t.scheduledEnd),
-    dueDate: (t.dueDate as string) || undefined,
+    dueDate: extractDateOnly(t.dueDate as string | undefined),
     position: (t.position as number) ?? 0,
     channelId: (t.channelId as string) || undefined,
     channel: t.channel
@@ -182,6 +182,8 @@ interface TaskState {
   channels: Channel[];
   calendarCategories: CalendarCategory[];
   loading: boolean;
+  /** True once tasks were fetched from the server in this session (success or not). */
+  tasksFresh: boolean;
   backlogLoading: boolean;
   apiAvailable: boolean;
 
@@ -206,6 +208,7 @@ interface TaskState {
     scheduledDate?: string;
     scheduledStart?: string;
     scheduledEnd?: string;
+    dueDate?: string;
     channelId?: string;
     position?: number;
     isBacklog?: boolean;
@@ -225,6 +228,7 @@ interface TaskState {
         | "scheduledDate"
         | "scheduledStart"
         | "scheduledEnd"
+        | "dueDate"
         | "position"
         | "channelId"
         | "isBacklog"
@@ -272,6 +276,7 @@ export const useTaskStore = create<TaskState>()(
   channels: FALLBACK_CHANNELS,
   calendarCategories: FALLBACK_CALENDAR_CATEGORIES,
   loading: false,
+  tasksFresh: false,
   backlogLoading: false,
   apiAvailable: true,
 
@@ -297,10 +302,12 @@ export const useTaskStore = create<TaskState>()(
       set({
         tasks,
         loading: false,
+        tasksFresh: true,
         apiAvailable: res.headers.get("x-db-unavailable") !== "true",
       });
     } catch {
-      set((state) => ({ loading: false, apiAvailable: false, tasks: state.tasks }));
+      // Keep whatever is shown (e.g. the cached tasks) instead of emptying the list.
+      set((state) => ({ loading: false, tasksFresh: true, apiAvailable: false, tasks: state.tasks }));
     }
   },
 
@@ -508,6 +515,7 @@ export const useTaskStore = create<TaskState>()(
           "scheduledDate",
           "scheduledStart",
           "scheduledEnd",
+          "dueDate",
           "channelId",
           "backlogBucket",
           "backlogFolder",

@@ -10,12 +10,13 @@ import {
 } from "react";
 import { addDays, format, isPast, isSameDay, isToday, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
-import { Plus } from "lucide-react";
+import { Flag, Plus } from "lucide-react";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
 import TaskCard from "@/components/tasks/TaskCard";
+import { isDeadlineTask } from "@/components/weekly/WeeklyDeadlines";
 import type { Task } from "@/types";
 import { extractDateOnly, toLocalDateString } from "@/lib/date";
 import { useDismissAddForm } from "@/hooks/useDismissAddForm";
@@ -68,6 +69,7 @@ export default function WeekGrid({ weekStart }: Props) {
               status: task.status as Task["status"],
               plannedTime: (task.plannedTime as number) || undefined,
               scheduledDate: extractDateOnly(task.scheduledDate as string | undefined),
+              dueDate: extractDateOnly(task.dueDate as string | undefined),
               position: (task.position as number) ?? 0,
               channelId: (task.channelId as string) || undefined,
               channel: task.channel as Task["channel"],
@@ -195,6 +197,9 @@ export default function WeekGrid({ weekStart }: Props) {
         const completedCount = dayTasks.filter((task) => task.status === "COMPLETED").length;
         const totalPlanned = dayTasks.reduce((sum, task) => sum + (task.plannedTime || 0), 0);
         const completionPct = dayTasks.length > 0 ? (completedCount / dayTasks.length) * 100 : 0;
+        const dueToday = tasks.filter(
+          (task) => isDeadlineTask(task) && task.dueDate === dayDate
+        );
 
         const workloadColor =
           totalPlanned <= 360
@@ -223,6 +228,16 @@ export default function WeekGrid({ weekStart }: Props) {
               </h2>
               <p className="week-day__date">{format(day, "d. MMMM", { locale: de })}</p>
             </button>
+
+            {dueToday.map((deadline) => (
+              <p
+                key={deadline.id}
+                className={`week-day__deadline${deadline.status === "COMPLETED" ? " is-done" : ""}`}
+              >
+                <Flag size={11} strokeWidth={2.4} />
+                <span>{deadline.title}</span>
+              </p>
+            ))}
 
             <div className="planning-progress week-day__progress">
               <div
