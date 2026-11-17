@@ -4271,6 +4271,29 @@ input[type="number"] {
   margin-left: auto;
 }
 
+.deadline-add__icon {
+  transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.deadline-add.is-open .deadline-add__icon {
+  transform: rotate(45deg);
+}
+
+/* Height animates around the form and cards; the inset keeps focus rings and
+   shadows from being clipped. */
+.deadline-autoheight {
+  overflow: hidden;
+  margin: -4px;
+}
+
+.deadline-autoheight > div {
+  padding: 4px;
+}
+
+.deadline-empty {
+  margin-top: 10px;
+}
+
 .deadline-form__date {
   flex: 1 1 auto;
   color: var(--text-secondary);
@@ -4412,7 +4435,7 @@ input[type="number"] {
 
 .deadline-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
   gap: 12px;
   margin-top: 14px;
 }
@@ -4439,8 +4462,8 @@ input[type="number"] {
   --deadline-tone: var(--text-muted);
   display: flex;
   flex-direction: column;
-  gap: 12px;
   cursor: default;
+  transition: opacity 240ms ease, background-color 240ms ease;
   -webkit-user-select: auto;
   user-select: auto;
 }
@@ -4457,9 +4480,20 @@ input[type="number"] {
   --deadline-tone: var(--accent-success);
 }
 
-.deadline-card.is-done .deadline-card__title {
-  opacity: 0.6;
+.deadline-card__title {
+  transition: opacity 240ms ease, color 240ms ease;
   text-decoration: line-through;
+  text-decoration-color: transparent;
+  transition-property: opacity, color, text-decoration-color;
+}
+
+.deadline-card.is-done .deadline-card__title {
+  opacity: 0.55;
+  text-decoration-color: currentColor;
+}
+
+.deadline-card.is-done {
+  background: color-mix(in srgb, var(--accent-success) 5%, var(--surface));
 }
 
 .deadline-card__top {
@@ -4479,6 +4513,15 @@ input[type="number"] {
   border: 1.5px solid var(--border-color);
   border-radius: 999px;
   color: #ffffff;
+  transition: background-color 200ms ease, border-color 200ms ease;
+}
+
+.deadline-card__check:hover {
+  border-color: var(--accent-success);
+}
+
+.deadline-card__check-mark {
+  display: flex;
 }
 
 .deadline-card.is-done .deadline-card__check {
@@ -4499,8 +4542,15 @@ input[type="number"] {
   width: 100%;
 }
 
+.deadline-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 6px;
+}
+
 .deadline-card__due {
-  margin-top: 4px;
   color: var(--text-secondary);
   font-size: 12.5px;
   line-height: 1.4;
@@ -4510,7 +4560,8 @@ input[type="number"] {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  margin: -4px -6px 0 0;
 }
 
 .deadline-card__countdown {
@@ -4529,7 +4580,7 @@ input[type="number"] {
   color: var(--text-secondary);
 }
 
-.deadline-card__delete {
+.deadline-card__icon-button {
   display: inline-flex;
   width: 28px;
   height: 28px;
@@ -4537,6 +4588,16 @@ input[type="number"] {
   justify-content: center;
   border-radius: 8px;
   color: var(--text-muted);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.deadline-card__fold:hover {
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+
+.deadline-card__fold-icon {
+  display: flex;
 }
 
 .deadline-card__delete:hover {
@@ -4544,10 +4605,16 @@ input[type="number"] {
   color: var(--accent-danger);
 }
 
+.deadline-days-wrap {
+  overflow: hidden;
+}
+
+/* Space above the weekdays lives inside the folding part, so it folds away too. */
 .deadline-days {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 5px;
+  padding-top: 12px;
 }
 
 .deadline-day {
@@ -4601,7 +4668,7 @@ input[type="number"] {
 }
 
 .deadline-day.is-pending {
-  opacity: 0.6;
+  opacity: 0.75;
 }
 
 .week-objectives__cards {

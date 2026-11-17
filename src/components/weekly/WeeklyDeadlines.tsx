@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
-import { Check, Flag, Plus, Trash2 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { Check, ChevronDown, Flag, Plus, Trash2 } from "lucide-react";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { useTaskStore } from "@/stores/taskStore";
 import type { Task } from "@/types";
 import { toLocalDateString } from "@/lib/date";
@@ -13,6 +13,55 @@ import MiniCalendar from "@/components/ui/MiniCalendar";
 
 /** How far past the shown week upcoming deadlines are listed (in days after Sunday). */
 const UPCOMING_DAYS = 14;
+
+const EASE = [0.32, 0.72, 0, 1] as const;
+const COLLAPSED_KEY = "deadline-collapsed";
+
+/** Cards whose weekday row is folded away, remembered per device. */
+function readCollapsed(): Record<string, boolean> {
+  try {
+    return JSON.parse(window.localStorage.getItem(COLLAPSED_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeCollapsed(value: Record<string, boolean>) {
+  try {
+    window.localStorage.setItem(COLLAPSED_KEY, JSON.stringify(value));
+  } catch {
+    // Storage unavailable (private mode): folding still works for this visit.
+  }
+}
+
+/**
+ * Animates its own height to fit the content, so the week grid below slides
+ * instead of jumping when the form opens or cards come and go.
+ */
+function AutoHeight({ children }: { children: ReactNode }) {
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | "auto">("auto");
+
+  useLayoutEffect(() => {
+    const element = innerRef.current;
+    if (!element) return;
+    setHeight(element.offsetHeight);
+    const observer = new ResizeObserver(() => setHeight(element.offsetHeight));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <motion.div
+      initial={false}
+      animate={{ height }}
+      transition={{ duration: 0.32, ease: EASE }}
+      className="deadline-autoheight"
+    >
+      <div ref={innerRef}>{children}</div>
+    </motion.div>
+  );
+}
 
 interface Props {
   weekStart: string;
@@ -71,6 +120,19 @@ export default function WeeklyDeadlines({ weekStart }: Props) {
   const [newTitle, setNewTitle] = useState("");
   const [newDue, setNewDue] = useState(() => defaultDueDate(weekStart, today));
   const titleRef = useRef<HTMLInputElement>(null);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setCollapsed(readCollapsed());
+  }, []);
+
+  function setCardCollapsed(id: string, value: boolean) {
+    setCollapsed((current) => {
+      const next = { ...current, [id]: value };
+      writeCollapsed(next);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (showAdd) titleRef.current?.focus();
@@ -94,7 +156,8 @@ export default function WeeklyDeadlines({ weekStart }: Props) {
         // Missed deadlines stay in view in the current week until they are done.
         return isCurrentWeek && due < weekStart && open(task);
       }),
-      upcoming: deadlines.filter((task) => task.dueDate! > weekEnd && task.dueDate! <= upcomingEnd && open(task)),
+      // Finished ones stay in place (ticked off) instead of vanishing.
+      upcoming: deadlines.filter((task) => task.dueDate! > weekEnd && task.dueDate! <= upcomingEnd),
     };
   }, [tasks, weekStart, weekEnd, upcomingEnd, isCurrentWeek]);
 
@@ -120,99 +183,121 @@ export default function WeeklyDeadlines({ weekStart }: Props) {
 
   const total = thisWeek.length + upcoming.length;
 
+  function renderCard(deadline: Task) {
+    return (
+      <DeadlineCard
+        key={deadline.id}
+        deadline={deadline}
+        sessions={tasks.filter((task) => isWorkSessionOf(task, deadline))}
+        weekDays={weekDays}
+        today={today}
+        allTasks={tasks}
+        addTask={addTask}
+        updateTask={updateTask}
+        deleteTask={deleteTask}
+        // Finished cards fold away on their own unless opened again by hand.
+        collapsed={collapsed[deadline.id] ?? deadline.status === "COMPLETED"}
+        onCollapsedChange={(value) => setCardCollapsed(deadline.id, value)}
+      />
+    );
+  }
+
   return (
-    <section className="week-objectives">
-      <div className="week-objectives__head">
-        <div className="min-w-0">
-          <h2 className="week-day__title">Abgaben</h2>
-          <p className="week-day__date">
-            {thisWeek.length === 0
-              ? "Diese Woche nichts fällig"
-              : `${thisWeek.length} diese Woche`}
-          </p>
+    <MotionConfig reducedMotion="user">
+      <section className="week-objectives">
+        <div className="week-objectives__head">
+          <div className="min-w-0">
+            <h2 className="week-day__title">Abgaben</h2>
+            <p className="week-day__date">
+              {thisWeek.length === 0 ? "Diese Woche nichts fällig" : `${thisWeek.length} diese Woche`}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={openAddForm}
+            className={`planning-toolbar__button deadline-add${showAdd ? " is-open" : ""}`}
+            aria-expanded={showAdd}
+          >
+            <Plus size={14} strokeWidth={2} className="deadline-add__icon" />
+            {showAdd ? "Abbrechen" : "Abgabe"}
+          </button>
         </div>
 
-        <button type="button" onClick={openAddForm} className="planning-toolbar__button deadline-add">
-          <Plus size={14} strokeWidth={2} />
-          Abgabe
-        </button>
-      </div>
+        <AutoHeight>
+          {/* "wait": the empty hint only fades in once the form is gone, so the height never bumps. */}
+          <AnimatePresence initial={false} mode="wait">
+            {showAdd ? (
+              <motion.form
+                key="deadline-form"
+                onSubmit={handleAdd}
+                className="planning-add-form week-objectives__form"
+                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.98, transition: { duration: 0.16 } }}
+                transition={{ duration: 0.26, ease: EASE }}
+                style={{ transformOrigin: "top left" }}
+              >
+                <input
+                  ref={titleRef}
+                  value={newTitle}
+                  onChange={(event) => setNewTitle(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") setShowAdd(false);
+                  }}
+                  placeholder="Was musst du abgeben?"
+                  className="planning-add-form__input"
+                  maxLength={120}
+                />
+                <MiniCalendar value={newDue} onChange={setNewDue} min={today} />
+                <div className="planning-add-form__controls">
+                  <p className="deadline-form__date">
+                    bis <strong>{format(parseISO(newDue), "EEEE, d. MMMM", { locale: de })}</strong>
+                  </p>
+                  <button
+                    type="submit"
+                    disabled={!newTitle.trim() || !newDue}
+                    className="planning-add-form__save disabled:opacity-40"
+                    style={{ backgroundColor: "var(--accent-primary)" }}
+                  >
+                    Speichern
+                  </button>
+                </div>
+              </motion.form>
+            ) : total === 0 ? (
+              <motion.p
+                key="deadline-empty"
+                className="backlog-empty-copy deadline-empty"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                transition={{ duration: 0.2 }}
+              >
+                Trag ein, was du bis wann abgeben musst, und tipp die Tage an, an denen du daran arbeitest.
+              </motion.p>
+            ) : null}
+          </AnimatePresence>
 
-      {showAdd && (
-        <form onSubmit={handleAdd} className="planning-add-form week-objectives__form">
-          <input
-            ref={titleRef}
-            value={newTitle}
-            onChange={(event) => setNewTitle(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") setShowAdd(false);
-            }}
-            placeholder="Was musst du abgeben?"
-            className="planning-add-form__input"
-            maxLength={120}
-          />
-          <MiniCalendar value={newDue} onChange={setNewDue} min={today} />
-          <div className="planning-add-form__controls">
-            <p className="deadline-form__date">
-              bis <strong>{format(parseISO(newDue), "EEEE, d. MMMM", { locale: de })}</strong>
-            </p>
-            <button
-              type="submit"
-              disabled={!newTitle.trim() || !newDue}
-              className="planning-add-form__save disabled:opacity-40"
-              style={{ backgroundColor: "var(--accent-primary)" }}
-            >
-              Speichern
-            </button>
+          <div className="deadline-list">
+            <AnimatePresence initial={false} mode="popLayout">
+              {thisWeek.map(renderCard)}
+            </AnimatePresence>
           </div>
-        </form>
-      )}
 
-      <div className="deadline-list">
-        <AnimatePresence initial={false} mode="popLayout">
-          {thisWeek.map((deadline) => (
-            <DeadlineCard
-              key={deadline.id}
-              deadline={deadline}
-              sessions={tasks.filter((task) => isWorkSessionOf(task, deadline))}
-              weekDays={weekDays}
-              today={today}
-              allTasks={tasks}
-              addTask={addTask}
-              updateTask={updateTask}
-              deleteTask={deleteTask}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
+          {upcoming.length > 0 && (
+            <>
+              <p className="deadline-list__label">Demnächst</p>
+              <div className="deadline-list deadline-list--upcoming">
+                <AnimatePresence initial={false} mode="popLayout">
+                  {upcoming.map(renderCard)}
+                </AnimatePresence>
+              </div>
+            </>
+          )}
 
-      {upcoming.length > 0 && (
-        <>
-          <p className="deadline-list__label">Demnächst</p>
-          <div className="deadline-list deadline-list--upcoming">
-            {upcoming.map((deadline) => (
-              <DeadlineCard
-                key={deadline.id}
-                deadline={deadline}
-                sessions={tasks.filter((task) => isWorkSessionOf(task, deadline))}
-                weekDays={weekDays}
-                today={today}
-                allTasks={tasks}
-                addTask={addTask}
-                updateTask={updateTask}
-                deleteTask={deleteTask}
-              />
-            ))}
-          </div>
-        </>
-      )}
-
-      {total === 0 && !showAdd && (
-        <p className="backlog-empty-copy">
-          Trag ein, was du bis wann abgeben musst, und tipp die Tage an, an denen du daran arbeitest.
-        </p>
-      )}
-    </section>
+        </AutoHeight>
+      </section>
+    </MotionConfig>
   );
 }
 
@@ -227,6 +312,8 @@ interface CardProps {
   addTask: Store["addTask"];
   updateTask: Store["updateTask"];
   deleteTask: Store["deleteTask"];
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
 }
 
 function DeadlineCard({
@@ -238,6 +325,8 @@ function DeadlineCard({
   addTask,
   updateTask,
   deleteTask,
+  collapsed,
+  onCollapsedChange,
 }: CardProps) {
   const dueDate = deadline.dueDate!;
   const done = deadline.status === "COMPLETED";
@@ -275,6 +364,8 @@ function DeadlineCard({
 
   function toggleDone() {
     haptic(done ? "select" : "success");
+    // Fold the weekdays away when ticking off; reopening brings them back.
+    onCollapsedChange(!done);
     void updateTask(deadline.id, { status: done ? "OPEN" : "COMPLETED" });
   }
 
@@ -300,23 +391,37 @@ function DeadlineCard({
 
   return (
     <motion.article
-      layout
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.96 }}
-      transition={{ duration: 0.18 }}
+      layout="position"
+      initial={{ opacity: 0, y: -8, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.18 } }}
+      transition={{ duration: 0.28, ease: EASE }}
       className={`planning-card deadline-card deadline-card--${countdown.tone}${done ? " is-done" : ""}`}
     >
       <div className="deadline-card__top">
-        <button
+        <motion.button
           type="button"
           onClick={toggleDone}
           className="deadline-card__check"
           aria-label={done ? "Als offen markieren" : "Als abgegeben markieren"}
           aria-pressed={done}
+          whileTap={{ scale: 0.85 }}
         >
-          {done && <Check size={11} strokeWidth={3} />}
-        </button>
+          <AnimatePresence initial={false}>
+            {done && (
+              <motion.span
+                key="check"
+                className="deadline-card__check-mark"
+                initial={{ scale: 0, rotate: -30 }}
+                animate={{ scale: 1, rotate: 0 }}
+                exit={{ scale: 0, transition: { duration: 0.12 } }}
+                transition={{ type: "spring", stiffness: 520, damping: 22 }}
+              >
+                <Check size={11} strokeWidth={3} />
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.button>
 
         <div className="deadline-card__text">
           {editing ? (
@@ -344,23 +449,48 @@ function DeadlineCard({
               {deadline.title}
             </h3>
           )}
-          <p className="deadline-card__due">
-            bis {formatDue(dueDate)}
-            {plannedCount > 0 && (
-              <>
-                {" · "}
-                {doneCount}/{plannedCount} {plannedCount === 1 ? "Arbeitstag" : "Arbeitstage"} erledigt
-              </>
-            )}
-          </p>
+          <div className="deadline-card__meta">
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={countdown.label}
+                className="deadline-card__countdown"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.18 }}
+              >
+                {countdown.label}
+              </motion.span>
+            </AnimatePresence>
+            <span className="deadline-card__due">
+              bis {formatDue(dueDate)}
+              {plannedCount > 0 && ` · ${doneCount}/${plannedCount} erledigt`}
+            </span>
+          </div>
         </div>
 
         <div className="deadline-card__side">
-          <span className="deadline-card__countdown">{countdown.label}</span>
+          <button
+            type="button"
+            onClick={() => onCollapsedChange(!collapsed)}
+            className={`deadline-card__icon-button deadline-card__fold${collapsed ? " is-collapsed" : ""}`}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Wochentage zeigen" : "Wochentage ausblenden"}
+            title={collapsed ? "Wochentage zeigen" : "Wochentage ausblenden"}
+          >
+            <motion.span
+              className="deadline-card__fold-icon"
+              initial={false}
+              animate={{ rotate: collapsed ? -90 : 0 }}
+              transition={{ duration: 0.28, ease: EASE }}
+            >
+              <ChevronDown size={15} strokeWidth={2.2} />
+            </motion.span>
+          </button>
           <button
             type="button"
             onClick={handleDelete}
-            className="deadline-card__delete"
+            className="deadline-card__icon-button deadline-card__delete"
             aria-label="Abgabe löschen"
           >
             <Trash2 size={13} strokeWidth={2} />
@@ -368,51 +498,62 @@ function DeadlineCard({
         </div>
       </div>
 
-      {!done && (
-        <div className="deadline-days" role="group" aria-label="Arbeitstage einplanen">
-          {weekDays.map((day) => {
-            const session = sessionsByDay.get(day);
-            const isDue = day === dueDate;
-            const afterDue = day > dueDate;
-            const isPast = day < today;
-            const pending = pendingDays.includes(day);
-            const sessionDone = session?.status === "COMPLETED";
-            const disabled = pending || sessionDone || (!session && (afterDue || isPast));
-            const label = format(parseISO(day), "EEEEEE", { locale: de });
+      <AnimatePresence initial={false}>
+        {!collapsed && (
+          <motion.div
+            key="days"
+            className="deadline-days-wrap"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.28, ease: EASE }}
+          >
+            <div className="deadline-days" role="group" aria-label="Arbeitstage einplanen">
+              {weekDays.map((day) => {
+                const session = sessionsByDay.get(day);
+                const isDue = day === dueDate;
+                const afterDue = day > dueDate;
+                const isPast = day < today;
+                const pending = pendingDays.includes(day);
+                const sessionDone = session?.status === "COMPLETED";
+                const disabled = done || pending || sessionDone || (!session && (afterDue || isPast));
+                const label = format(parseISO(day), "EEEEEE", { locale: de });
 
-            return (
-              <button
-                key={day}
-                type="button"
-                disabled={disabled}
-                onClick={() => void toggleDay(day)}
-                className={[
-                  "deadline-day",
-                  session ? "is-planned" : "",
-                  sessionDone ? "is-done" : "",
-                  isDue ? "is-due" : "",
-                  day === today ? "is-today" : "",
-                  pending ? "is-pending" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                aria-pressed={Boolean(session)}
-                aria-label={`${format(parseISO(day), "EEEE", { locale: de })}${isDue ? ", Abgabetag" : ""}${
-                  session ? ", eingeplant" : ""
-                }`}
-              >
-                <span>{label}</span>
-                {sessionDone ? (
-                  <Check size={10} strokeWidth={3} />
-                ) : isDue ? (
-                  <Flag size={10} strokeWidth={2.4} />
-                ) : null}
-              </button>
-            );
-          })}
-
-        </div>
-      )}
+                return (
+                  <motion.button
+                    key={day}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => void toggleDay(day)}
+                    whileTap={disabled ? undefined : { scale: 0.9 }}
+                    className={[
+                      "deadline-day",
+                      session || pending ? "is-planned" : "",
+                      sessionDone ? "is-done" : "",
+                      isDue ? "is-due" : "",
+                      day === today ? "is-today" : "",
+                      pending ? "is-pending" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    aria-pressed={Boolean(session)}
+                    aria-label={`${format(parseISO(day), "EEEE", { locale: de })}${isDue ? ", Abgabetag" : ""}${
+                      session ? ", eingeplant" : ""
+                    }`}
+                  >
+                    <span>{label}</span>
+                    {sessionDone ? (
+                      <Check size={10} strokeWidth={3} />
+                    ) : isDue ? (
+                      <Flag size={10} strokeWidth={2.4} />
+                    ) : null}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.article>
   );
 }
