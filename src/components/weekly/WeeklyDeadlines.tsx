@@ -9,6 +9,7 @@ import { useTaskStore } from "@/stores/taskStore";
 import type { Task } from "@/types";
 import { toLocalDateString } from "@/lib/date";
 import { haptic } from "@/lib/haptics";
+import MiniCalendar from "@/components/ui/MiniCalendar";
 
 /** How far past the shown week upcoming deadlines are listed (in days after Sunday). */
 const UPCOMING_DAYS = 14;
@@ -150,17 +151,11 @@ export default function WeeklyDeadlines({ weekStart }: Props) {
             className="planning-add-form__input"
             maxLength={120}
           />
+          <MiniCalendar value={newDue} onChange={setNewDue} min={today} />
           <div className="planning-add-form__controls">
-            <label className="deadline-form__date">
-              <span>bis</span>
-              <input
-                type="date"
-                value={newDue}
-                min={today}
-                onChange={(event) => setNewDue(event.target.value)}
-                required
-              />
-            </label>
+            <p className="deadline-form__date">
+              bis <strong>{format(parseISO(newDue), "EEEE, d. MMMM", { locale: de })}</strong>
+            </p>
             <button
               type="submit"
               disabled={!newTitle.trim() || !newDue}
