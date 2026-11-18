@@ -21,6 +21,8 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { useDndContext, useDroppable } from "@dnd-kit/core";
+import { dayDropId, dayListId, getDropDate, getSourceDate } from "@/lib/dayDrop";
 import { useUIStore } from "@/stores/uiStore";
 import { useTaskStore } from "@/stores/taskStore";
 import TaskCard from "@/components/tasks/TaskCard";
@@ -92,6 +94,38 @@ function getDayProgress(dayTasks: Task[]) {
   const progress = Math.round((completedWeight / totalWeight) * 100);
 
   return Math.min(Math.max(progress, 0), 100);
+}
+
+/**
+ * One day column. On desktop the whole column takes dropped tasks from the
+ * other day and lights up while one hovers over it.
+ */
+function DayColumn({
+  date,
+  enabled,
+  isLast,
+  children,
+}: {
+  date: string;
+  enabled: boolean;
+  isLast: boolean;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef } = useDroppable({ id: dayDropId(date), disabled: !enabled });
+  const { active, over } = useDndContext();
+  const sourceDate = getSourceDate(active);
+  const isDropTarget =
+    enabled && sourceDate !== null && sourceDate !== date && getDropDate(over) === date;
+
+  return (
+    <section
+      ref={setNodeRef}
+      className={`planning-column${isDropTarget ? " planning-column--drop-target" : ""}`}
+      style={{ borderRight: isLast ? "0" : "1px solid var(--line-soft)" }}
+    >
+      {children}
+    </section>
+  );
 }
 
 export default function TaskList() {
@@ -298,10 +332,11 @@ export default function TaskList() {
             const dayProgress = getDayProgress(dayTasks);
 
             return (
-              <section
+              <DayColumn
                 key={dayDate}
-                className="planning-column"
-                style={{ borderRight: index === visibleDays.length - 1 ? "0" : "1px solid var(--line-soft)" }}
+                date={dayDate}
+                enabled={!isCompactLayout}
+                isLast={index === visibleDays.length - 1}
               >
                 <div className="planning-column__inner">
                   <div className="planning-column__heading">
@@ -413,6 +448,7 @@ export default function TaskList() {
                       {dayTasks.length > 0 ? (
                         <div className="planning-cards__stack">
                           <SortableContext
+                            id={dayListId(dayDate)}
                             items={dayTasks.map((task) => task.id)}
                             strategy={verticalListSortingStrategy}
                           >
@@ -442,7 +478,7 @@ export default function TaskList() {
                     </div>
                   </div>
                 </div>
-              </section>
+              </DayColumn>
             );
           })}
         </motion.div>

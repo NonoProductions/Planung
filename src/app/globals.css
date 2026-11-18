@@ -1169,6 +1169,12 @@ textarea {
   min-width: 0;
   justify-content: center;
   padding: 24px 18px 28px;
+  transition: background-color 160ms ease;
+}
+
+/* A task from the other day hovers over this column (desktop). */
+.planning-column--drop-target {
+  background-color: color-mix(in srgb, var(--text-primary) 4%, transparent);
 }
 
 .planning-column__inner {

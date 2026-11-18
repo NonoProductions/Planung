@@ -17,6 +17,7 @@ import {
   type DragOverEvent,
   type DragStartEvent,
   type DropAnimation,
+  type Over,
   type UniqueIdentifier,
 } from "@dnd-kit/core";
 import {
@@ -31,6 +32,41 @@ import type { Task } from "@/types";
 import { haptic } from "@/lib/haptics";
 import { edgeScrollStep, isInsideScrollerBody } from "@/lib/edgeScroll";
 import { CALENDAR_PEEK_ID } from "@/components/calendar/MobileCalendarPeek";
+import { addDays, differenceInCalendarDays, parseISO } from "date-fns";
+import { dateFromDayDropId, dayListId, getDropDate, getSourceDate } from "@/lib/dayDrop";
+
+/** Moves a task to another day, placed where it was dropped in that day's list. */
+function moveTaskToDay(task: Task, targetDate: string, over: Over, tasks: Task[], dropY: number | null) {
+  const targetTasks = tasks
+    .filter((item) => item.scheduledDate === targetDate && !item.isBacklog && item.id !== task.id)
+    .sort((first, second) => first.position - second.position);
+
+  let index = targetTasks.findIndex((item) => item.id === over.id);
+  if (index === -1) {
+    index = targetTasks.length;
+  } else if (dropY !== null && dropY > over.rect.top + over.rect.height / 2) {
+    index += 1;
+  }
+
+  // A task with a time block keeps its time of day on the new day.
+  const shift = task.scheduledDate
+    ? differenceInCalendarDays(parseISO(targetDate), parseISO(task.scheduledDate))
+    : 0;
+  const shiftTime = (value?: string) =>
+    value && shift !== 0 ? addDays(new Date(value), shift).toISOString() : value;
+
+  const ordered = [...targetTasks];
+  ordered.splice(index, 0, task);
+
+  const store = useTaskStore.getState();
+  void store.updateTask(task.id, {
+    scheduledDate: targetDate,
+    scheduledStart: shiftTime(task.scheduledStart),
+    scheduledEnd: shiftTime(task.scheduledEnd),
+    position: index,
+  });
+  store.reorderTasks(ordered.map((item) => item.id));
+}
 
 interface DndWrapperProps {
   children: React.ReactNode;
@@ -116,6 +152,18 @@ const customCollisionDetection: CollisionDetection = (args) => {
     return [calendarCollision];
   }
 
+  // Desktop: the pointer decides the day column; inside it, the nearest task
+  // of that day. An empty day takes the drop on the column itself.
+  const dayCollision = pointerCollisions.find((collision) => dateFromDayDropId(collision.id));
+  if (dayCollision) {
+    const listId = dayListId(dateFromDayDropId(dayCollision.id)!);
+    const inDay = args.droppableContainers.filter(
+      (container) => container.data.current?.sortable?.containerId === listId
+    );
+    if (inDay.length === 0) return [dayCollision];
+    return closestCenter({ ...args, droppableContainers: inDay });
+  }
+
   return closestCenter(args);
 };
 
@@ -169,8 +217,15 @@ export default function DndWrapper({ children }: DndWrapperProps) {
   }, []);
 
   // Decided while hovering, so the drop animation is already chosen on release.
+  // Another day counts too: the card is then rendered in a different column,
+  // so it fades out under the cursor instead of gliding back to its old slot.
   const handleDragOver = useCallback((event: DragOverEvent) => {
-    setOverCalendar(event.over?.id === "calendar-dropzone");
+    const targetDate = getDropDate(event.over);
+    const sourceDate = getSourceDate(event.active);
+    setOverCalendar(
+      event.over?.id === "calendar-dropzone" ||
+        (targetDate !== null && sourceDate !== null && targetDate !== sourceDate)
+    );
   }, []);
 
   const handleDragEnd = useCallback(
@@ -224,10 +279,19 @@ export default function DndWrapper({ children }: DndWrapperProps) {
         return;
       }
 
+      const isPhone = window.matchMedia("(max-width: 767px)").matches;
+
+      // Desktop: dropped into another day's column.
+      const movedTask = tasks.find((item) => item.id === active.id);
+      const targetDate = getDropDate(over);
+      if (!isPhone && movedTask && targetDate && targetDate !== movedTask.scheduledDate) {
+        moveTaskToDay(movedTask, targetDate, over, tasks, lastPointerY.current);
+        return;
+      }
+      if (dateFromDayDropId(over.id)) return;
+
       // On phones the calendar sheet covers the list, so there is nothing to reorder.
-      const sheetCoversList =
-        useUIStore.getState().calendarVisible &&
-        window.matchMedia("(max-width: 767px)").matches;
+      const sheetCoversList = useUIStore.getState().calendarVisible && isPhone;
 
       if (active.id !== over.id && !sheetCoversList) {
         const sortableData = active.data?.current?.sortable;
