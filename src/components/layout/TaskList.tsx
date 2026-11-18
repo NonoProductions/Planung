@@ -21,8 +21,8 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { useDndContext, useDroppable } from "@dnd-kit/core";
-import { dayDropId, dayListId, getDropDate, getSourceDate } from "@/lib/dayDrop";
+import { dayListId } from "@/lib/dayDrop";
+import { useDayDropTarget } from "@/components/dnd/useDayDropTarget";
 import { useUIStore } from "@/stores/uiStore";
 import { useTaskStore } from "@/stores/taskStore";
 import TaskCard from "@/components/tasks/TaskCard";
@@ -111,11 +111,7 @@ function DayColumn({
   isLast: boolean;
   children: React.ReactNode;
 }) {
-  const { setNodeRef } = useDroppable({ id: dayDropId(date), disabled: !enabled });
-  const { active, over } = useDndContext();
-  const sourceDate = getSourceDate(active);
-  const isDropTarget =
-    enabled && sourceDate !== null && sourceDate !== date && getDropDate(over) === date;
+  const { setNodeRef, isDropTarget } = useDayDropTarget(date, enabled);
 
   return (
     <section

@@ -4724,10 +4724,17 @@ input[type="number"] {
   flex-direction: column;
   padding: 18px 10px 24px;
   border-right: 1px solid var(--line-soft);
+  transition: background-color 160ms ease;
 }
 
 .week-day:last-child {
   border-right: 0;
+}
+
+/* A task from another day hovers over this day (desktop). */
+.week-day--drop-target,
+.week-day--past.week-day--drop-target {
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
 }
 
 /* Past days fade back so today and the rest of the week stand out */

@@ -20,6 +20,38 @@ import { isDeadlineTask } from "@/components/weekly/WeeklyDeadlines";
 import type { Task } from "@/types";
 import { extractDateOnly, toLocalDateString } from "@/lib/date";
 import { useDismissAddForm } from "@/hooks/useDismissAddForm";
+import { dayListId } from "@/lib/dayDrop";
+import { useDayDropTarget } from "@/components/dnd/useDayDropTarget";
+import { useIsMobile } from "@/components/calendar/MobileCalendarPeek";
+
+/** One day of the week. On desktop it takes tasks dragged from other days. */
+function WeekDayColumn({
+  date,
+  enabled,
+  className,
+  sectionRef,
+  children,
+}: {
+  date: string;
+  enabled: boolean;
+  className: string;
+  sectionRef?: React.RefObject<HTMLElement | null>;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isDropTarget } = useDayDropTarget(date, enabled);
+
+  return (
+    <section
+      ref={(node) => {
+        setNodeRef(node);
+        if (sectionRef) sectionRef.current = node;
+      }}
+      className={`${className}${isDropTarget ? " week-day--drop-target" : ""}`}
+    >
+      {children}
+    </section>
+  );
+}
 
 interface Props {
   weekStart: string;
@@ -36,6 +68,7 @@ export default function WeekGrid({ weekStart }: Props) {
   const requestDayQuickAdd = useUIStore((state) => state.requestDayQuickAdd);
   const clearQuickAddRequest = useUIStore((state) => state.clearQuickAddRequest);
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   const [newTitle, setNewTitle] = useState("");
   const [newChannelId, setNewChannelId] = useState("");
@@ -208,9 +241,11 @@ export default function WeekGrid({ weekStart }: Props) {
               : "var(--accent-danger)";
 
         return (
-          <section
+          <WeekDayColumn
             key={dayDate}
-            ref={today ? todayRef : undefined}
+            date={dayDate}
+            enabled={!isMobile}
+            sectionRef={today ? todayRef : undefined}
             className={`week-day${past ? " week-day--past" : ""}`}
           >
             <button
@@ -322,6 +357,7 @@ export default function WeekGrid({ weekStart }: Props) {
 
             <div className="week-day__cards">
               <SortableContext
+                id={dayListId(dayDate)}
                 items={dayTasks.map((task) => task.id)}
                 strategy={verticalListSortingStrategy}
               >
@@ -334,7 +370,7 @@ export default function WeekGrid({ weekStart }: Props) {
                 <p className="backlog-empty-copy">Keine Aufgaben</p>
               )}
             </div>
-          </section>
+          </WeekDayColumn>
         );
       })}
     </div>
