@@ -27,6 +27,10 @@ const FALLBACK_CHANNELS: Channel[] = [
   { id: "ch3", name: "Studium", color: "#F59E0B" },
 ];
 
+function sortChannels(channels: Channel[]) {
+  return [...channels].sort((first, second) => first.name.localeCompare(second.name, "de"));
+}
+
 class UnauthorizedApiError extends Error {
   constructor() {
     super("Unauthorized");
@@ -206,6 +210,11 @@ interface TaskState {
   fetchEventsForWeek: (weekStart: string) => Promise<void>;
   fetchCalendarCategories: () => Promise<void>;
 
+  // Channel CRUD
+  addChannel: (data: { name: string; color: string }) => Promise<void>;
+  updateChannel: (id: string, data: { name?: string; color?: string }) => Promise<void>;
+  deleteChannel: (id: string) => Promise<void>;
+
   // Calendar category CRUD
   addCalendarCategory: (data: { name: string; color: string }) => Promise<void>;
   updateCalendarCategory: (id: string, data: { name?: string; color?: string }) => Promise<void>;
@@ -299,6 +308,63 @@ export const useTaskStore = create<TaskState>()(
       set({ channels: data, apiAvailable: true });
     } catch {
       set({ channels: FALLBACK_CHANNELS, apiAvailable: false });
+    }
+  },
+
+  addChannel: async (data) => {
+    if (get().apiAvailable) {
+      try {
+        const res = await fetch("/api/channels", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        assertApiResponse(res);
+        const created: Channel = await res.json();
+        set((s) => ({ channels: sortChannels([...s.channels, created]) }));
+        return;
+      } catch { /* fall through */ }
+    }
+    const local: Channel = { id: `local-ch-${Date.now()}`, ...data };
+    set((s) => ({ channels: sortChannels([...s.channels, local]) }));
+  },
+
+  updateChannel: async (id, updates) => {
+    // Tasks carry a copy of their channel, so they change along with it.
+    const applyToTask = (task: Task) =>
+      task.channel?.id === id ? { ...task, channel: { ...task.channel, ...updates } } : task;
+    set((s) => ({
+      channels: s.channels.map((channel) => (channel.id === id ? { ...channel, ...updates } : channel)),
+      tasks: s.tasks.map(applyToTask),
+      backlogTasks: s.backlogTasks.map(applyToTask),
+    }));
+    if (get().apiAvailable) {
+      try {
+        const res = await fetch(`/api/channels/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
+        assertApiResponse(res);
+      } catch { /* optimistic already applied */ }
+    }
+  },
+
+  deleteChannel: async (id) => {
+    const unlink = (task: Task) =>
+      task.channelId === id || task.channel?.id === id
+        ? { ...task, channelId: undefined, channel: undefined }
+        : task;
+    set((s) => ({
+      channels: s.channels.filter((channel) => channel.id !== id),
+      tasks: s.tasks.map(unlink),
+      backlogTasks: s.backlogTasks.map(unlink),
+    }));
+    if (get().apiAvailable) {
+      try {
+        const res = await fetch(`/api/channels/${id}`, { method: "DELETE" });
+        assertApiResponse(res);
+      } catch { /* already removed locally */ }
     }
   },
 

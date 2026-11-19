@@ -3097,6 +3097,32 @@ input[type="number"] {
   font-size: 13px;
 }
 
+.settings-channel__hash {
+  margin-right: -6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-channel__delete {
+  height: 30px;
+  flex-shrink: 0;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.settings-channel__delete.is-armed {
+  border-color: var(--accent-danger);
+  background-color: var(--accent-danger);
+  color: #ffffff;
+}
+
 .settings-color {
   height: 30px;
   width: 30px;

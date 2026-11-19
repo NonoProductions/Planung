@@ -17,6 +17,7 @@ import { useObjectiveStore } from "@/stores/objectiveStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTaskStore } from "@/stores/taskStore";
 import TimeInput from "@/components/ui/TimeInput";
+import ChannelSettings from "@/components/settings/ChannelSettings";
 import type {
   CelebrationType,
   PlannerExportData,
@@ -383,6 +384,10 @@ export default function SettingsDashboard() {
                 }
               />
             </SettingRow>
+          </SettingsSection>
+
+          <SettingsSection title="Channels" subtitle={"Die #Tags an deinen Tasks"}>
+            <ChannelSettings />
           </SettingsSection>
 
           <SettingsSection title="Fokus" subtitle={"Pomodoro und Pausen"}>
