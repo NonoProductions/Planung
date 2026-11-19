@@ -155,6 +155,7 @@ export default function TaskCard({ task }: TaskCardProps) {
           isDragging ? " is-drag-placeholder" : ""
         }${fresh ? " is-fresh" : ""}`}
         style={sortableStyle}
+        data-task-id={task.id}
         {...attributes}
         {...listeners}
         onClick={(event) => {

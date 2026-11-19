@@ -17,6 +17,7 @@ import {
   type DragOverEvent,
   type DragStartEvent,
   type DropAnimation,
+  type DropAnimationFunction,
   type Over,
   type UniqueIdentifier,
 } from "@dnd-kit/core";
@@ -142,6 +143,80 @@ const calendarDropAnimation: DropAnimation = {
   }),
 };
 
+const OTHER_DAY_DURATION = 320;
+const OTHER_DAY_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
+
+/** Where the cursor was last seen during the drag. */
+let lastPointer: { x: number; y: number } | null = null;
+
+/** The task's real card after the move (not the lifted copy). */
+function findLandedCard(id: UniqueIdentifier) {
+  const selector = `.planning-card[data-task-id="${CSS_ESCAPE(String(id))}"]:not(.drag-overlay-card)`;
+  return document.querySelector<HTMLElement>(selector);
+}
+
+const CSS_ESCAPE = (value: string) =>
+  typeof window !== "undefined" && window.CSS?.escape ? window.CSS.escape(value) : value;
+
+/**
+ * Dropped onto another day: the card now lives in a different column, so the
+ * lifted copy glides onto that new card (position and size) and hands over.
+ */
+const otherDayDropAnimation: DropAnimationFunction = ({ active, dragOverlay, transform }) => {
+  const overlay = dragOverlay.node;
+
+  const land = (target: HTMLElement | null) => {
+    const from = overlay.getBoundingClientRect();
+    const to = target?.getBoundingClientRect();
+    overlay.classList.add("is-dropping");
+
+    if (!target || !to || to.width === 0 || from.width === 0) {
+      return overlay
+        .animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: "ease-out", fill: "forwards" })
+        .finished.then(() => undefined, () => undefined);
+    }
+
+    // Hide the real card until the copy has landed exactly on it.
+    target.style.visibility = "hidden";
+    // Its hover buttons only stay if the card lands under the cursor.
+    const underCursor =
+      lastPointer !== null &&
+      lastPointer.x >= to.left &&
+      lastPointer.x <= to.right &&
+      lastPointer.y >= to.top &&
+      lastPointer.y <= to.bottom;
+    if (!underCursor) overlay.classList.add("is-landing-away");
+    const finalTransform = CSS.Transform.toString({
+      x: transform.x + (to.left - from.left),
+      y: transform.y + (to.top - from.top),
+      scaleX: to.width / from.width,
+      scaleY: to.height / from.height,
+    });
+    overlay.style.transformOrigin = "0 0";
+    const animation = overlay.animate(
+      [{ transform: CSS.Transform.toString(transform) }, { transform: finalTransform }],
+      { duration: OTHER_DAY_DURATION, easing: OTHER_DAY_EASING, fill: "forwards" }
+    );
+    return animation.finished.then(
+      () => {
+        target.style.visibility = "";
+      },
+      () => {
+        target.style.visibility = "";
+      }
+    );
+  };
+
+  const target = findLandedCard(active.id);
+  if (target) return land(target);
+  // The moved card renders a moment later.
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      land(findLandedCard(active.id)).then(resolve);
+    });
+  });
+};
+
 const customCollisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
   const calendarCollision = pointerCollisions.find(
@@ -170,7 +245,7 @@ const customCollisionDetection: CollisionDetection = (args) => {
 export default function DndWrapper({ children }: DndWrapperProps) {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [overlayWidth, setOverlayWidth] = useState<number | null>(null);
-  const [overCalendar, setOverCalendar] = useState(false);
+  const [dropTarget, setDropTarget] = useState<"slot" | "calendar" | "otherDay">("slot");
   const lastPointerY = useRef<number | null>(null);
 
   // The calendar scrolls itself near its edges (CalendarEdgeScroll), so
@@ -197,7 +272,9 @@ export default function DndWrapper({ children }: DndWrapperProps) {
     if (activeId === null) return undefined;
     const track = (event: Event) => {
       const point = getClientCoordinates(event);
-      if (point) lastPointerY.current = point.clientY;
+      if (!point) return;
+      lastPointerY.current = point.clientY;
+      lastPointer = { x: point.clientX, y: point.clientY };
     };
     window.addEventListener("pointermove", track, { passive: true });
     window.addEventListener("touchmove", track, { passive: true });
@@ -209,23 +286,28 @@ export default function DndWrapper({ children }: DndWrapperProps) {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     lastPointerY.current = null;
+    lastPointer = null;
     overlayCopy = null;
     setActiveId(event.active.id);
     setOverlayWidth(event.active.rect.current.initial?.width ?? null);
-    setOverCalendar(false);
+    setDropTarget("slot");
     haptic("medium");
   }, []);
 
   // Decided while hovering, so the drop animation is already chosen on release.
-  // Another day counts too: the card is then rendered in a different column,
-  // so it fades out under the cursor instead of gliding back to its old slot.
+  // Another day: the card is then rendered in a different column, so it
+  // glides there instead of back to its old slot.
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const targetDate = getDropDate(event.over);
     const sourceDate = getSourceDate(event.active);
-    setOverCalendar(
-      event.over?.id === "calendar-dropzone" ||
-        (targetDate !== null && sourceDate !== null && targetDate !== sourceDate)
-    );
+    const isPhone = window.matchMedia("(max-width: 767px)").matches;
+    if (event.over?.id === "calendar-dropzone") {
+      setDropTarget("calendar");
+    } else if (!isPhone && targetDate !== null && sourceDate !== null && targetDate !== sourceDate) {
+      setDropTarget("otherDay");
+    } else {
+      setDropTarget("slot");
+    }
   }, []);
 
   const handleDragEnd = useCallback(
@@ -332,7 +414,15 @@ export default function DndWrapper({ children }: DndWrapperProps) {
       {children}
       <CalendarEdgeScroll pointerY={lastPointerY} />
 
-      <DragOverlay dropAnimation={overCalendar ? calendarDropAnimation : dropAnimation}>
+      <DragOverlay
+        dropAnimation={
+          dropTarget === "calendar"
+            ? calendarDropAnimation
+            : dropTarget === "otherDay"
+              ? otherDayDropAnimation
+              : dropAnimation
+        }
+      >
         {activeTask ? <DragOverlayCard task={activeTask} width={overlayWidth} /> : null}
       </DragOverlay>
     </DndContext>

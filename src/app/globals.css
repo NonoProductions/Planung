@@ -1436,6 +1436,16 @@ textarea {
     border-color 320ms ease-out;
 }
 
+/* Lands on another day away from the cursor: its hover buttons fade out. */
+.is-landing-away .drag-overlay-card .planning-card__ghost-action,
+.is-landing-away .drag-overlay-card .planning-card__grip {
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 140ms ease,
+    visibility 0s linear 140ms;
+}
+
 @keyframes drag-overlay-lift {
   from {
     box-shadow: 0 1px 0 rgba(var(--shadow-rgb), 0.04);
