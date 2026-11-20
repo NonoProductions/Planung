@@ -474,6 +474,8 @@ function CalendarEdgeScroll({ pointerY }: { pointerY: { readonly current: number
 
 /** Copy of the dragged card, made at pickup. Only one drag runs at a time. */
 let overlayCopy: HTMLElement | null = null;
+/** Picked up in the weekly view: its smaller card styles must apply to the copy too. */
+let overlayInWeek = false;
 
 /**
  * The card under the finger/cursor: an exact copy of the real card, lifted.
@@ -494,6 +496,7 @@ function DragOverlayCard({ task, width }: { task: Task; width: number | null }) 
       node.removeAttribute("id");
       node.querySelectorAll("[id]").forEach((child) => child.removeAttribute("id"));
       overlayCopy = node;
+      overlayInWeek = activeNode.closest(".week-day") !== null;
       return node;
     }
     return overlayCopy;
@@ -507,7 +510,13 @@ function DragOverlayCard({ task, width }: { task: Task; width: number | null }) 
   }, [copy]);
 
   if (copy) {
-    return <div ref={hostRef} style={{ width: width ?? undefined }} />;
+    return (
+      <div
+        ref={hostRef}
+        className={overlayInWeek ? "drag-overlay-host--week" : undefined}
+        style={{ width: width ?? undefined }}
+      />
+    );
   }
 
   return <FallbackOverlayCard task={task} width={width} />;

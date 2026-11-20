@@ -4883,21 +4883,25 @@ input[type="number"] {
   margin-top: 12px;
 }
 
-.week-day .planning-card {
+.week-day .planning-card,
+.drag-overlay-host--week .planning-card {
   padding: 11px 11px 10px;
 }
 
-.week-day .planning-card__title {
+.week-day .planning-card__title,
+.drag-overlay-host--week .planning-card__title {
   font-size: 13.5px;
   overflow-wrap: anywhere;
 }
 
-.week-day .planning-card__footer {
+.week-day .planning-card__footer,
+.drag-overlay-host--week .planning-card__footer {
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.week-day .planning-card__tag {
+.week-day .planning-card__tag,
+.drag-overlay-host--week .planning-card__tag {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;

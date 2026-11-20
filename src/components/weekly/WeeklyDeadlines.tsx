@@ -342,8 +342,6 @@ function DeadlineCard({
   const [editTitle, setEditTitle] = useState(deadline.title);
 
   const sessionsByDay = new Map(sessions.map((session) => [session.scheduledDate!, session]));
-  const plannedCount = sessions.length;
-  const doneCount = sessions.filter((session) => session.status === "COMPLETED").length;
 
   async function toggleDay(day: string) {
     if (pendingDays.includes(day)) return;
@@ -486,7 +484,6 @@ function DeadlineCard({
             </AnimatePresence>
             <span className="deadline-card__due">
               bis {formatDue(dueDate)}
-              {plannedCount > 0 && ` · ${doneCount}/${plannedCount} erledigt`}
             </span>
           </div>
         </div>
