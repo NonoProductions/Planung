@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { addWeeks, format, startOfWeek, subWeeks } from "date-fns";
 import { de } from "date-fns/locale";
 import { BarChart2, ChevronLeft, ChevronRight } from "lucide-react";
@@ -9,6 +9,7 @@ import MobileDateNav from "@/components/layout/MobileDateNav";
 import WeeklyDeadlines from "@/components/weekly/WeeklyDeadlines";
 import WeekGrid from "@/components/weekly/WeekGrid";
 import WeeklyReviewModal from "@/components/weekly/WeeklyReviewModal";
+import { useWeekSwipe } from "@/components/weekly/useWeekSwipe";
 import DndWrapper from "@/components/dnd/DndWrapper";
 import { toLocalDateString } from "@/lib/date";
 
@@ -21,6 +22,7 @@ export default function WeekPage() {
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
   const [showReview, setShowReview] = useState(false);
+  const boardRef = useRef<HTMLElement>(null);
 
   const weekStartStr = getWeekStart(currentWeek);
   const weekLabel = `${format(currentWeek, "d. MMM", { locale: de })} - ${format(addWeeks(currentWeek, 1), "d. MMM yyyy", {
@@ -34,6 +36,8 @@ export default function WeekPage() {
   function nextWeek() {
     setCurrentWeek((date) => addWeeks(date, 1));
   }
+
+  useWeekSwipe(boardRef, (direction) => setCurrentWeek((date) => addWeeks(date, direction)));
 
   function goToCurrentWeek() {
     setCurrentWeek(startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -64,7 +68,7 @@ export default function WeekPage() {
         }
       >
         <div className="app-main-surface">
-          <section className="planning-board">
+          <section ref={boardRef} className="planning-board">
             <div className="planning-toolbar">
               <div className="planning-toolbar__group planning-toolbar__group--nav">
                 <button
