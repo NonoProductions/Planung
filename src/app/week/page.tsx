@@ -111,7 +111,9 @@ export default function WeekPage() {
             </div>
 
             <div className="week-scroll">
-              <WeeklyDeadlines weekStart={weekStartStr} />
+              {/* Keyed by week: switching weeks swaps the deadlines at once instead of
+                  playing the add/remove animations, which made the grid below bounce. */}
+              <WeeklyDeadlines key={weekStartStr} weekStart={weekStartStr} />
               <WeekGrid weekStart={weekStartStr} />
             </div>
           </section>
