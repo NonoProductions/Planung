@@ -7,6 +7,8 @@ import { haptic } from "@/lib/haptics";
 const WHEEL_DISTANCE = 70;
 /** A pause this long (ms) between wheel events ends a trackpad gesture. */
 const WHEEL_GESTURE_GAP = 220;
+/** Earliest (ms) a new swipe can be told apart from the momentum of the last one. */
+const WHEEL_NEW_SWIPE_DELAY = 150;
 /** Horizontal distance (px) two fingers must travel on a touch screen. */
 const TOUCH_DISTANCE = 60;
 
@@ -53,22 +55,43 @@ export function useWeekSwipe(
 
     // Trackpad: one gesture (including its momentum) switches at most one week.
     let lastWheel = 0;
+    let lastAbs = 0;
+    let lastDirection = 0;
+    let risingStreak = 0;
     let accumulated = 0;
     let gestureUsed = false;
+    let usedAt = 0;
+
+    const startGesture = () => {
+      accumulated = 0;
+      gestureUsed = false;
+      risingStreak = 0;
+    };
 
     const onWheel = (event: WheelEvent) => {
       if (event.ctrlKey) return; // pinch zoom
       if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
 
-      if (event.timeStamp - lastWheel > WHEEL_GESTURE_GAP) {
-        accumulated = 0;
-        gestureUsed = false;
+      const abs = Math.abs(event.deltaX);
+      const direction = event.deltaX > 0 ? 1 : -1;
+
+      // A pause, a reversal, or deltas growing again while the momentum of the last
+      // swipe is still fading out all mean the fingers started a new swipe.
+      if (event.timeStamp - lastWheel > WHEEL_GESTURE_GAP || direction !== lastDirection) {
+        startGesture();
+      } else if (gestureUsed) {
+        risingStreak = abs > lastAbs + 1 ? risingStreak + 1 : 0;
+        if (risingStreak >= 2 && event.timeStamp - usedAt > WHEEL_NEW_SWIPE_DELAY) {
+          startGesture();
+        }
       }
       lastWheel = event.timeStamp;
+      lastAbs = abs;
+      lastDirection = direction;
 
-      const direction = event.deltaX > 0 ? 1 : -1;
       if (canScrollNatively(event.target, element, direction)) {
         gestureUsed = true;
+        usedAt = event.timeStamp;
         return;
       }
 
@@ -79,6 +102,7 @@ export function useWeekSwipe(
       accumulated += event.deltaX;
       if (Math.abs(accumulated) >= WHEEL_DISTANCE) {
         gestureUsed = true;
+        usedAt = event.timeStamp;
         step(accumulated > 0 ? 1 : -1);
       }
     };
