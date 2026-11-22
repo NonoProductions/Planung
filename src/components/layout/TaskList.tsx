@@ -30,6 +30,7 @@ import type { Task } from "@/types";
 import { toLocalDateString } from "@/lib/date";
 import { useDaySwipe } from "@/components/layout/useDaySwipe";
 import { useDismissAddForm } from "@/hooks/useDismissAddForm";
+import { useSlideIn, useTwoFingerSwipe } from "@/hooks/useTwoFingerSwipe";
 
 const DEFAULT_PROGRESS_WEIGHT_MINUTES = 30;
 
@@ -203,6 +204,14 @@ export default function TaskList() {
     onStep: (direction) =>
       setSelectedDate(toLocalDateString(addDays(parseISO(selectedDate), direction))),
   });
+
+  // On the PC a two-finger swipe on the trackpad steps a day, and the days glide in.
+  useTwoFingerSwipe(
+    columnsRef,
+    (direction) => setSelectedDate(toLocalDateString(addDays(parseISO(selectedDate), direction))),
+    !isCompactLayout
+  );
+  useSlideIn(columnsRef, selectedDate, !isCompactLayout);
 
   // Phones show one day, but render yesterday and tomorrow beside it (off screen)
   // so swiping already reveals the neighbouring day.

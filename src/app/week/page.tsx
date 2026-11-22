@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { addWeeks, format, startOfWeek, subWeeks } from "date-fns";
 import { de } from "date-fns/locale";
 import { BarChart2, ChevronLeft, ChevronRight } from "lucide-react";
@@ -9,7 +9,7 @@ import MobileDateNav from "@/components/layout/MobileDateNav";
 import WeeklyDeadlines from "@/components/weekly/WeeklyDeadlines";
 import WeekGrid from "@/components/weekly/WeekGrid";
 import WeeklyReviewModal from "@/components/weekly/WeeklyReviewModal";
-import { useWeekSwipe } from "@/components/weekly/useWeekSwipe";
+import { useSlideIn, useTwoFingerSwipe } from "@/hooks/useTwoFingerSwipe";
 import DndWrapper from "@/components/dnd/DndWrapper";
 import { toLocalDateString } from "@/lib/date";
 
@@ -38,26 +38,9 @@ export default function WeekPage() {
     setCurrentWeek((date) => addWeeks(date, 1));
   }
 
-  useWeekSwipe(boardRef, (direction) => setCurrentWeek((date) => addWeeks(date, direction)));
+  useTwoFingerSwipe(boardRef, (direction) => setCurrentWeek((date) => addWeeks(date, direction)));
 
-  // A new week glides in from the side it comes from: later weeks from the right.
-  const previousWeekStart = useRef(weekStartStr);
-  useLayoutEffect(() => {
-    const previous = previousWeekStart.current;
-    previousWeekStart.current = weekStartStr;
-    const element = weekScrollRef.current;
-    if (previous === weekStartStr || !element) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const direction = weekStartStr > previous ? 1 : -1;
-    element.getAnimations().forEach((animation) => animation.cancel());
-    element.animate(
-      [
-        { opacity: 0.35, translate: `${direction * 28}px 0` },
-        { opacity: 1, translate: "0 0" },
-      ],
-      { duration: 260, easing: "cubic-bezier(0.32, 0.72, 0, 1)" }
-    );
-  }, [weekStartStr]);
+  useSlideIn(weekScrollRef, weekStartStr);
 
   function goToCurrentWeek() {
     setCurrentWeek(startOfWeek(new Date(), { weekStartsOn: 1 }));

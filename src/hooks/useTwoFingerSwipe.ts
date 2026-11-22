@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { haptic } from "@/lib/haptics";
 
 /** Horizontal trackpad scroll (px) one gesture needs before the week switches. */
@@ -30,14 +30,15 @@ function canScrollNatively(target: EventTarget | null, container: HTMLElement, d
 }
 
 /**
- * Two-finger swipe left/right to change the week: a horizontal trackpad scroll on the
- * PC, or two fingers on a touch screen. Swiping left shows the next week. Where the
- * grid itself scrolls sideways (narrow windows), it scrolls first and the week only
- * changes on a new swipe from the edge.
+ * Two-finger swipe left/right to step forward or back (a week, a day): a horizontal
+ * trackpad scroll on the PC, or two fingers on a touch screen. Swiping left steps
+ * forward. Where the content itself scrolls sideways (narrow windows), it scrolls
+ * first and only a new swipe from the edge steps.
  */
-export function useWeekSwipe(
+export function useTwoFingerSwipe(
   containerRef: RefObject<HTMLElement | null>,
-  onStep: (direction: 1 | -1) => void
+  onStep: (direction: 1 | -1) => void,
+  enabled = true
 ) {
   const onStepRef = useRef(onStep);
   useEffect(() => {
@@ -46,7 +47,7 @@ export function useWeekSwipe(
 
   useEffect(() => {
     const element = containerRef.current;
-    if (!element) return undefined;
+    if (!enabled || !element) return undefined;
 
     const step = (direction: 1 | -1) => {
       haptic("select");
@@ -159,5 +160,33 @@ export function useWeekSwipe(
       element.removeEventListener("touchend", onTouchEnd);
       element.removeEventListener("touchcancel", onTouchCancel);
     };
-  }, [containerRef]);
+  }, [containerRef, enabled]);
+}
+
+/**
+ * When `value` changes, the element glides in briefly from the side the new value
+ * comes from: a later value (e.g. a later date) from the right.
+ */
+export function useSlideIn(
+  elementRef: RefObject<HTMLElement | null>,
+  value: string,
+  enabled = true
+) {
+  const previousValue = useRef(value);
+  useLayoutEffect(() => {
+    const previous = previousValue.current;
+    previousValue.current = value;
+    const element = elementRef.current;
+    if (!enabled || previous === value || !element) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const direction = value > previous ? 1 : -1;
+    element.getAnimations().forEach((animation) => animation.cancel());
+    element.animate(
+      [
+        { opacity: 0.35, translate: `${direction * 28}px 0` },
+        { opacity: 1, translate: "0 0" },
+      ],
+      { duration: 260, easing: "cubic-bezier(0.32, 0.72, 0, 1)" }
+    );
+  }, [value, enabled, elementRef]);
 }
