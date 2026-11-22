@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { addWeeks, format, startOfWeek, subWeeks } from "date-fns";
 import { de } from "date-fns/locale";
 import { BarChart2, ChevronLeft, ChevronRight } from "lucide-react";
@@ -23,6 +23,7 @@ export default function WeekPage() {
   );
   const [showReview, setShowReview] = useState(false);
   const boardRef = useRef<HTMLElement>(null);
+  const weekScrollRef = useRef<HTMLDivElement>(null);
 
   const weekStartStr = getWeekStart(currentWeek);
   const weekLabel = `${format(currentWeek, "d. MMM", { locale: de })} - ${format(addWeeks(currentWeek, 1), "d. MMM yyyy", {
@@ -38,6 +39,25 @@ export default function WeekPage() {
   }
 
   useWeekSwipe(boardRef, (direction) => setCurrentWeek((date) => addWeeks(date, direction)));
+
+  // A new week glides in from the side it comes from: later weeks from the right.
+  const previousWeekStart = useRef(weekStartStr);
+  useLayoutEffect(() => {
+    const previous = previousWeekStart.current;
+    previousWeekStart.current = weekStartStr;
+    const element = weekScrollRef.current;
+    if (previous === weekStartStr || !element) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const direction = weekStartStr > previous ? 1 : -1;
+    element.getAnimations().forEach((animation) => animation.cancel());
+    element.animate(
+      [
+        { opacity: 0.35, translate: `${direction * 28}px 0` },
+        { opacity: 1, translate: "0 0" },
+      ],
+      { duration: 260, easing: "cubic-bezier(0.32, 0.72, 0, 1)" }
+    );
+  }, [weekStartStr]);
 
   function goToCurrentWeek() {
     setCurrentWeek(startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -110,7 +130,7 @@ export default function WeekPage() {
               </div>
             </div>
 
-            <div className="week-scroll">
+            <div ref={weekScrollRef} className="week-scroll">
               {/* Keyed by week: switching weeks swaps the deadlines at once instead of
                   playing the add/remove animations, which made the grid below bounce. */}
               <WeeklyDeadlines key={weekStartStr} weekStart={weekStartStr} />
