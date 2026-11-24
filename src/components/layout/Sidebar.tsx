@@ -5,6 +5,7 @@ import {
   CalendarCheck2,
   CalendarRange,
   ChevronDown,
+  GraduationCap,
   ClipboardList,
   House,
   LogOut,
@@ -24,6 +25,7 @@ import { haptic } from "@/lib/haptics";
 const mainNav = [
   { label: "Home", href: "/", icon: House },
   { label: "Backlog", href: "/backlog", icon: ClipboardList },
+  { label: "Vorlesungen", shortLabel: "Vorlesung", href: "/vorlesungen", icon: GraduationCap },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Weekly planning", shortLabel: "Weekly", href: "/week", icon: CalendarRange },
   { label: "Settings", href: "/settings", icon: Settings2 },

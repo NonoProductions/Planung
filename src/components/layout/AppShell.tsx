@@ -56,6 +56,13 @@ function getPageMeta(pathname: string) {
     };
   }
 
+  if (pathname.startsWith("/vorlesungen")) {
+    return {
+      eyebrow: "Uni",
+      title: "Vorlesungen",
+    };
+  }
+
   if (pathname.startsWith("/week")) {
     return {
       eyebrow: "Weekly",

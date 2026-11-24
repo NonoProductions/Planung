@@ -196,13 +196,6 @@ export default function WeeklyObjectives({ weekStart }: Props) {
                             animate={{ width: `${objective.progress}%` }}
                             transition={{ duration: 0.35, ease: "easeOut" }}
                             className="planning-progress__fill"
-                            style={{
-                              background: done
-                                ? "var(--accent-success)"
-                                : objective.progress >= 50
-                                  ? "var(--accent-primary)"
-                                  : "var(--accent-warning)",
-                            }}
                           />
                         </div>
 

@@ -215,3 +215,17 @@ export interface PlannerExportData {
   channels: Channel[];
   calendarCategories: CalendarCategory[];
 }
+
+export interface LectureSession {
+  start: string; // local time, YYYY-MM-DDTHH:mm
+  end: string;
+}
+
+export interface LectureSubject {
+  id: string;
+  name: string;
+  lecturer: string;
+  sessions: LectureSession[];
+}
+
+export type LectureMark = "done" | "started" | "cancelled";
