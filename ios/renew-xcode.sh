@@ -12,6 +12,7 @@ LABEL=com.noelamborelle.planungsync.renew
 PROFILES="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 MODE=${1:-}
+SELF="${0:A}"
 
 mkdir -p "$BASE"
 echo "--- $(date '+%F %T') ${MODE:-manual}"
@@ -22,7 +23,7 @@ if [[ $MODE == --auto ]]; then
     echo "still fresh"; exit 0
   fi
 else
-  HERE="${0:A:h}"
+  HERE="${SELF:h}"
   mkdir -p "$BASE/src"
   rsync -a --delete --exclude build --exclude xcuserdata "$HERE/" "$BASE/src/"
 fi
@@ -57,7 +58,7 @@ security cms -D -i "$APP/embedded.mobileprovision" 2>/dev/null | grep -A1 Expira
 echo "installed"
 
 if [[ $MODE == --setup ]]; then
-  cp "$0" "$BASE/renew.sh"
+  cp "$SELF" "$BASE/renew.sh"
   cat > "$PLIST" <<XML
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
