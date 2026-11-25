@@ -21,8 +21,9 @@ Kleine iPhone-App, die deine Planung-Tasks in beide Richtungen mit Apple Erinner
 
 ## 7-Tage-Erneuerung
 
-Mit einer kostenlosen Apple-ID läuft die Signatur nach 7 Tagen ab. Die Daten bleiben erhalten, die App startet dann aber nicht mehr, bis sie neu signiert ist. Dafür gibt es zwei Wege:
+Mit einer kostenlosen Apple-ID läuft die Signatur nach 7 Tagen ab. Die Daten bleiben erhalten, die App startet dann aber nicht mehr, bis sie neu signiert ist. Dafür gibt es drei Wege:
 
+- `./renew-xcode.sh --setup`: signiert mit der Apple-ID aus Xcode, installiert aufs iPhone und richtet einen Hintergrunddienst auf dem Mac ein, der das alle 2 Tage wiederholt. Vorher `DEVICE=<UDID>` und `TEAM=<Team-ID>` in `~/Library/Application Support/PlanungSyncRenew/config` eintragen. Nach Codeänderungen einmal `./renew-xcode.sh` ausführen.
 - in Xcode erneut auf **Run** klicken, oder
 - die gebaute App mit **SideStore** installieren. SideStore erneuert sie direkt auf dem iPhone, und mit einer Kurzbefehle-Automation („SideStore → Apps aktualisieren“, täglich) läuft das automatisch.
 
