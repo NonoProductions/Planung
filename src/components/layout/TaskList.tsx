@@ -23,6 +23,7 @@ import {
 } from "@dnd-kit/sortable";
 import { dayListId } from "@/lib/dayDrop";
 import { useDayDropTarget } from "@/components/dnd/useDayDropTarget";
+import { remainingPlannedMinutes } from "@/lib/plannedTime";
 import { useUIStore } from "@/stores/uiStore";
 import { useTaskStore } from "@/stores/taskStore";
 import TaskCard from "@/components/tasks/TaskCard";
@@ -333,7 +334,7 @@ export default function TaskList() {
           {visibleDays.map((day, index) => {
             const dayDate = toLocalDateString(day);
             const dayTasks = tasksByDay.get(dayDate) || [];
-            const dayPlannedTotal = dayTasks.reduce((sum, task) => sum + (task.plannedTime || 0), 0);
+            const dayPlannedTotal = remainingPlannedMinutes(dayTasks);
             const dayProgress = getDayProgress(dayTasks);
 
             return (

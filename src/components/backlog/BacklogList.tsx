@@ -14,6 +14,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { remainingPlannedMinutes } from "@/lib/plannedTime";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
 import { FolderPlus, Plus, Search, Sparkles, X } from "lucide-react";
@@ -356,7 +357,7 @@ export default function BacklogList() {
     target: string,
     isFolder?: boolean
   ) => {
-    const plannedTotal = tasks.reduce((sum, task) => sum + (task.plannedTime || 0), 0);
+    const plannedTotal = remainingPlannedMinutes(tasks);
 
     return (
       <>

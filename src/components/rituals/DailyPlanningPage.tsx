@@ -6,6 +6,7 @@ import { de } from "date-fns/locale";
 import { ArrowRight, CalendarCheck2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toLocalDateString } from "@/lib/date";
+import { remainingPlannedMinutes } from "@/lib/plannedTime";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
 import type { Task } from "@/types";
@@ -73,7 +74,7 @@ export default function DailyPlanningPage() {
     })
     .slice(0, MAX_SUGGESTIONS);
 
-  const plannedMinutes = todayTasks.reduce((sum, task) => sum + (task.plannedTime ?? 0), 0);
+  const plannedMinutes = remainingPlannedMinutes(todayTasks);
 
   async function handleAddTask() {
     const title = newTaskTitle.trim();

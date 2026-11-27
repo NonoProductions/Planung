@@ -13,6 +13,7 @@ import { de } from "date-fns/locale";
 import { Flag, Plus } from "lucide-react";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
+import { remainingPlannedMinutes } from "@/lib/plannedTime";
 import { useTaskStore } from "@/stores/taskStore";
 import { useUIStore } from "@/stores/uiStore";
 import TaskCard from "@/components/tasks/TaskCard";
@@ -227,7 +228,7 @@ export default function WeekGrid({ weekStart }: Props) {
         const today = isToday(day);
         const past = !today && isPast(day);
         const completedCount = dayTasks.filter((task) => task.status === "COMPLETED").length;
-        const totalPlanned = dayTasks.reduce((sum, task) => sum + (task.plannedTime || 0), 0);
+        const totalPlanned = remainingPlannedMinutes(dayTasks);
         const completionPct = dayTasks.length > 0 ? (completedCount / dayTasks.length) * 100 : 0;
         const dueToday = tasks.filter(
           (task) => isDeadlineTask(task) && task.dueDate === dayDate
